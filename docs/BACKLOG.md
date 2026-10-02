@@ -1,12 +1,14 @@
 # Backlog и порядок реализации
 
-Редакция: 2026-10-02. TASK-00 после пересмотра remaining gates: [feasibility report](TASK-00-FEASIBILITY.md), **READY FOR USER APPROVAL**, не DONE. Технических blocker для TASK-01 не осталось; TASK-01–TASK-14 не начаты. Scope и рекомендованный stack ещё ожидают утверждения пользователя.
+Редакция: 2026-10-02. TASK-00 принят пользователем, TASK-01 и TASK-02 DONE. TASK-03–TASK-14 не начаты. [Feasibility report](TASK-00-FEASIBILITY.md) сохраняет исторические результаты и ограничения первоначальной проверки.
 
 TASK-00–TASK-14 — 15 задач с сохранённой запрошенной нумерацией, вместо прежних 23 TASK-00–TASK-22. CI — отдельное SHOULD после MVP, без обязательной TASK-15.
 
 В каждом task перечислены только его изменения; полные contracts/rules находятся в документах-владельцах. Tests выполняются вместе с функцией, TASK-12 собирает итоговую проверку.
 
 ## TASK-00 — Feasibility gate
+
+**Status:** DONE — результат и выбранный stack приняты пользователем.
 
 **Goal:** подтвердить минимальные предпосылки до bootstrap.  
 **Why:** версия курса, provider и источники могут изменить реализацию и conditional Google scope.  
@@ -45,6 +47,8 @@ TASK-00–TASK-14 — 15 задач с сохранённой запрошенн
 **Out of Scope:** каталог, AI tools, Telegram, Docker/Dokploy.  
 
 ## TASK-02 — Restaurant catalog
+
+**Status:** DONE — 2026-10-02. Schema/JPA/services/DTO и оба GET реализованы. `clean test` и `clean verify`: 28 tests, 0 failures/errors/skipped. PostgreSQL 17.10: 27 catalog tests, 0 failures/errors/skipped; Flyway на пустой БД/reapply и Hibernate validate PASS. У всех трёх филиалов сохранены положительный check per guest, DERIVED type, источники и даты; применимость общего сетевого меню двух филиалов подтверждена. Расписание, включая overnight, сохранено. Все Acceptance Criteria PASS. Суммы, методика и граница сетевого evidence: [DATABASE.md](DATABASE.md#estimated-check-strategy).
 
 **Goal:** хранить и читать проверенные рестораны.  
 **Why:** факты должны существовать до подключения AI.  
@@ -336,17 +340,17 @@ Telegram
 | Gate | Evidence status | Classification | Обоснование / когда закрыть |
 |---|---|---|---|
 | N1 demand | UNKNOWN | PLANNING_INPUT | Востребованность не подтверждена; bootstrap учебного проекта не зависит от интервью |
-| N2 own data | PARTIAL | DEFERRED_TO_LATER_TASK | Feasibility первых 3 заведений: источники/check/hours и читаемые menus найдены. Branch applicability проверить до seed/check в TASK-02 и menu import в TASK-03; полный каталог — TASK-11 |
+| N2 own data | PASS для каталога первых 3 филиалов; остальное PARTIAL | DEFERRED_TO_LATER_TASK | TASK-02: checks/hours/sources/dates и применимость сетевого меню подтверждены; [источники и методика](DATABASE.md#estimated-check-strategy). Menu import — TASK-03; расширение каталога — последующие задачи |
 | N3 Google | DEFERRED | DEFERRED_TO_LATER_TASK | Только TASK-10: live PASS либо explicit documented exclusion; собственный каталог/поиск независимы |
 | N4 account tariff/budget/quotas | PARTIAL; центральные AI capabilities PASS | DEFERRED_TO_LATER_TASK | AIAI auth/model/Spring/tools/native output/1 tool–2 calls подтверждены. Тариф и account caps уточнить перед регулярными AI calls в TASK-05; production/eval error-path retry checks — TASK-05/TASK-12 |
 | N5 VPS | UNKNOWN | DEFERRED_TO_LATER_TASK | Remote AI подтверждён, локальный bootstrap не зависит от VPS. Resources/access/backup нужны в TASK-13 |
 | N6 deadline/weekly time | USER_INPUT_REQUIRED | PLANNING_INPUT | Нужны для оценки scope/темпа, не для сборки Maven и application smoke |
 | N7 external course rubric | USER_INPUT_REQUIRED; проектные требования достаточны | PLANNING_INPUT | Java 21 и обязательный stack зафиксированы в рабочих docs и stack evidence TASK-00; line A с Boot 3.5.16/AI 1.1.8 проверена. Дополнительная rubric не найдена, но документированного противоречия нет; отдельное подтверждение курса не technical blocker |
-| PostgreSQL live acceptance | BLOCKED_BY_CREDENTIALS для прежнего local-server probe | DEFERRED_TO_LATER_TASK | Необходимы отдельные разрешённые development/test DB credentials, не production secrets. TASK-01 допускает локальную конфигурацию вне Git; migrations/constraints — TASK-02, memory restart — TASK-07, deployment credentials — TASK-13 |
+| PostgreSQL live acceptance | PASS для каталога TASK-02 на PostgreSQL 17.10 | DEFERRED_TO_LATER_TASK | Flyway, Hibernate validate, seed и constraints проверены на отдельной пустой БД. Memory restart — TASK-07; production/deployment credentials — TASK-13 |
 
 Обоснование N7 и версии: [TASK-00 sections 2–4](TASK-00-FEASIBILITY.md#2-course-requirements); [Architecture ADR](ARCHITECTURE.md#adr-summary), [AI version gate](AI.md#version-gate-перед-bootstrap), [Product MUST](PRODUCT.md#mvp--must). Требования проекта не выдаются за найденную rubric курса. Рекомендованный stack A подготовлен для утверждения пользователя; автоматического утверждения Spring AI 1.1.8 нет.
 
-**TECHNICAL READINESS FOR TASK-01: READY. TASK-00: READY FOR USER APPROVAL.** Фактические PARTIAL/UNKNOWN/USER_INPUT_REQUIRED/BLOCKED_BY_CREDENTIALS сохраняются для указанных будущих задач и planning inputs. Утверждение пользователем scope/stack и результата TASK-00 — следующий workflow step, не неизвестный технический gate. TASK-00 не DONE, TASK-01 не начата.
+**TASK-00 принят; TASK-01 и TASK-02 DONE.** Data acceptance первых трёх каталожных записей закрыт. Остальные PARTIAL/UNKNOWN/USER_INPUT_REQUIRED сохраняются для указанных будущих задач и planning inputs.
 
 ## SHOULD после MVP
 
