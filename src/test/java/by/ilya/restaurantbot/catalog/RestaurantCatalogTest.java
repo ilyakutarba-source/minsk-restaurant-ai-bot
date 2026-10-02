@@ -43,7 +43,7 @@ class RestaurantCatalogTest {
     @Test
     void migrationsValidateAndReapplyWithoutDuplicatingSeed() {
         assertThat(flyway.validateWithResult().validationSuccessful).isTrue();
-        assertThat(flyway.info().applied()).hasSize(2);
+        assertThat(flyway.info().applied()).hasSize(4);
         assertThat(flyway.migrate().migrationsExecuted).isZero();
         assertThat(repository.count()).isEqualTo(3);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM opening_intervals", Integer.class)).isEqualTo(21);

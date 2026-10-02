@@ -31,9 +31,13 @@ OpenAPI: <http://127.0.0.1:8080/v3/api-docs>.
 Default profile получает PostgreSQL connection из `DB_URL`, `DB_USER`, `DB_PASSWORD`;
 реальные значения задаются вне Git. Конфигурация доступа: [DEPLOYMENT](docs/DEPLOYMENT.md).
 
-Статус: TASK-01 DONE; доменная схема начинается в TASK-02.
-Flyway включён без миграций; Hibernate уже использует `validate`.
-H2 smoke не подтверждает PostgreSQL acceptance.
+Реализованы каталог первых трёх ресторанов и сохранённые partial menus.
+Flyway V1–V4 создаёт schema и применяет локальные datasets; Hibernate использует `validate`.
+Каталог/details доступны на `/api/v1/restaurants`; меню — `/api/v1/restaurants/{id}/menu`
+с optional `dishType=PASTA` и `maxItemPriceByn`. Меню содержит coverage=PARTIAL,
+source/date и BYN prices. Отсутствие блюда в БД не означает его отсутствия в полном меню.
+JSON dataset и controlled import: [DATABASE](docs/DATABASE.md#controlled-seedimport).
+H2 tests и PostgreSQL acceptance проверяются отдельно: [BACKLOG](docs/BACKLOG.md).
 Основная документация: [Product](docs/PRODUCT.md), [Architecture](docs/ARCHITECTURE.md),
 [AI](docs/AI.md), [Database](docs/DATABASE.md), [Backlog](docs/BACKLOG.md),
 [TASK-00 evidence](docs/TASK-00-FEASIBILITY.md).

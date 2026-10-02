@@ -52,6 +52,14 @@ public class Restaurant {
     @Column(name = "hours_verified_at")
     private LocalDate hoursVerifiedAt;
 
+    @Column(name = "menu_source", length = 2000)
+    private String menuSource;
+    @Column(name = "menu_verified_at")
+    private LocalDate menuVerifiedAt;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "menu_coverage", length = 7)
+    private MenuCoverage menuCoverage;
+
     @ElementCollection
     @CollectionTable(name = "restaurant_cuisines", joinColumns = @JoinColumn(name = "restaurant_id"))
     @Enumerated(EnumType.STRING)
@@ -103,6 +111,19 @@ public class Restaurant {
     }
 
     public Long getId() { return id; }
+    public void setPartialMenu(String source, LocalDate verifiedAt) {
+        MenuDataset.requireSource(source);
+        if (verifiedAt == null) {
+            throw new IllegalArgumentException("Menu verification date is required");
+        }
+        this.menuSource = source;
+        this.menuVerifiedAt = verifiedAt;
+        this.menuCoverage = MenuCoverage.PARTIAL;
+    }
+
+    public String getMenuSource() { return menuSource; }
+    public LocalDate getMenuVerifiedAt() { return menuVerifiedAt; }
+    public MenuCoverage getMenuCoverage() { return menuCoverage; }
     public String getSeedKey() { return seedKey; }
     public String getName() { return name; }
     public String getAddress() { return address; }

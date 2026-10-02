@@ -127,6 +127,11 @@ Java возвращает reason codes для объяснения: совпав
 
 Пустая выдача — 200 с пустым списком. Известный restaurant с недоступным меню — 200 с понятным data status. Google failure при доступных own details — 200 с warning. Entities и provider DTO не возвращаются в API.
 
+TASK-03 реализует menu GET: status AVAILABLE / NO_RESULTS / DATA_UNAVAILABLE, coverage,
+source, verifiedAt, currency=BYN, notice, items. PARTIAL metadata при наличии остаются видимыми
+в пустом результате; unknown restaurant → 404, invalid dishType/price → 400.
+Фильтры/модель и controlled import принадлежат [DATABASE.md](DATABASE.md#menu-data-strategy).
+
 POST recommendations оставлен для изолированной проверки Java logic и demo через Swagger. Это не AI endpoint. Telegram вызывает services напрямую, без HTTP-запроса к собственному приложению.
 
 REST/Swagger непубличны; публичный chat/admin API отсутствует. Spring Security вне MVP; сетевой режим принадлежит [DEPLOYMENT.md](DEPLOYMENT.md#доступ-и-секреты).

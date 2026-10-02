@@ -1,0 +1,226 @@
+{
+  "menus": [
+    {
+      "restaurantSeedKey": "vasilki-nezavisimosti-16",
+      "coverage": "PARTIAL",
+      "source": "https://vasilki.by/",
+      "verifiedAt": "2026-10-02",
+      "items": [
+        {
+          "seedKey": "draniki-machanka",
+          "name": "Драники с мачанкой по-белорусски",
+          "category": "MAIN",
+          "dishType": null,
+          "priceByn": 22.90,
+          "portion": "550 г",
+          "description": null,
+          "source": "https://vasilki.by/img/menu/Драники_1.jpg",
+          "active": true
+        },
+        {
+          "seedKey": "draniki-goulash",
+          "name": "Драники с гуляшом из говядины",
+          "category": "MAIN",
+          "dishType": null,
+          "priceByn": 25.10,
+          "portion": "470 г",
+          "description": null,
+          "source": "https://vasilki.by/img/menu/Драники_1.jpg",
+          "active": true
+        },
+        {
+          "seedKey": "draniki-pork-mushrooms",
+          "name": "Драники со свининой и грибами",
+          "category": "MAIN",
+          "dishType": null,
+          "priceByn": 23.00,
+          "portion": "465 г",
+          "description": null,
+          "source": "https://vasilki.by/img/menu/Драники_1.jpg",
+          "active": true
+        },
+        {
+          "seedKey": "shchi",
+          "name": "Щи с лесными грибами",
+          "category": "SOUP",
+          "dishType": null,
+          "priceByn": 16.90,
+          "portion": "460 г",
+          "description": null,
+          "source": "https://vasilki.by/img/menu/Супы_1.jpg",
+          "active": true
+        },
+        {
+          "seedKey": "solyanka",
+          "name": "Домашняя солянка",
+          "category": "SOUP",
+          "dishType": null,
+          "priceByn": 13.40,
+          "portion": "330 г",
+          "description": null,
+          "source": "https://vasilki.by/img/menu/Супы_2.jpg",
+          "active": true
+        },
+        {
+          "seedKey": "borsch",
+          "name": "Борщ с ребрышком и смальцем",
+          "category": "SOUP",
+          "dishType": null,
+          "priceByn": 14.20,
+          "portion": "455 г",
+          "description": null,
+          "source": "https://vasilki.by/img/menu/Супы_2.jpg",
+          "active": true
+        }
+      ]
+    },
+    {
+      "restaurantSeedKey": "pizza-tempo-karla-marksa-26",
+      "coverage": "PARTIAL",
+      "source": "https://tempo.by/",
+      "verifiedAt": "2026-10-02",
+      "items": [
+        {
+          "seedKey": "carbonara",
+          "name": "Паста Карбонара",
+          "category": "PASTA",
+          "dishType": "PASTA",
+          "priceByn": 19.50,
+          "portion": "295 г",
+          "description": null,
+          "source": "https://tempo.by/img/menu/пасты%201.jpg",
+          "active": true
+        },
+        {
+          "seedKey": "seafood-pasta",
+          "name": "Паста с кальмарами и креветками",
+          "category": "PASTA",
+          "dishType": "PASTA",
+          "priceByn": 25.20,
+          "portion": "380 г",
+          "description": null,
+          "source": "https://tempo.by/img/menu/пасты%201.jpg",
+          "active": true
+        },
+        {
+          "seedKey": "alfredo",
+          "name": "Паста Альфредо",
+          "category": "PASTA",
+          "dishType": "PASTA",
+          "priceByn": 17.40,
+          "portion": "320 г",
+          "description": null,
+          "source": "https://tempo.by/img/menu/пасты%201.jpg",
+          "active": true
+        },
+        {
+          "seedKey": "mushroom-soup",
+          "name": "Суп-крем из шампиньонов с сыром с голубой плесенью",
+          "category": "SOUP",
+          "dishType": null,
+          "priceByn": 13.20,
+          "portion": "265 г",
+          "description": null,
+          "source": "https://tempo.by/img/menu/супы%201.jpg",
+          "active": true
+        },
+        {
+          "seedKey": "solyanka",
+          "name": "Солянка",
+          "category": "SOUP",
+          "dishType": null,
+          "priceByn": 11.90,
+          "portion": "280 г",
+          "description": null,
+          "source": "https://tempo.by/img/menu/супы%201.jpg",
+          "active": true
+        },
+        {
+          "seedKey": "borsch",
+          "name": "Борщ с салом",
+          "category": "SOUP",
+          "dishType": null,
+          "priceByn": 13.30,
+          "portion": "380 г",
+          "description": null,
+          "source": "https://tempo.by/img/menu/супы%201.jpg",
+          "active": true
+        }
+      ]
+    },
+    {
+      "restaurantSeedKey": "khinkalnya-dzerzhinskogo-104",
+      "coverage": "PARTIAL",
+      "source": "https://www.titanminsk.by/kafe-i-restoranyi/restoran/menyu/",
+      "verifiedAt": "2026-10-02",
+      "items": [
+        {
+          "seedKey": "pork-shashlik",
+          "name": "Шашлык из свинины",
+          "category": "MAIN",
+          "dishType": null,
+          "priceByn": 25.00,
+          "portion": "200/60 г",
+          "description": null,
+          "source": null,
+          "active": true
+        },
+        {
+          "seedKey": "chicken-shashlik",
+          "name": "Шашлык из курицы",
+          "category": "MAIN",
+          "dishType": null,
+          "priceByn": 23.00,
+          "portion": "200/60 г",
+          "description": null,
+          "source": null,
+          "active": true
+        },
+        {
+          "seedKey": "lula-kebab",
+          "name": "Люля кебаб",
+          "category": "MAIN",
+          "dishType": null,
+          "priceByn": 24.00,
+          "portion": "180/50 г",
+          "description": null,
+          "source": null,
+          "active": true
+        },
+        {
+          "seedKey": "kharcho",
+          "name": "Харчо",
+          "category": "SOUP",
+          "dishType": null,
+          "priceByn": 19.00,
+          "portion": "250/2 г",
+          "description": null,
+          "source": null,
+          "active": true
+        },
+        {
+          "seedKey": "chikhirtma",
+          "name": "Чихиртма",
+          "category": "SOUP",
+          "dishType": null,
+          "priceByn": 16.00,
+          "portion": "300 г",
+          "description": null,
+          "source": null,
+          "active": true
+        },
+        {
+          "seedKey": "cheese-soup",
+          "name": "Сырный суп с хинкали",
+          "category": "SOUP",
+          "dishType": null,
+          "priceByn": 15.00,
+          "portion": "300 г",
+          "description": null,
+          "source": null,
+          "active": true
+        }
+      ]
+    }
+  ]
+}
