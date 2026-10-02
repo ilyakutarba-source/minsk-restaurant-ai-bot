@@ -1,0 +1,16 @@
+target/
+.idea/
+*.iml
+.vscode/
+.env
+.env.*
+*.env
+application-local.yml
+application-local.yaml
+*.dump
+*.backup
+*.jks
+*.p12
+*.pem
+__pycache__/
+*.pyc

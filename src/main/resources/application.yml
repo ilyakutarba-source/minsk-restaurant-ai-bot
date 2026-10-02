@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: minsk-restaurant-ai-bot
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+
+# REST and Swagger are local demo interfaces (see docs/DEPLOYMENT.md).
+server:
+  address: 127.0.0.1
