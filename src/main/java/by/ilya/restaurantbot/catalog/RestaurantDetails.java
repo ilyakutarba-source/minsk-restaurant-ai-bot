@@ -15,7 +15,7 @@ public record RestaurantDetails(Long id, String name, String address, boolean ac
         String checkSource, LocalDate checkVerifiedAt,
         String hoursSource, LocalDate hoursVerifiedAt, List<Hours> openingIntervals) {
 
-    static RestaurantDetails from(Restaurant restaurant) {
+    public static RestaurantDetails from(Restaurant restaurant) {
         var intervals = restaurant.getOpeningIntervals().stream()
                 .sorted(Comparator.comparing(OpeningInterval::getWeekday).thenComparing(OpeningInterval::getOpensAt))
                 .map(i -> new Hours(i.getWeekday(), i.getOpensAt(), i.getClosesAt(), i.isClosesNextDay()))

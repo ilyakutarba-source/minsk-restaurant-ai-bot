@@ -1,6 +1,6 @@
 # Backlog и порядок реализации
 
-Редакция: 2026-10-02. TASK-00 принят пользователем, TASK-01–TASK-03 DONE. TASK-04–TASK-14 не начаты. [Feasibility report](TASK-00-FEASIBILITY.md) сохраняет исторические результаты и ограничения первоначальной проверки.
+Редакция: 2026-10-03. TASK-00 принят пользователем, TASK-01–TASK-04 DONE. TASK-05–TASK-14 не начаты. [Feasibility report](TASK-00-FEASIBILITY.md) сохраняет исторические результаты и ограничения первоначальной проверки.
 
 TASK-00–TASK-14 — 15 задач с сохранённой запрошенной нумерацией, вместо прежних 23 TASK-00–TASK-22. CI — отдельное SHOULD после MVP, без обязательной TASK-15.
 
@@ -89,6 +89,21 @@ TASK-00–TASK-14 — 15 задач с сохранённой запрошенн
 **Out of Scope:** полное меню, scraping, automatic sync, allergens inference, basket estimation.  
 
 ## TASK-04 — Restaurant search
+
+**Status:** DONE — 2026-10-03. RestaurantSearchService, normalized criteria, Java hard filters,
+BigDecimal check × guests, own day/overnight hours, MatchCount/tie-break, ≤3 candidates,
+reason codes и POST recommendations/Swagger реализованы. `clean test` и `clean verify`:
+115 tests, 0 failures/errors/skipped; PostgreSQL 17.10: 114 tests, 0 failures/errors/skipped
+(catalog/menu/search и HTTP error mapping, без H2-only context smoke). Flyway на пустой
+test БД/reapply и Hibernate validate PASS. Все Acceptance Criteria PASS.
+[Реализованный contract](ARCHITECTURE.md#реализация-task-04).
+
+Приёмка TASK-04: budget boundary/несколько гостей PASS; guests — только входная
+валидация 1–6 и множитель бюджета, не capacity filter; normal/overnight/exact closing
+и переход недели PASS; supported dates/Europe-Minsk Clock PASS; strict cuisine и
+unknown check/hours PASS; soft tags, stable total/ID tie-break и limit PASS; REST
+200/400/503 и Swagger PASS; удаление всех MenuItem rows и menu metadata не меняет
+результат. Схема, migrations и первоначальные datasets не изменены. TASK-05 не начата.
 
 **Goal:** детерминированно подбирать заведения в Java.  
 **Why:** AI tool должен вызывать готовую проверяемую логику.  

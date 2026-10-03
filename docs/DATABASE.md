@@ -1,6 +1,6 @@
 # Данные и PostgreSQL
 
-Редакция: 2026-10-02. Каталог TASK-02 и partial menu TASK-03 реализованы; остальные части модели остаются планом. Статус приёмки: [BACKLOG.md](BACKLOG.md). Search rules: [ARCHITECTURE.md](ARCHITECTURE.md#правила-поиска-и-рекомендаций). Разговорное поведение: [AI.md](AI.md). Scope: [PRODUCT.md](PRODUCT.md).
+Редакция: 2026-10-03. Каталог TASK-02 и partial menu TASK-03 реализованы; остальные части модели остаются планом. Статус приёмки: [BACKLOG.md](BACKLOG.md). Search rules: [ARCHITECTURE.md](ARCHITECTURE.md#правила-поиска-и-рекомендаций). Разговорное поведение: [AI.md](AI.md). Scope: [PRODUCT.md](PRODUCT.md).
 
 ## Минимальная domain model
 
@@ -207,10 +207,10 @@ H2 полезна для части простых JPA tests; она не док
 Тесты каталога используют тот же Flyway SQL и Hibernate validate на H2 без compatibility mode. Для повторения PostgreSQL проверки нужна отдельная пустая development/test БД. Подключение передаётся извне (не использовать рабочую БД):
 
 ```powershell
-.\mvnw.cmd test "-Dtest=RestaurantCatalogTest,PartialMenuTest" `
+.\mvnw.cmd test "-Dtest=RestaurantCatalogTest,PartialMenuTest,RestaurantSearchTest,RecommendationErrorTest" `
   "-Dspring.datasource.url=$env:DB_URL" `
   "-Dspring.datasource.username=$env:DB_USER" `
   "-Dspring.datasource.driver-class-name=org.postgresql.Driver"
 ```
 
-Пароль передать через SPRING_DATASOURCE_PASSWORD в environment, без CLI argument. Тесты проверяют migration/reapply, seed, mappings, constraints, REST и menu import/rollback; изменения тестовых строк откатываются или восстанавливаются. TASK-03: PostgreSQL 17.10, 63 catalog/menu tests PASS на пустой test БД, Hibernate validate PASS. После удаления всех MenuItem rows каталог и собственный check продолжают читаться; алгоритм поиска проверяется в TASK-04. Проверки state/memory остаются соответствующим следующим задачам.
+Пароль передать через SPRING_DATASOURCE_PASSWORD в environment, без CLI argument. Тесты проверяют migration/reapply, seed, mappings, constraints, REST, menu import/rollback и Java search; изменения тестовых строк откатываются или восстанавливаются. Search tests используют фиксированный Clock, не дату запуска/ОС. TASK-03: PostgreSQL 17.10, 63 catalog/menu tests PASS на пустой test БД, Hibernate validate PASS. Приёмка поиска TASK-04: [BACKLOG](BACKLOG.md#task-04--restaurant-search); реализация не требует новой migration. Проверки state/memory остаются соответствующим следующим задачам.

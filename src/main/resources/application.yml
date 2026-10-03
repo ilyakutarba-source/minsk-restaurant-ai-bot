@@ -1,6 +1,9 @@
 spring:
   application:
     name: minsk-restaurant-ai-bot
+  jackson:
+    deserialization:
+      accept-float-as-int: false
   datasource:
     url: ${DB_URL}
     username: ${DB_USER}

@@ -1,6 +1,6 @@
 # Архитектура
 
-Редакция: 2026-10-01. Проектные решения, без реализации. Scope и DoD: [PRODUCT.md](PRODUCT.md). Contracts AI: [AI.md](AI.md). Схема: [DATABASE.md](DATABASE.md). Инфраструктура: [DEPLOYMENT.md](DEPLOYMENT.md).
+Редакция: 2026-10-03. Каталог, partial menu и Java search реализованы; разговорные и внешние интеграции остаются планом. Scope и DoD: [PRODUCT.md](PRODUCT.md). Contracts AI: [AI.md](AI.md). Схема: [DATABASE.md](DATABASE.md). Инфраструктура: [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Modular monolith
 
@@ -88,7 +88,10 @@ restaurantbot
 3. При бюджетном поиске есть собственный положительный estimatedAverageCheckByn с source/date.
 4. Ориентировочная сумма = estimatedAverageCheckByn × guests; она не превышает totalBudgetByn.
 5. Расписание содержит requested arrival datetime по имеющимся собственным данным.
-6. Гости находятся в поддерживаемом диапазоне. Это не проверка вместимости или наличия столика.
+
+Диапазон 1–6 гостей валидируется до поиска. `guests` используется для расчёта суммы,
+не является самостоятельным фильтром ресторана: данных вместимости/лимита бронирования
+в каталоге нет. Поиск не подтверждает наличие столика.
 
 Неизвестный чек не подтверждает бюджет; неизвестное расписание не подтверждает часы. Такой ресторан не проходит соответствующий hard filter. Неполное/отсутствующее меню само по себе не влияет на search.
 
@@ -115,6 +118,31 @@ AI преобразует обстановку/повод только в под
 Меньшая оценка чека — понятный tie-break; не нужно специально приближать сумму к верхней границе бюджета. «Дешевле» в карточке означает только более низкую собственную оценку, а не любой возможный заказ. Отдельное сравнение прошлых подборок в MVP не требуется.
 
 Java возвращает reason codes для объяснения: совпавшие теги, кухня, бюджет в рамках оценки, расписание по сохранённому источнику. AI использует только разрешённые причины. Точный explanation contract: [AI.md](AI.md#гибридный-flow-и-объяснение).
+
+### Реализация TASK-04
+
+`RestaurantSearchService` в пакете `search` нормализует полный `SearchRequest`, читает
+фиксированный небольшой каталог через RestaurantRepository и выполняет hard filters
+в Java до scoring. Новых таблиц/migrations и зависимости от MenuItem нет.
+Clock — injectable bean; дата текущего дня всегда определяется в Europe/Minsk,
+независимо от timezone ОС/переданного Clock.
+
+REST принимает guests (целое 1–6), totalBudgetByn (положительный общий BYN budget,
+до двух знаков после запятой), date (ISO date либо контрактные TODAY/TOMORROW),
+time (местное HH:mm), optional cuisine и preferredTags. TODAY/TOMORROW — фиксированные
+токены, не NLP parser; русские реплики и неоднозначное время здесь не разбираются.
+Null/отсутствующий preferredTags нормализуется в пустой enum set, дубли не дают
+дополнительных баллов. Бюджет нормализуется до scale=2 без округления.
+Дробный JSON guests отклоняется, не усекается. Отсутствующие/невалидные обязательные
+criteria → 400; уточнение и merge для conversation остаются будущим caller.
+
+`SearchResult` содержит normalizedCriteria, currency=BYN, ordered candidates и warnings
+об ориентировочном чеке, недельном расписании и субъективных тегах. Candidate содержит
+собственный RestaurantDetails DTO, estimatedTotalByn, matchCount и allowedReasonCodes:
+CUISINE_MATCH только при заданной кухне, BUDGET_MATCH, HOURS_MATCH и
+`<TAG>_TAG_MATCH` только для совпавших запрошенных тегов. DTO создаётся внутри read-only
+transaction; JPA entities и MenuItem наружу не передаются. Search не вызывает AI/Google.
+Post recommendations отображает DB/transaction failure как 503, без fallback facts.
 
 ## REST API
 

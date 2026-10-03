@@ -6,8 +6,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import jakarta.persistence.LockModeType;
 import java.util.Optional;
+import java.util.List;
 
 public interface RestaurantRepository extends JpaRepository<Restaurant, Long> {
+    List<Restaurant> findAllByOrderByIdAsc();
+
     Page<Restaurant> findByActiveTrue(Pageable pageable);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
