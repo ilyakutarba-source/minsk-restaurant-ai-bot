@@ -1,142 +1,177 @@
-# Docker, Dokploy и VPS
+# Build, runtime и deployment
 
-Редакция: 2026-10-01. План будущей TASK-13, не выполненный deployment. Dockerfile/Compose/config/CI файлов пока нет. Scope и DoD: [PRODUCT.md](PRODUCT.md); задачи: [BACKLOG.md](BACKLOG.md).
+## Текущий запуск — IMPLEMENTED
 
-## Target
+Требуются JDK 21, Maven Wrapper 3.9.16 и PostgreSQL для default profile.
+Spring Boot получает DB connection из внешней среды, Flyway применяет V1–V4,
+Hibernate проверяет схему через `ddl-auto=validate`. HTTP bind — `127.0.0.1`.
+Test profile использует H2 без внешних API/ключей и доступен для локального REST demo.
+Команды запуска и проверки: [README](../README.md#running-locally).
+
+AI provider, Telegram, Google и persistent conversation state пока не подключены.
+Dockerfile, Compose и CI configuration пока отсутствуют. Ниже описан **PLANNED**
+deployment contract, а не инструкция уже готового контейнерного запуска.
+
+## Target — PLANNED
 
 ```text
-GitHub repository, selected commit
-→ Dokploy Compose project
-→ VPS
-   ├── app: один Spring Boot instance, Telegram long polling
-   └── postgres: persistent named volume
+GitHub repository → Dokploy Compose project → VPS
+                                            ├── app: один Spring Boot instance
+                                            └── postgres: persistent named volume
 ```
 
-Один bot token — один активный poller. Для диплома не нужны replicas, Stack services, отдельный webhook server, Redis/Kafka и публичный HTTP.
-
-## Docker и Compose
-
-Будущий Dockerfile: Maven build → совместимый Java 21 runtime; pinned image tags, непривилегированный runtime user, secrets не включать в build/image.
-
-Compose содержит только app, postgres и persistent DB volume:
-
-- app использует DB hostname postgres, не localhost.
-- PostgreSQL healthcheck и ожидание готовности перед app startup.
-- Flyway управляет схемой, Hibernate validate проверяет её.
-- DB credentials и API tokens передаются runtime environment.
-- Dataset входит в image либо загружается документированным controlled import.
-- Не ссылаться на абсолютные пути компьютера студента.
-- Не публиковать PostgreSQL port в интернет.
-
-Compose поддерживает startup dependency по service_healthy. Само создание container ещё не доказывает готовность БД. [Docker startup order](https://docs.docker.com/compose/how-tos/startup-order/)
-
-Проверка после реализации: чистый запуск, API/Telegram smoke, restart и redeploy с сохранением собственных restaurant/menu и conversation data. Полный restore drill — SHOULD.
+Runtime — Java 21. Выбран remote AIAI API, локальная модель/GPU не требуется.
+CPU/RAM/disk должны учитывать application, PostgreSQL, image build и backup storage;
+достаточность конкретного VPS и доступ к Dokploy ещё необходимо подтвердить.
+Один bot token — один активный poller. Microservices, replicas и публичный webhook
+не входят в MVP. Scope: [PRODUCT](PRODUCT.md).
 
 ## Environment configuration
 
-Имена ниже — contract приложения для будущей реализации; exact starter properties связать явно после version gate.
+Текущая application configuration:
 
 | Переменная | Назначение |
 |---|---|
-| TELEGRAM_BOT_TOKEN | Секрет bot token |
-| TELEGRAM_ALLOWED_CHAT_IDS | Optional demo allowlist private chats |
-| AI_API_KEY | Секрет выбранного provider, если требуется |
-| AI_MODEL | Выбранная модель |
-| AI_BASE_URL | Optional endpoint выбранного provider |
-| GOOGLE_PLACES_ENABLED | Условная integration flag по gate |
-| GOOGLE_MAPS_API_KEY | Только для enabled Google |
-| DB_URL / DB_USER / DB_PASSWORD | JDBC connection |
-| POSTGRES_DB / POSTGRES_USER / POSTGRES_PASSWORD | PostgreSQL container initialization |
-| APP_TIMEZONE | Europe/Minsk |
-| SPRING_PROFILES_ACTIVE | Согласованный deployment profile |
+| DB_URL | PostgreSQL JDBC URL для default profile |
+| DB_USER | Имя пользователя DB; именно DB_USER, не DB_USERNAME |
+| DB_PASSWORD | Пароль DB из внешней среды |
+| SPRING_PROFILES_ACTIVE | Spring profile; test включает H2 |
+| SPRING_DATASOURCE_PASSWORD | Пароль отдельной test DB при PostgreSQL tests |
 
-Не считать AI_* автоматически распознаваемыми Spring AI starter: mapping принадлежит project configuration. DB_PASSWORD и POSTGRES_PASSWORD должны согласовываться при первой настройке. Изменение init env существующего PostgreSQL volume само по себе не меняет пароль/пользователей БД; последующее изменение выполнять документированно.
+DB_URL/DB_USER используются прямо в application.yml. Test connection overrides и
+команда проверки: [DATABASE](DATABASE.md#postgresql-acceptance).
 
-При GOOGLE_PLACES_ENABLED=false own details/search доступны, и приложение не требует Google key. Эта ветка не выдаёт stub за live enrichment.
+Planned integration/container variables; они ещё не связаны с приложением:
 
-Пример файла с пустыми/демонстрационными env placeholders допустим в будущей TASK-13; реальные значения вне Git. .env и backup dumps исключать из repository.
+| Переменная | Назначение |
+|---|---|
+| AIAI_API_KEY | Runtime credential выбранного AI provider |
+| AI_API_KEY / AI_MODEL / AI_BASE_URL | Общие integration settings с явным mapping; model по выбранному contract — gpt-4.1-mini |
+| TELEGRAM_BOT_TOKEN | Секрет Telegram bot token |
+| TELEGRAM_ALLOWED_CHAT_IDS | Optional allowlist private chats для demo |
+| GOOGLE_PLACES_ENABLED | Conditional enrichment flag после проверки доступности/условий |
+| GOOGLE_MAPS_API_KEY | Credential только при enabled Google integration |
+| POSTGRES_DB / POSTGRES_USER / POSTGRES_PASSWORD | Инициализация PostgreSQL container |
+| APP_TIMEZONE | Planned явная runtime setting; текущий Search Clock уже использует Europe/Minsk |
+
+`AI_*` и AIAI_API_KEY не распознаются starter автоматически: требуется explicit mapping.
+Выбранные Spring AI 1.1.8 properties: api-key из AIAI_API_KEY,
+base-url `https://api.aiai.by`, completions-path `/v1/chat/completions`, model `gpt-4.1-mini`.
+Origin base и versioned path не должны дублировать `/v1`. Retry max-attempts=1 и
+исполнение в пределах turn budget принадлежат [AI](AI.md#bounded-execution).
+
+DB_PASSWORD и POSTGRES_PASSWORD должны согласовываться при первой инициализации
+контейнера. Изменение init env существующего volume не меняет пароль/пользователей
+PostgreSQL автоматически. Последующие изменения выполняются отдельно.
+Секретные значения не помещаются в docs, Git, build args, image или обычные logs.
+
+## Docker и Compose — PLANNED
+
+- Maven build → Java 21 runtime; pinned image tags и непривилегированный runtime user.
+- Два services: app и postgres, persistent named PostgreSQL volume.
+- DB hostname внутри сети — postgres, не localhost.
+- PostgreSQL healthcheck; startup dependency `service_healthy`.
+- Flyway управляет схемой, Hibernate validate проверяет её.
+- Runtime credentials через environment/env_file; реальные значения вне Git.
+- Initial datasets входят в image, внешних API calls при seed нет.
+- PostgreSQL port не публикуется в интернет; временные checkout paths не используются.
+
+В Compose текущий loopback-only app bind потребуется согласовать с container network
+и закрытым способом доступа к REST. Политика приложения остаётся непубличной;
+открытие интерфейса наружу не является частью этого contract.
+После реализации проверяются clean start, API/Telegram smoke, restart/redeploy и
+сохранение restaurant/menu/conversation данных. [Compose startup order](https://docs.docker.com/compose/how-tos/startup-order/).
 
 ## Доступ и секреты
 
-- REST/Swagger на VPS не публиковать наружу; при demo использовать loopback binding/SSH tunnel.
-- PostgreSQL только в private Compose network.
-- Telegram private chats; allowlist полезен для ограниченного demo и расходов API.
-- Dokploy admin access защитить средствами сервера/Dokploy.
-- Tokens не логировать; API payload/prompts по умолчанию целиком не записывать.
-- Локальный Swagger открывать только в предусмотренной demo конфигурации.
+REST/Swagger доступны локально. На VPS — private network/loopback publishing и
+SSH tunnel для demo. PostgreSQL находится только в private Compose network.
+Telegram предназначен для private chats; allowlist ограничивает demo и расходы.
+Dokploy admin access защищается средствами сервера/Dokploy.
 
-Spring Security вне MVP при этих условиях. Если появится публичный admin API/accounts, понадобится отдельное scope решение и Security. Сам Telegram chatId не авторизует произвольный HTTP caller.
+Spring Security вне MVP при закрытом HTTP. Telegram chatId не авторизует HTTP caller.
+Полные prompts/provider payload, токены и passwords не записываются в обычные logs.
+`.env`, local configuration и dumps исключаются из Git. Backup с conversation data
+имеет ограниченный доступ.
 
-## Telegram long polling
+## Telegram long polling — PLANNED
 
-TASK-00 рекомендует plain library `com.github.pengrad:java-telegram-bot-api:10.1.0`: DTO/API smoke прошёл на Java 21 с обеими Boot линиями. Использовать её update handling/offset; live polling, acknowledgment/restart и failed send проверить в TASK-06/11. [Сравнение и границы проверки](TASK-00-FEASIBILITY.md#4-version-decision).
+Выбрана plain library `com.github.pengrad:java-telegram-bot-api:10.1.0`, независимая
+от Boot starter; dependency и transport ещё не добавлены.
+[Library](https://github.com/pengrad/java-telegram-bot-api), [Telegram getUpdates](https://core.telegram.org/bots/api#getupdates).
 
-- getUpdates и webhook не работают одновременно; для long polling не оставлять активный webhook.
-- chatId/update identifiers обрабатываются подходящим 64-bit типом.
-- Сообщения одного чата обрабатываются последовательно.
-- После успешного sendMessage сохраняется новая selection по правилам [AI.md](AI.md#conversationstate-и-selection-context).
-- При явном failed send не считать новую подборку показанной.
-- Показать список одной компактной message, экранировать форматирование.
+- Long polling и webhook не работают одновременно; active webhook должен отсутствовать.
+- ChatId/update identifiers — 64-bit; сообщения одного чата обрабатываются последовательно.
+- Update acknowledgment/offset используется из library и проверяется на restart/failure.
+- Selection сохраняется после successful sendMessage; failed send её не заменяет.
+- Подборка отправляется одной компактной message с escaping; lifecycle: [AI](AI.md#conversationstate-и-selection-context).
+- Telegram 429 учитывает retry_after; бесконечная очередь/retry loop не создаётся.
 
-Если library корректно управляет offset, отдельный domain checkpoint не нужен. Если собственный offset необходим, достаточно одного технического lastProcessedUpdateId на bot instance с документированным порядком обновления. Нет update history/state machine и обещания exactly-once. Возможность повторов при crash описать как ограничение.
+Если library достаточно управляет offset, checkpoint storage не нужен. При доказанной
+необходимости допустим один technical lastProcessedUpdateId на bot instance.
+Exactly-once delivery и delivery state machine не обещаются; crash может дать повтор.
 
-Long polling API offset и правила получения updates: [Telegram Bot API](https://core.telegram.org/bots/api#getupdates). На Telegram 429 учитывать retry_after; retries не превращать в бесконечную очередь.
+## Google Places — PLANNED, DEFERRED
 
-## Dokploy runbook будущей реализации
+Core catalog/search/menu работают без Google key и API. Enrichment допускается только
+для details известного конкретного филиала, после проверки billing, доступа, mapping
+place ID, доступных полей и требований attribution/Terms/Privacy для реального UI.
+При disabled integration ключ не требуется. Live access пока не подтверждён;
+DEFERRED не означает доступную или реализованную функцию.
 
-1. Подтвердить VPS access/resources и установленный Dokploy.
-2. Подключить GitHub repository и выбрать commit.
-3. Создать проект в **Compose mode**.
-4. Настроить runtime env/secrets; явно передать их контейнерам через environment/env_file будущего Compose.
-5. Назначить устойчивый named volume для PostgreSQL.
-6. Не публиковать REST/Swagger и DB; app получает outbound доступ к Telegram/provider/Google.
-7. Build/deploy, проверить app logs без секретов, Flyway и Telegram smoke.
-8. Записать commit, применённые settings и обычный restart/redeploy порядок.
+Выбран Place Details API (New), не Google catalog/menu import. Planned field mask:
+`id,rating,userRatingCount,currentOpeningHours,googleMapsUri,attributions`; wildcard
+не используется. Mask содержит Enterprise fields, поэтому требуется соответствующий
+billing/quota budget; тариф и account limits проверяются перед включением.
+[Place Details](https://developers.google.com/maps/documentation/places/web-service/place-details),
+[pricing](https://developers.google.com/maps/billing-and-pricing/pricing).
 
-Документация Dokploy предупреждает: env из UI не добавляются в containers автоматически; необходимо явное Compose mapping. [Dokploy Compose](https://docs.dokploy.com/docs/core/docker-compose)
+Google rating не участвует в ranking; currentOpeningHours не подменяет own weekly
+schedule. Поля могут отсутствовать. Google timeout/403/429 дают own details + warning,
+без выдуманного рейтинга и скрытой смены search result.
 
-Не хранить БД в каталоге checkout, который может заменяться при redeploy. Не удалять volume при обычном перезапуске. Domain для Telegram long polling не требуется.
+Project contract: persist только проверенный place ID; live content не сохраняется
+в own DB, memory, model context или log snapshots. Google Maps attribution и
+применимые third-party credits показываются отдельно; ссылка не заменяет attribution.
+Требования фактического Telegram UI должны быть проверены до включения enrichment.
+[Policies](https://developers.google.com/maps/documentation/places/web-service/policies),
+[service terms](https://cloud.google.com/maps-platform/terms/maps-service-terms).
 
-## Redeploy и persistence
+## Dokploy runbook — PLANNED
 
-- Сделать redeploy того же/нового образа, сохранив named volume.
-- Проверить restaurant/menu данные и рабочий conversation.
-- Проверить restart app: memory и selection доступны из PostgreSQL.
-- Убедиться, что второй poller не запущен параллельно с тем же token.
-- Если app version откатывается, проверить совместимость с уже применённой Flyway schema. Откат image не откатывает schema автоматически.
+1. Подтвердить VPS resources/access, установленный Dokploy и место backup.
+2. Подключить repository и выбрать version для deployment.
+3. Создать Compose project после появления Dockerfile/Compose.
+4. Настроить runtime env и explicit Compose environment/env_file mapping.
+5. Назначить persistent named PostgreSQL volume; закрыть REST/DB от публичного доступа.
+6. Build/deploy, проверить Flyway, API и Telegram smoke без вывода секретов.
+7. Проверить ordinary restart/redeploy с сохранением данных и одним poller.
 
-Production-grade zero downtime, HA, RPO/RTO и автоматический rollback не нужны.
+Переменные из Dokploy UI должны быть явно переданы контейнерам через Compose mapping.
+[Dokploy Compose](https://docs.dokploy.com/docs/core/docker-compose).
+БД не хранится в сменяемом checkout; ordinary redeploy не удаляет volume.
+Domain для long polling не требуется.
 
-## Backup
+## Redeploy и backup — PLANNED
 
-Обязательный результат TASK-13 — документированный простой способ backup, место хранения вне ephemeral container и связь dump с датой/schema version. Автоматическое расписание и full restore drill не являются DoD.
+Образ может обновляться при сохранении named volume. Проверяются каталог/меню,
+planned memory/selection, один poller и совместимость версии с применённой схемой.
+Откат image не откатывает Flyway migrations автоматически.
 
-После появления Compose можно документировать пример для Linux VPS:
+Backup должен сохраняться вне ephemeral container/Git и иметь дату/schema version.
+После появления Compose пример для Linux VPS:
 
 ```sh
 docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' > restaurantbot-backup.dump
 ```
 
-Это пример будущего runbook, сейчас не выполнялся. Имя service и actual credentials подтвердить в TASK-13. Dump хранить вне Git и ограничивать доступ: он может содержать conversation data.
+Это planned пример, сейчас service/config ещё отсутствуют. Автоматическое расписание
+и full restore drill — возможные улучшения; test restore выполняется в отдельной БД.
+HA, zero downtime и формальные RPO/RTO вне MVP.
 
-Restore test — SHOULD: восстановить dump в отдельную тестовую БД и проверить собственные данные и schema. Не выполнять restore поверх рабочей БД как часть обычного redeploy.
+## CI — PLANNED
 
-## Optional CI
-
-GitHub Actions после готового MVP:
-
-```text
-push / PR
-→ mvn verify
-→ Docker build
-```
-
-Unit/integration checks не используют реальные AI/Google/Telegram secrets. Live AI eval запускается отдельно. По необходимости добавить PostgreSQL job; production ML pipeline не нужен.
-
-Сначала deploy выбранного commit вручную через Dokploy. Auto-deploy webhook добавлять только после проверки обычного запуска/redeploy, как отдельный SHOULD. CI не блокирует vertical slice и TASK-01.
-
-## Открытые входные данные
-
-N5 (VPS/resources/access/backup destination), model endpoint и conditional Google access остаются в [BACKLOG.md](BACKLOG.md#open-gates). На этом этапе сервер не выбирался, пакеты не устанавливались и external deployment не выполнялся.
-
-TASK-00 2026-10-02 подтвердил локальную JDK 21 (probes: Temurin 21.0.11) и Maven 3.9.16 вне PATH; PATH Java остаётся 17. Docker CLI есть, daemon недоступен; PostgreSQL client 17.10 есть, server login требует отсутствующего пароля. Данных существующего VPS/Dokploy не найдено. Remote AI не требует GPU; достаточность конкретного сервера остаётся UNKNOWN. [Deployment evidence и условные resource estimates](TASK-00-FEASIBILITY.md#14-vps--deployment-notes).
+Возможный pipeline: Maven verify → Docker build. Unit/integration tests не используют
+реальные AI/Telegram/Google keys; live AI eval выполняется отдельно.
+CI и auto-deploy не настроены. Первичная доставка предполагает ordinary manual deploy
+с проверкой persistence; automation может добавляться после этого.

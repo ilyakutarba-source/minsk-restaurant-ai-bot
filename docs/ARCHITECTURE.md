@@ -1,228 +1,165 @@
 # Архитектура
 
-Редакция: 2026-10-03. Каталог, partial menu и Java search реализованы; разговорные и внешние интеграции остаются планом. Scope и DoD: [PRODUCT.md](PRODUCT.md). Contracts AI: [AI.md](AI.md). Схема: [DATABASE.md](DATABASE.md). Инфраструктура: [DEPLOYMENT.md](DEPLOYMENT.md).
+Один Spring Boot application, один Maven module, modular monolith и одна PostgreSQL.
+Продуктовый scope: [PRODUCT](PRODUCT.md). AI contracts: [AI](AI.md).
+Схема и provenance: [DATABASE](DATABASE.md). Runtime: [DEPLOYMENT](DEPLOYMENT.md).
 
-## Modular monolith
-
-Один Spring Boot application, один Maven module и одна PostgreSQL. REST и Telegram используют одни application services. Не нужны отдельные микросервисы, многомодульная сборка, event bus и универсальный hexagonal framework.
-
-Приоритеты: correctness → simplicity → understandable architecture → testability → diploma value → maintainability. Enterprise robustness не определяет размер MVP.
+## Реализованная архитектура — IMPLEMENTED
 
 ```mermaid
 flowchart TD
-    TG[Telegram adapter] --> CONV[ConversationService]
-    CONV --> MEM[Spring AI ChatMemory]
-    CONV --> STATE[Criteria and selection]
-    MEM --> PG[(PostgreSQL)]
-    STATE --> PG
-    CONV --> AI[ChatClient]
-    AI --> REQUEST[Tool request]
-    REQUEST --> GUARD[Validation: one tool]
-    GUARD --> TOOLS[Three tool adapters]
-    TOOLS --> SERVICES[Search / Details / Menu services]
-    API[REST + Swagger] --> SERVICES
+    REST[REST controllers / Swagger] --> SERVICES[RestaurantService / MenuService / RestaurantSearchService]
+    SERVICES --> DTO[Own DTO / ordered search candidates]
     SERVICES --> JPA[JPA repositories]
-    JPA --> PG
-    SERVICES --> GOOGLE[GooglePlacesClient: details only]
-    SERVICES --> DTO[Trusted internal DTO]
-    DTO --> EXPLAIN[Own data projection → AI explanation]
-    DTO --> CARD[Java factual renderer]
-    EXPLAIN --> COMPOSE[Validated explanation + cards]
-    CARD --> COMPOSE
-    COMPOSE --> SEND[Telegram sendMessage]
-    SEND --> SAVE[On success: selection and safe memory]
-    SAVE --> STATE
+    JPA --> PG[(PostgreSQL)]
+    FLYWAY[Flyway V1–V4] --> PG
 ```
 
-Схема показывает потоки данных, а не круговую зависимость компонентов. ConversationService координирует один turn. Search/Menu/Details services не обращаются к ConversationService, Telegram или AI.
+Пакет `catalog` содержит Restaurant, menu, persistence и services; `search` — criteria,
+filters/ranking и Clock configuration; `api` — тонкие REST controllers.
+Controllers не выполняют поиск и не возвращают JPA entities. Own DTO создаются внутри
+read-only transactions, `open-in-view=false`. Денежные значения — BigDecimal.
 
-## Responsibility boundaries
-
-| Компонент | Ответственность |
-|---|---|
-| AI | Понимание реплик, supported criteria/tags, выбор tool, выбор подтверждённых причин для объяснения |
-| ConversationService | Memory/state, merge, один turn, вызов AI и разрешённых tools, отправка, сохранение показанной selection |
-| ReferenceResolver | Ordinal/name → restaurantId внутри текущего чата |
-| Search service | Валидация, hard filters, расчёт ориентировочной суммы, ranking |
-| Menu service | Собственные позиции и фильтры partial menu |
-| Details service | Собственные details, optional live Google enrichment |
-| JPA/PostgreSQL | Собственные ресторанные факты, критерии и выбор |
-| Spring AI JDBC memory | Ограниченный текстовый разговорный контекст |
-| Google adapter | Place Details, mapping, timeouts, source/attribution; не каталог и не ranking |
-| Java renderer | Названия, ID, адреса, блюда, цены, рейтинг, count, часы, телефоны, URL и подписи источников |
-| Telegram adapter | Private chat check, updates, long polling, escaping, send; без business rules |
-| REST adapter | DTO/validation, HTTP status; те же services напрямую |
-
-## Dependency flow и пакеты
-
-Adapters → application services → repositories / внешние clients. Правила поиска не зависят от Telegram DTO или Spring AI SDK. HTTP/LLM calls выполняются вне DB transactions.
-
-Предлагаемые пакеты, не файлы для немедленного создания:
+## Планируемые компоненты — PLANNED
 
 ```text
-restaurantbot
-├── catalog        # restaurant/menu, JPA, own details
-├── search         # criteria, filtering, deterministic ranking
-├── conversation   # orchestration, state, ReferenceResolver
-├── ai             # ChatClient integration, three tools, prompts
-├── telegram       # transport and message rendering
-├── google         # Places HTTP adapter and mapping
-├── api            # REST DTO/controllers
-└── config         # properties, Clock, beans
+Telegram private chat → ConversationService → Spring AI ChatClient
+→ validated single tool request → existing application service → trusted DTO
+→ optional Structured Output explanation → Java factual renderer → sendMessage
+→ save selection and safe memory after successful send
 ```
 
-Не создавать interface/implementation пары для каждого service. Внешние AI/Google/Telegram границы должны быть подменяемы в tests; дополнительная абстракция оправдана только конкретной зависимостью.
+| Компонент | Ответственность | Состояние |
+|---|---|---|
+| RestaurantSearchService | Валидация, hard filters, estimated total, ranking | IMPLEMENTED |
+| RestaurantService | Own catalog/details | IMPLEMENTED |
+| MenuService / MenuImportService | Partial menu reading и controlled import | IMPLEMENTED |
+| REST adapter | DTO, HTTP mapping, Swagger | IMPLEMENTED |
+| LLM / ChatClient | Interpretation, supported criteria, tool choice, причины объяснения | PLANNED |
+| ConversationService | Merge criteria, bounded turn, memory/state, отправка и selection | PLANNED |
+| ReferenceResolver | Ordinal/name → restaurantId в текущем чате | PLANNED |
+| Java renderer | Factual cards и validated explanation | PLANNED |
+| Telegram adapter | Private chat check, long polling, escaping/send | PLANNED |
+| Google adapter | Conditional Place Details enrichment известного ресторана | PLANNED, DEFERRED |
+
+Adapters → application services → repositories/clients. Services поиска/меню/details
+не зависят от Telegram, ConversationService или Spring AI SDK. Будущий Telegram
+вызывает services напрямую, без HTTP-запросов к собственному приложению.
+LLM не получает repositories, EntityManager, SQL или доступ к БД.
+HTTP/LLM calls выполняются вне DB transactions. Memory и reference contracts: [AI](AI.md).
 
 ## Правила поиска и рекомендаций
 
 ### Criteria
 
-Поиск предназначен для конкретного посещения. Гости, общий бюджет, дата и время обязательны; cuisine и preferredTags опциональны. Нет BROWSE/VISIT modes, arbitrary DSL, coordinates/distance и нескольких городов. Отсутствующие обязательные поля → уточнение; /new начинает новый запрос.
-
-Пределы: 1–6 гостей, BYN, Минск, сегодня + следующие 6 дней. Расчёты дат/часов используют Clock и Europe/Minsk. Неоднозначность «на человека / на всех» уточняется; в search DTO передаётся общий бюджет.
+Поиск относится к конкретному посещению. Обязательны guests, totalBudgetByn, date и time;
+cuisine и preferredTags опциональны. Поддержаны Минск, BYN, 1–6 гостей, сегодня и
+следующие шесть дней. Clock определяет текущую дату в Europe/Minsk независимо от ОС.
+REST принимает уже структурированный запрос, не разбирает естественный язык.
+В планируемом чате неоднозначность бюджета/времени и missing fields требуют уточнения.
 
 ### Hard filters
 
-1. Restaurant существует, active=true, принадлежит фиксированному каталогу Минска.
-2. Указанная кухня считается обязательной; отдельный флаг strict/soft cuisine не нужен.
-3. При бюджетном поиске есть собственный положительный estimatedAverageCheckByn с source/date.
-4. Ориентировочная сумма = estimatedAverageCheckByn × guests; она не превышает totalBudgetByn.
-5. Расписание содержит requested arrival datetime по имеющимся собственным данным.
+1. Ресторан существует в собственном фиксированном каталоге, active=true.
+2. При заданной cuisine ресторан содержит эту кухню.
+3. Есть собственный положительный estimatedCheckPerGuest с type/source/date;
+   `estimatedCheckPerGuest × guests <= totalBudgetByn`.
+4. Сохранённое расписание с source/date содержит requested date + local arrival time.
 
-Диапазон 1–6 гостей валидируется до поиска. `guests` используется для расчёта суммы,
-не является самостоятельным фильтром ресторана: данных вместимости/лимита бронирования
-в каталоге нет. Поиск не подтверждает наличие столика.
+`guests` — входная валидация и множитель бюджета, не самостоятельный фильтр ресторана.
+Данных capacity/maxPartySize/reservation limits нет; наличие столика не проверяется.
+Неизвестный check или неизвестные hours не подтверждают соответствующее условие.
+MenuItem rows и menu metadata не влияют на eligibility. Ограничения не ослабляются
+при пустой выдаче или высоком soft score.
 
-Неизвестный чек не подтверждает бюджет; неизвестное расписание не подтверждает часы. Такой ресторан не проходит соответствующий hard filter. Неполное/отсутствующее меню само по себе не влияет на search.
+### Opening hours
 
-Расписание: интервалы [open, close), учитываются интервалы через полночь и предыдущий weekday; open==close без явного решения запрещено. Проверяется возможность прибыть в указанное время, не длительность ужина. Собственное недельное расписание не гарантирует праздничные часы. При противоречии live Google и собственной карточки показать источники и совет проверить, не менять результат поиска скрыто.
+Существующие opening_intervals задают weekday, opensAt, closesAt и closesNextDay.
+Интервалы имеют границы `[open, close)`: открытие включено, закрытие исключено.
+Учитываются текущий день и продолжение overnight interval предыдущего weekday.
+Например, Friday 18:00 → Saturday 02:00 включает Friday 23:00 и Saturday 01:00,
+но исключает Saturday 02:00 и 03:00. Поддержаны несколько интервалов и переход недели.
+Интервал open==close запрещён; scheduling/calendar subsystem отсутствует.
+Проверяется прибытие, не длительность ужина. Недельные часы не гарантируют праздничных.
 
 ### Soft criteria
 
-AI преобразует обстановку/повод только в поддерживаемые RestaurantTag. Предлагаемый компактный набор: COZY, QUIET, ROMANTIC, CASUAL, FRIENDS, PREMIUM. Набор фиксируется до seed; изменение enum — изменение contract/data.
-
-«Уютно», «романтично», «с друзьями» влияют на соответствие тегам. Пользовательскую просьбу о гарантированной тишине нельзя удовлетворить таким тегом.
+Поддержаны RestaurantTag: COZY, QUIET, ROMANTIC, CASUAL, FRIENDS, PREMIUM.
+После hard filtering вычисляются совпадения запрошенных тегов с curated tags каталога.
+Несовпавший тег не исключает ресторан. Теги не гарантируют обстановку при посещении.
 
 ### Deterministic ranking
 
-Сохраняется простой MatchCount:
+- MatchCount = число совпавших requested tags, по +1 за уникальный тег.
+- Кухня уже hard filter, дополнительного балла за неё нет.
+- Порядок: `matchCount DESC → estimatedTotalByn ASC → restaurant ID ASC`.
+- Limit применяется после сортировки: максимум 3 кандидата.
+- Одинаковые criteria и каталог дают одинаковый порядок.
+- Google rating, случайность, LLM ranking, weights, embeddings, RAG и ML не используются.
 
-- +1 за каждое совпадение requested preferredTag.
-- Кухня уже hard filter; второй раз за неё баллы не начисляются.
-- Сортировка: MatchCount DESC → estimated total ASC → restaurantId ASC.
-- При одинаковом входе и каталоге порядок одинаков.
-- Возвращается до 3 вариантов; этот же порядок показывается в Telegram.
-- Google rating в sorting не участвует.
-- AI не выбирает другой набор ID и не переставляет список.
+Pipeline: catalog → hard filters → eligible restaurants → soft tag matching →
+deterministic ranking → result. Чек используется как собственная оценка, не цена любого заказа.
 
-Меньшая оценка чека — понятный tie-break; не нужно специально приближать сумму к верхней границе бюджета. «Дешевле» в карточке означает только более низкую собственную оценку, а не любой возможный заказ. Отдельное сравнение прошлых подборок в MVP не требуется.
+### REST search contract
 
-Java возвращает reason codes для объяснения: совпавшие теги, кухня, бюджет в рамках оценки, расписание по сохранённому источнику. AI использует только разрешённые причины. Точный explanation contract: [AI.md](AI.md#гибридный-flow-и-объяснение).
+RestaurantSearchService читает небольшой каталог через RestaurantRepository и
+выполняет фильтры/ranking в Java. SearchRequest содержит Integer guests, BigDecimal
+общий бюджет, date (ISO date или контрактные TODAY/TOMORROW), time (HH:mm), optional
+cuisine/preferredTags. TODAY/TOMORROW — фиксированные токены, не NLP parser.
+Положительный бюджет допускает до двух знаков после запятой и нормализуется до scale=2
+без округления. Дробный JSON guests не усекается, а отклоняется. Null/отсутствующий
+preferredTags становится пустым enum set; дубли не увеличивают score.
 
-### Реализация TASK-04
-
-`RestaurantSearchService` в пакете `search` нормализует полный `SearchRequest`, читает
-фиксированный небольшой каталог через RestaurantRepository и выполняет hard filters
-в Java до scoring. Новых таблиц/migrations и зависимости от MenuItem нет.
-Clock — injectable bean; дата текущего дня всегда определяется в Europe/Minsk,
-независимо от timezone ОС/переданного Clock.
-
-REST принимает guests (целое 1–6), totalBudgetByn (положительный общий BYN budget,
-до двух знаков после запятой), date (ISO date либо контрактные TODAY/TOMORROW),
-time (местное HH:mm), optional cuisine и preferredTags. TODAY/TOMORROW — фиксированные
-токены, не NLP parser; русские реплики и неоднозначное время здесь не разбираются.
-Null/отсутствующий preferredTags нормализуется в пустой enum set, дубли не дают
-дополнительных баллов. Бюджет нормализуется до scale=2 без округления.
-Дробный JSON guests отклоняется, не усекается. Отсутствующие/невалидные обязательные
-criteria → 400; уточнение и merge для conversation остаются будущим caller.
-
-`SearchResult` содержит normalizedCriteria, currency=BYN, ordered candidates и warnings
-об ориентировочном чеке, недельном расписании и субъективных тегах. Candidate содержит
-собственный RestaurantDetails DTO, estimatedTotalByn, matchCount и allowedReasonCodes:
-CUISINE_MATCH только при заданной кухне, BUDGET_MATCH, HOURS_MATCH и
-`<TAG>_TAG_MATCH` только для совпавших запрошенных тегов. DTO создаётся внутри read-only
-transaction; JPA entities и MenuItem наружу не передаются. Search не вызывает AI/Google.
-Post recommendations отображает DB/transaction failure как 503, без fallback facts.
+SearchResult содержит normalizedCriteria, currency=BYN, ordered candidates и warnings.
+Candidate: собственный RestaurantDetails DTO, estimatedTotalByn, matchCount,
+allowedReasonCodes. Причины: CUISINE_MATCH при заданной кухне, BUDGET_MATCH,
+HOURS_MATCH и `<TAG>_TAG_MATCH` только для совпавших запрошенных тегов.
+AI explanation использует только допустимые причины: [AI](AI.md#гибридный-flow-и-объяснение).
+Новых search tables/migrations, menu dependency и внешних API calls нет.
 
 ## REST API
 
-| Method / path | Вход и результат | Ошибки / назначение |
+Все четыре endpoints реализованы. REST/Swagger — локальная проверка Java logic;
+HTTP доступ ограничен loopback. Сетевые требования: [DEPLOYMENT](DEPLOYMENT.md#доступ-и-секреты).
+
+| Method / path | Вход / результат | HTTP |
 |---|---|---|
-| GET /api/v1/restaurants | Необязательная cuisine, page/size; страница собственных карточек | 200, 400; каталог для Swagger |
-| GET /api/v1/restaurants/{id} | Own details; optional Google по явному запросу enrichment | 200, 404; 503 при недоступной БД |
-| GET /api/v1/restaurants/{id}/menu | Необязательные dishType/maxItemPriceByn; partial menu + metadata | 200, 400, 404 |
-| POST /api/v1/recommendations | Полные структурированные criteria; до 3 кандидатов и причины | 200, 400, 503 |
+| GET /api/v1/restaurants | page ≥0, size 1–100; active own catalog, id ASC | 200, 400 |
+| GET /api/v1/restaurants/{id} | Own details по known ID | 200, 404 |
+| GET /api/v1/restaurants/{id}/menu | Optional dishType/maxItemPriceByn; own partial menu | 200, 400, 404 |
+| POST /api/v1/recommendations | Полные criteria, до 3 кандидатов и причины | 200, 400, 503 |
 
-Пустая выдача — 200 с пустым списком. Известный restaurant с недоступным меню — 200 с понятным data status. Google failure при доступных own details — 200 с warning. Entities и provider DTO не возвращаются в API.
+GET catalog пока не принимает cuisine filter. Details пока не вызывает Google.
+Search missing/invalid criteria → 400; отсутствие совпадений → 200 с пустым candidates;
+DB/transaction failure → 503 без fallback facts. Entities/provider DTO наружу не выходят.
+Menu status: AVAILABLE / NO_RESULTS / DATA_UNAVAILABLE. PARTIAL/source/date сохраняются
+при пустом результате, если metadata есть; unknown restaurant → 404.
+Menu filters и import semantics: [DATABASE](DATABASE.md#menu-data-strategy).
 
-TASK-03 реализует menu GET: status AVAILABLE / NO_RESULTS / DATA_UNAVAILABLE, coverage,
-source, verifiedAt, currency=BYN, notice, items. PARTIAL metadata при наличии остаются видимыми
-в пустом результате; unknown restaurant → 404, invalid dishType/price → 400.
-Фильтры/модель и controlled import принадлежат [DATABASE.md](DATABASE.md#menu-data-strategy).
+## Внешние интеграции — PLANNED
 
-POST recommendations оставлен для изолированной проверки Java logic и demo через Swagger. Это не AI endpoint. Telegram вызывает services напрямую, без HTTP-запроса к собственному приложению.
+AI выбирает tool и причины объяснения; Java определяет реальные ID, цены, часы,
+адреса и порядок. Call limits, model configuration и ChatMemory: [AI](AI.md).
+Google enrichment допускается только в details известного филиала, по вручную
+проверенному place ID; не формирует каталог/меню и не вызывается для search candidates.
+Live payload не сохраняется в own DB/memory и не передаётся LLM. При Google failure
+остаются own details; противоречивые часы показываются с источниками, без скрытой
+смены search result. Google scope/availability/attribution: [DEPLOYMENT](DEPLOYMENT.md#google-places--planned-deferred).
 
-REST/Swagger непубличны; публичный chat/admin API отсутствует. Spring Security вне MVP; сетевой режим принадлежит [DEPLOYMENT.md](DEPLOYMENT.md#доступ-и-секреты).
+## Ключевые архитектурные решения
 
-## Внешние интеграции
-
-### Google Places
-
-Enrichment известного заведения по вручную проверенному googlePlaceId; mapping конкретного филиала. Place Details scope: rating, userRatingCount, currentOpeningHours, googleMapsUri. Предлагаемый field mask: id,rating,userRatingCount,currentOpeningHours,googleMapsUri. Дополнительные поля и текущий billing/availability проверяются в TASK-00; wildcard mask не используется. [Place Details](https://developers.google.com/maps/documentation/places/web-service/place-details)
-
-Google не формирует каталог/меню, не участвует в ranking и не вызывается для каждого search candidate. Запрос выполняется только в details при необходимости. Текстовые reviews — SHOULD.
-
-OwnData и GoogleData разделены. Google часть отображается Java, не передаётся в explanation call и не сохраняется в chat memory/собственном каталоге. Persisted place ID допустим в рамках policy; произвольный кэш другого content не проектируется. Source attribution и требования Terms/Privacy проверяются для фактического UI. [Places policies](https://developers.google.com/maps/documentation/places/web-service/policies)
-
-### AI и Telegram
-
-Один выбранный provider/model. ChatClient integration скрывает SDK/version-specific настройки от search services. Long polling библиотека выбирается в TASK-00 по совместимости и поведению обработки updates. Execution/memory rules: [AI.md](AI.md); transport: [DEPLOYMENT.md](DEPLOYMENT.md#telegram-long-polling).
-
-## Errors и graceful degradation
-
-| Ситуация | Поведение |
+| Решение | Причина |
 |---|---|
-| Недостаточные/неоднозначные критерии | Уточнение; нет случайной выдачи |
-| Неподдерживаемая валюта/город или tags | Понятное ограничение; нет скрытого перевода/придумывания tags |
-| Нет совпадений | Сообщение об отсутствии; предложить пользователю изменить критерии |
-| Неверный/неоднозначный reference | Уточнение; нет угадывания ID |
-| Нет позиции в partial menu | «В сохранённой части меню ... не найдено» |
-| Google timeout/403/429 | Own details + live недоступно; без бесконечных retries |
-| AI first call недоступен/невалиден | Понятное временное затруднение; REST search продолжает работать |
-| Explanation call недоступен/невалиден | Готовая factual card + стандартная Java фраза |
-| БД недоступна | Controlled error; memory/LLM не заменяют факты |
-| Telegram sendMessage явно неуспешен | Новую selection не сохранять как показанную |
+| Один modular monolith | Простые границы через пакеты, одна сборка и доставка |
+| Собственная PostgreSQL + JPA + Flyway | Проверяемые факты и явная схема |
+| Независимый estimated check | Budget search работает без меню |
+| PARTIAL menu | Ограниченный проверяемый набор позиций |
+| MatchCount, сумма, ID | Понятный и тестируемый deterministic ranking |
+| Три read-only tools, Java facts | Ограниченная поверхность AI и проверяемый результат |
+| Memory отдельно от selection | Текст не является источником ID/порядка/фактов |
+| Selection после успешного send | Reference относится к реально показанным вариантам |
+| Google только enrichment | Core search независим от внешних ratings |
+| Long polling, один instance | Без публичного webhook и распределённой доставки |
 
-Ошибки логировать по operation/correlation ID без токенов, полных prompts и provider payload. Дополнительный rule-based conversational engine, outbox и distributed delivery guarantees не нужны.
-
-## ADR summary
-
-| ADR | Решение | Причина и последствия |
-|---|---|---|
-| 001 | Один modular monolith | Один студент, один deploy; границы через пакеты |
-| 002 | REST/Swagger вместо web UI | Telegram основной UI; Java logic можно демонстрировать отдельно |
-| 003 | PostgreSQL + JPA + Flyway | Реляционные факты и явная схема; H2 только часть tests |
-| 004 | 10–12 заведений, slice на 3 | Сокращает сбор данных без потери архитектурной ценности |
-| 005 | Собственный estimated check на гостя | Меню не блокирует budget search; оценка не гарантия |
-| 006 | Partial menu 5–10 позиций | Реалистичные данные; source/date обязательны |
-| 007 | Три read-only tools | Meaningful Spring AI flow без лишней tool surface |
-| 008 | Гибридный AI turn + Java facts | Модель объясняет подтверждённые причины; free factual prose не используется |
-| 009 | JDBC memory + отдельная selection | Текстовая память не решает надёжно ordinal references |
-| 010 | Минимальное состояние без TelegramUser | Нет профиля/preferences/history; chatId достаточно |
-| 011 | Сохранение selection после sendMessage | Корректный обычный flow без delivery state machine |
-| 012 | MatchCount, own check tie-break | Понятный deterministic ranking; Google-independent |
-| 013 | Google только enrichment | Core search работает при failed gate и timeout |
-| 014 | Version choice в TASK-00 | Не смешивать Boot/Spring AI lines; проверить весь dependency set |
-| 015 | Long polling + один экземпляр | Не нужен публичный webhook; offset оставлен библиотеке, если достаточно |
-| 016 | Docker Compose/Dokploy/VPS | Воспроизводимая дипломная доставка с persistent DB |
-| 017 | Security/CI/TTL после MVP | Не блокируют основной сценарий при закрытом HTTP |
-
-Отдельные ADR файлы сейчас не нужны; расширить конкретное решение при фактическом изменении.
-
-## Применённая методология
-
-Документы отредактированы по существующим проектным решениям; новый market analysis не проводился.
-
-- Продукт: проверяемые критерии, явное evidence и открытые NEED, ограниченный scope.
-- Инженерия: минимальная модель, service contracts, bounded tools, eval перед оптимизацией prompt приложения.
-- Проверки: тесты и code review относятся к изменённым областям; deployment проверяется при реализации соответствующей задачи.
+Система не требует интерфейса для каждого класса, event bus, универсального framework
+или дополнительных сервисов. Внешние границы должны быть подменяемы в тестах.

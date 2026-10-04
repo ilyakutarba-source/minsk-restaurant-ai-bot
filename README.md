@@ -1,46 +1,63 @@
 # Minsk Restaurant AI Bot
 
-Дипломный Telegram AI-гид по ограниченному каталогу ресторанов Минска.
-Поиск и факты принадлежат Java services и собственной БД.
+Дипломный проект Telegram AI-гида по ограниченному каталогу ресторанов Минска.
+Java services и собственная БД определяют факты и результаты поиска; LLM предназначена
+для понимания запроса, выбора инструмента и контролируемого объяснения.
 
-Стек: Java 21, Spring Boot 3.5.16, PostgreSQL, JPA/Hibernate, Flyway,
-springdoc 2.9.1, H2 для тестов, JUnit 5. Spring AI 1.1.8 закреплён через BOM;
-provider starter и интеграция появятся в TASK-05.
+## Features
 
-Требования: JDK 21 (`JAVA_HOME`), Maven 3.9.16 через включённый Wrapper.
-Первый запуск Wrapper и сборка требуют доступа к Maven Central.
+**IMPLEMENTED:** каталог трёх реальных филиалов, собственные часы и ориентировочные
+чеки, partial menus, controlled JSON import, детерминированный Restaurant Search,
+четыре REST endpoints и Swagger, Flyway и тесты на H2/PostgreSQL.
 
-Проверки из корня проекта (PowerShell):
+**PLANNED:** Telegram private chats/long polling, Spring AI Tool Calling и Structured
+Output, разговорные уточнения, PostgreSQL ChatMemory и последняя показанная подборка,
+условное Google Places enrichment, Docker Compose и Dokploy/VPS.
 
-```powershell
-.\mvnw.cmd clean test
-.\mvnw.cmd clean verify
+## Example user scenario
+
+Целевой Telegram-сценарий после подключения AI и транспорта:
+
+> Сегодня в 21:00 нас двое, общий бюджет до 150 BYN, итальянская кухня, хочется спокойно.
+
+LLM извлекает критерии, Java выполняет поиск и возвращает до трёх вариантов.
+Запрос «Меню второго» будет разрешаться по последней показанной подборке.
+Сейчас полный структурированный запрос можно проверить через REST/Swagger без AI.
+Пользовательские сценарии и scope: [PRODUCT](docs/PRODUCT.md).
+
+## Tech stack
+
+- Java 21, один Maven module, Maven Wrapper 3.9.16.
+- Spring Boot 3.5.16, Spring Data JPA/Hibernate, PostgreSQL, Flyway.
+- REST и springdoc 2.9.1; H2 для части tests, JUnit 5/Mockito.
+- Spring AI 1.1.8 закреплён BOM; provider starter ещё не подключён.
+- Для AI выбран OpenAI-compatible AIAI.BY и модель `gpt-4.1-mini`.
+
+Точные зависимости: [pom.xml](pom.xml). Конфигурация планируемой интеграции: [AI](docs/AI.md).
+
+## Architecture overview
+
+Один Spring Boot application — modular monolith. REST controllers вызывают
+application services; services читают JPA repositories. Будущий Telegram adapter
+будет использовать те же services напрямую. У LLM нет SQL/JPA-доступа.
+Границы компонентов: [ARCHITECTURE](docs/ARCHITECTURE.md).
+
+## Restaurant Search overview
+
+Поиск принимает гостей, общий BYN-бюджет, дату/время, optional cuisine и preferredTags.
+Java сначала применяет hard filters, затем ранжирует допустимые рестораны:
+
+```text
+catalog → hard filters → eligible restaurants → soft tag matching → ranking → ≤3 candidates
+matchCount DESC → estimatedTotal ASC → restaurant ID ASC
 ```
 
-На Linux/macOS: `./mvnw clean test` и `./mvnw clean verify`.
-Test profile использует H2, не требует внешних ключей и PostgreSQL.
+`estimatedTotal = estimatedCheckPerGuest × guests` вычисляется через BigDecimal.
+Число гостей не является фильтром вместимости. Часы учитывают дату, местное время
+Минска и продолжение интервала предыдущего дня. Tags влияют только на ranking.
+Правила и contract: [Restaurant Search](docs/ARCHITECTURE.md#правила-поиска-и-рекомендаций).
 
-Для локального запуска без внешних сервисов:
-
-```powershell
-.\mvnw.cmd spring-boot:test-run "-Dspring-boot.run.profiles=test"
-```
-
-Swagger: <http://127.0.0.1:8080/swagger-ui/index.html>,
-OpenAPI: <http://127.0.0.1:8080/v3/api-docs>.
-Default profile получает PostgreSQL connection из `DB_URL`, `DB_USER`, `DB_PASSWORD`;
-реальные значения задаются вне Git. Конфигурация доступа: [DEPLOYMENT](docs/DEPLOYMENT.md).
-
-Реализованы каталог первых трёх ресторанов, сохранённые partial menus и Java search.
-Flyway V1–V4 создаёт schema и применяет локальные datasets; Hibernate использует `validate`.
-Каталог/details доступны на `/api/v1/restaurants`; меню — `/api/v1/restaurants/{id}/menu`
-с optional `dishType=PASTA` и `maxItemPriceByn`. Меню содержит coverage=PARTIAL,
-source/date и BYN prices. Отсутствие блюда в БД не означает его отсутствия в полном меню.
-JSON dataset и controlled import: [DATABASE](docs/DATABASE.md#controlled-seedimport).
-
-`POST /api/v1/recommendations` принимает полный структурированный запрос посещения,
-выполняет Java hard filters и возвращает до трёх кандидатов в стабильном порядке.
-Пример тела для Swagger (TODAY нормализуется по текущей дате Минска):
+Пример тела `POST /api/v1/recommendations`:
 
 ```json
 {
@@ -53,12 +70,77 @@ JSON dataset и controlled import: [DATABASE](docs/DATABASE.md#controlled-seedim
 }
 ```
 
-Доступны ISO date/TODAY/TOMORROW, сегодня и следующие шесть дней, время HH:mm.
-Невалидные/неполные criteria дают 400, отсутствие совпадений — 200 с пустым candidates.
-Чек умножается на гостей через BigDecimal; меню для поиска не требуется.
-Нормализация, фильтры, ranking и response contract: [ARCHITECTURE](docs/ARCHITECTURE.md#реализация-task-04).
+## AI integration overview
 
-H2 tests и PostgreSQL acceptance проверяются отдельно: [BACKLOG](docs/BACKLOG.md).
-Основная документация: [Product](docs/PRODUCT.md), [Architecture](docs/ARCHITECTURE.md),
-[AI](docs/AI.md), [Database](docs/DATABASE.md), [Backlog](docs/BACKLOG.md),
-[TASK-00 evidence](docs/TASK-00-FEASIBILITY.md).
+Интеграция в приложение **PLANNED**. Spring AI ChatClient будет использовать три
+read-only tools: searchRestaurants, getRestaurantDetails, getRestaurantMenu.
+Модель выбирает причины объяснения через Structured Output; фактические карточки
+формирует Java. Ограничения исполнения и memory: [AI](docs/AI.md).
+
+## Database
+
+Flyway V1–V4 создаёт каталог/меню и применяет локальные datasets; Hibernate использует
+`validate`. У данных сохранены source и verifiedAt. Меню всегда PARTIAL; отсутствие
+позиции в БД не доказывает её отсутствия в полном меню. Поиск не зависит от MenuItem.
+Модель, provenance и import contract: [DATABASE](docs/DATABASE.md).
+
+## REST API / Swagger
+
+| Method | Path | Назначение |
+|---|---|---|
+| GET | `/api/v1/restaurants` | Active catalog, page/size |
+| GET | `/api/v1/restaurants/{id}` | Own details |
+| GET | `/api/v1/restaurants/{id}/menu` | Partial menu, optional dishType/maxItemPriceByn |
+| POST | `/api/v1/recommendations` | Полные criteria, до трёх ordered candidates |
+
+Swagger: <http://127.0.0.1:8080/swagger-ui/index.html>.
+OpenAPI: <http://127.0.0.1:8080/v3/api-docs>.
+HTTP доступен на loopback; REST/Swagger предназначены для локального запуска и demo.
+
+## Configuration
+
+Default profile требует `DB_URL`, `DB_USER`, `DB_PASSWORD` из внешней среды.
+Test profile использует H2 и не требует внешних ключей или PostgreSQL.
+Секреты хранятся вне Git. Текущие и запланированные переменные: [DEPLOYMENT](docs/DEPLOYMENT.md#environment-configuration).
+
+## Running locally
+
+Требуется JDK 21 в `JAVA_HOME`. Первый запуск Wrapper/сборки требует доступа к Maven Central.
+Из корня проекта в PowerShell для H2 demo:
+
+```powershell
+.\mvnw.cmd spring-boot:test-run "-Dspring-boot.run.profiles=test"
+```
+
+Для PostgreSQL задайте DB-переменные в среде и запустите:
+
+```powershell
+.\mvnw.cmd spring-boot:run
+```
+
+На Linux/macOS используется `./mvnw` вместо `.\mvnw.cmd`.
+
+## Tests
+
+```powershell
+.\mvnw.cmd clean test
+.\mvnw.cmd clean verify
+```
+
+Tests проверяют каталог, меню/import, search boundaries, overnight, ranking и REST.
+H2 не заменяет PostgreSQL acceptance. Команда проверки на отдельной пустой test БД:
+[PostgreSQL acceptance](docs/DATABASE.md#postgresql-acceptance).
+
+## Deployment
+
+Docker Compose → Dokploy → VPS — **PLANNED**; Dockerfile/Compose и готового deployment
+пока нет. Требования к runtime, сети, persistence и backup: [DEPLOYMENT](docs/DEPLOYMENT.md).
+
+## Current MVP limitations
+
+Каталог содержит три филиала; целевой объём — 10–12. Поддержаны Минск, BYN, 1–6 гостей,
+сегодня и следующие шесть дней. REST не разбирает естественный язык.
+DERIVED check — собственная ориентировочная оценка, не официальный средний чек.
+Наличие столика, блюда, праздничные часы и тишина не гарантируются.
+AI, Telegram, ChatMemory и Google ещё не интегрированы; Google не участвует в ranking.
+Booking, публичный admin/chat API, геопоиск и RAG/vector search вне MVP.
