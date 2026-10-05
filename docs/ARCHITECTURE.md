@@ -8,10 +8,13 @@
 
 ```mermaid
 flowchart TD
+    TELEGRAM[Telegram private text message] --> TRANSPORT[Telegram adapter / Pengrad long polling]
+    TRANSPORT --> AI
     REST[REST controllers / Swagger] --> SERVICES[RestaurantService / MenuService / RestaurantSearchService]
     AI[Spring AI ChatClient / bounded search adapter] --> TOOL[Validated single searchRestaurants request]
     TOOL --> SERVICES
     SERVICES --> CARDS[Java factual renderer / validated ExplanationPlan or fallback]
+    CARDS --> SEND[Telegram sendMessage / plain text]
     SERVICES --> DTO[Own DTO / ordered search candidates]
     SERVICES --> JPA[JPA repositories]
     JPA --> PG[(PostgreSQL)]
@@ -20,9 +23,17 @@ flowchart TD
 
 Пакет `catalog` содержит Restaurant, menu, persistence и services; `search` — criteria,
 filters/ranking и Clock configuration; `api` — тонкие REST controllers; `ai` —
-stateless ChatClient adapter, search tool, plan validation и Java renderer.
+stateless ChatClient adapter, search tool, plan validation и Java renderer;
+`telegram` — private text filtering, library polling lifecycle и plain-text sendMessage.
 Controllers не выполняют поиск и не возвращают JPA entities. Own DTO создаются внутри
 read-only transactions, `open-in-view=false`. Денежные значения — BigDecimal.
+
+Реализованный Telegram slice: private chat → TelegramUpdateHandler →
+SpringAiSearchAdapter → searchRestaurants → RestaurantSearchService → PostgreSQL →
+trusted SearchResult → optional explanation + existing Java renderer → sendMessage.
+Handler не добавляет model calls, search или retries, не читает repository и не
+сохраняет контекст. Только полное self-contained сообщение; неполный запрос получает
+существующий controlled AI result. Runtime activation/polling: [DEPLOYMENT](DEPLOYMENT.md#telegram-long-polling--implemented).
 
 ## Планируемые компоненты — PLANNED
 
@@ -43,12 +54,12 @@ Telegram private chat → ConversationService → Spring AI ChatClient
 | ConversationService | Merge criteria, bounded turn, memory/state, отправка и selection | PLANNED |
 | ReferenceResolver | Ordinal/name → restaurantId в текущем чате | PLANNED |
 | Java renderer | Search factual cards и validated explanation/fallback | IMPLEMENTED для search |
-| Telegram adapter | Private chat check, long polling, escaping/send | PLANNED |
+| Telegram adapter | Private text check, long polling, plain-text send | IMPLEMENTED для stateless slice |
 | Google adapter | Conditional Place Details enrichment известного ресторана | PLANNED, DEFERRED |
 
 Adapters → application services → repositories/clients. Services поиска/меню/details
-не зависят от Telegram, ConversationService или Spring AI SDK. Будущий Telegram
-вызывает services напрямую, без HTTP-запросов к собственному приложению.
+не зависят от Telegram, ConversationService или Spring AI SDK. Telegram вызывает
+SpringAiSearchAdapter bean напрямую, без HTTP-запросов к собственному приложению.
 LLM не получает repositories, EntityManager, SQL или доступ к БД.
 HTTP/LLM calls выполняются вне DB transactions. Memory и reference contracts: [AI](AI.md).
 
@@ -60,7 +71,8 @@ HTTP/LLM calls выполняются вне DB transactions. Memory и referenc
 cuisine и preferredTags опциональны. Поддержаны Минск, BYN, 1–6 гостей, сегодня и
 следующие шесть дней. Clock определяет текущую дату в Europe/Minsk независимо от ОС.
 REST принимает уже структурированный запрос, не разбирает естественный язык.
-В планируемом чате неоднозначность бюджета/времени и missing fields требуют уточнения.
+Неоднозначность бюджета/времени и missing fields требуют уточнения;
+stateless Telegram slice не сохраняет предыдущие критерии. Merge остаётся PLANNED.
 
 ### Hard filters
 
@@ -145,7 +157,8 @@ Menu filters и import semantics: [DATABASE](DATABASE.md#menu-data-strategy).
 AI search — IMPLEMENTED: модель выбирает один searchRestaurants request и причины
 объяснения; Java определяет реальные ID, цены, часы, адреса и порядок. Bounded adapter
 вызывает application service напрямую, HTTP/model calls вне DB transactions.
-Другие tools, Telegram и memory — PLANNED. Call limits/configuration: [AI](AI.md).
+Telegram stateless transport — IMPLEMENTED; другие tools и memory — PLANNED.
+Call limits/configuration: [AI](AI.md).
 Google enrichment допускается только в details известного филиала, по вручную
 проверенному place ID; не формирует каталог/меню и не вызывается для search candidates.
 Live payload не сохраняется в own DB/memory и не передаётся LLM. При Google failure

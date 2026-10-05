@@ -2,7 +2,8 @@
 
 Minsk Restaurant AI Bot помогает выбрать ресторан из собственного ограниченного
 каталога Минска и получить сведения о выбранном заведении. Основной целевой UI —
-русскоязычный Telegram private chat; текущая реализация доступна через REST/Swagger.
+русскоязычный Telegram private chat; полный stateless поиск доступен в Telegram,
+структурированный поиск и чтение каталога — через REST/Swagger.
 
 ## Реализованные возможности — IMPLEMENTED
 
@@ -14,11 +15,13 @@ Minsk Restaurant AI Bot помогает выбрать ресторан из с
 - REST catalog/details/menu/recommendations и Swagger.
 - Stateless Spring AI search по полному natural-language запросу, controlled
   ExplanationPlan и Java factual card/fallback; [AI contract](AI.md).
+- Telegram private text messages и long polling: полный запрос → существующий AI
+  search → собственная PostgreSQL → Java factual card → sendMessage.
 
 Чек, расписание и меню имеют отдельные источники и даты проверки. Поиск работает
 при частичном или отсутствующем меню. [Модель и происхождение данных](DATABASE.md).
 
-## Core user journey — PLANNED
+## Core user journey — первые три шага IMPLEMENTED; продолжение PLANNED
 
 1. Пользователь: «Сегодня в 21:00 нас двое, до 150 BYN, итальянская кухня, хочется спокойно».
 2. AI извлекает критерии; при недостающих или неоднозначных данных задаётся уточнение.
@@ -30,9 +33,10 @@ Minsk Restaurant AI Bot помогает выбрать ресторан из с
 6. «А если нас четверо?» меняет гостей, сохраняя остальные критерии.
 7. `/new` очищает разговор, критерии и последнюю подборку.
 
-Telegram, разговорное продолжение, menu/details tools и сохранение контекста пока
-не реализованы. Stateless AI search реализован на уровне application service;
-основной Telegram journey остаётся PLANNED.
+Первые три шага работают для одного полного self-contained сообщения в Telegram.
+При недостающих данных возвращается Java clarification; следующий запрос должен
+снова содержать полные критерии. Разговорное продолжение (шаги 4–7), memory,
+references, menu/details tools и commands остаются PLANNED.
 Правила tools/memory/reference resolution: [AI](AI.md).
 
 ## MVP — MUST
@@ -40,11 +44,11 @@ Telegram, разговорное продолжение, menu/details tools и �
 | Возможность | Продуктовая граница | Состояние |
 |---|---|---|
 | Каталог | 10–12 реальных заведений, конкретные филиалы | Реализованы первые 3 |
-| Посещение | Минск, BYN, 1–6 гостей, сегодня и следующие 6 дней | Реализовано в REST search |
+| Посещение | Минск, BYN, 1–6 гостей, сегодня и следующие 6 дней | IMPLEMENTED в Java search и Telegram slice |
 | Поиск | Гости, общий бюджет, дата/время, optional cuisine/tags; до 3 вариантов | IMPLEMENTED |
 | Чек | Проверяемый ориентир на гостя с type/source/date | IMPLEMENTED |
 | Меню | 5–10 позиций на заведение, только PARTIAL | IMPLEMENTED для 3 филиалов |
-| Telegram | Личные чаты, русский язык, long polling | PLANNED |
+| Telegram | Личные чаты, русский язык, long polling | IMPLEMENTED для stateless search; finishing PLANNED |
 | AI | Один provider/model, Spring AI Tool Calling и Structured Output | IMPLEMENTED для stateless search; другие tools PLANNED |
 | Контекст | Ограниченная ChatMemory и последняя показанная подборка по chatId | PLANNED |
 | Команды | `/start`, `/help`, `/new` | PLANNED |
@@ -59,7 +63,7 @@ Provider/модель и доверенные tool contracts: [AI](AI.md).
 
 **Подбор.** Hard constraints не ослабляются автоматически. Неизвестные чек/часы не
 подтверждают соответствие запросу. Пустой REST search возвращает пустой список;
-будущий чат предложит пользователю изменить критерии.
+Telegram возвращает честный NO_RESULTS и предлагает новый запрос с другими критериями.
 
 **Бюджет.** Указанная сумма — общий бюджет на всех гостей. Ориентировочный чек не
 гарантирует окончательную сумму заказа; DERIVED не означает официальный средний чек.

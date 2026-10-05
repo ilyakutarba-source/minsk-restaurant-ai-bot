@@ -11,7 +11,8 @@ Test profile использует H2 без внешних API/ключей и �
 AI provider подключён для opt-in stateless search: `AI_ENABLED=true` и `AIAI_API_KEY`.
 Без enabled AI REST работает без ключа и внешних вызовов; test profile отключает AI.
 Production ChatClient/search/explanation и limits: [AI](AI.md).
-Telegram, Google и persistent conversation state пока не подключены.
+Telegram private-text long polling подключён к тому же search adapter при непустом
+TELEGRAM_BOT_TOKEN и enabled AI. Google и persistent conversation state пока не подключены.
 Dockerfile, Compose и CI configuration пока отсутствуют. Ниже описан **PLANNED**
 deployment contract, а не инструкция уже готового контейнерного запуска.
 
@@ -42,6 +43,7 @@ CPU/RAM/disk должны учитывать application, PostgreSQL, image buil
 | SPRING_DATASOURCE_PASSWORD | Пароль отдельной test DB при PostgreSQL tests |
 | AI_ENABLED | Opt-in production AI search; default false |
 | AIAI_API_KEY | Runtime credential AIAI.BY при AI_ENABLED=true |
+| TELEGRAM_BOT_TOKEN | Runtime bot token; вместе с enabled AI активирует Telegram transport |
 
 DB_URL/DB_USER используются прямо в application.yml. Test connection overrides и
 команда проверки: [DATABASE](DATABASE.md#postgresql-acceptance).
@@ -50,7 +52,6 @@ Planned integration/container variables; они ещё не связаны с п
 
 | Переменная | Назначение |
 |---|---|
-| TELEGRAM_BOT_TOKEN | Секрет Telegram bot token |
 | TELEGRAM_ALLOWED_CHAT_IDS | Optional allowlist private chats для demo |
 | GOOGLE_PLACES_ENABLED | Conditional enrichment flag после проверки доступности/условий |
 | GOOGLE_MAPS_API_KEY | Credential только при enabled Google integration |
@@ -90,7 +91,7 @@ PostgreSQL автоматически. Последующие изменения
 
 REST/Swagger доступны локально. На VPS — private network/loopback publishing и
 SSH tunnel для demo. PostgreSQL находится только в private Compose network.
-Telegram предназначен для private chats; allowlist ограничивает demo и расходы.
+Telegram принимает только private text messages. Optional demo allowlist пока PLANNED.
 Dokploy admin access защищается средствами сервера/Dokploy.
 
 Spring Security вне MVP при закрытом HTTP. Telegram chatId не авторизует HTTP caller.
@@ -98,18 +99,35 @@ Spring Security вне MVP при закрытом HTTP. Telegram chatId не а
 `.env`, local configuration и dumps исключаются из Git. Backup с conversation data
 имеет ограниченный доступ.
 
-## Telegram long polling — PLANNED
+## Telegram long polling — IMPLEMENTED
 
 Выбрана plain library `com.github.pengrad:java-telegram-bot-api:10.1.0`, независимая
-от Boot starter; dependency и transport ещё не добавлены.
+от Boot starter; dependency и transport подключены.
 [Library](https://github.com/pengrad/java-telegram-bot-api), [Telegram getUpdates](https://core.telegram.org/bots/api#getupdates).
 
 - Long polling и webhook не работают одновременно; active webhook должен отсутствовать.
-- ChatId/update identifiers — 64-bit; сообщения одного чата обрабатываются последовательно.
-- Update acknowledgment/offset используется из library и проверяется на restart/failure.
-- Selection сохраняется после successful sendMessage; failed send её не заменяет.
-- Подборка отправляется одной компактной message с escaping; lifecycle: [AI](AI.md#conversationstate-и-selection-context).
-- Telegram 429 учитывает retry_after; бесконечная очередь/retry loop не создаётся.
+- Activation: `AI_ENABLED=true`, runtime `AIAI_API_KEY` и непустой `TELEGRAM_BOT_TOKEN`.
+  Без token Telegram beans/poller не создаются; REST/Swagger продолжают работать.
+  Test profile задаёт empty token и disabled AI, не вызывает Telegram API.
+- В локальной IDE environment variables должны быть доступны именно запускаемому
+  процессу. Секреты не сохраняются в shared project Run Configuration.
+- Один Spring lifecycle component запускает один Pengrad updates listener и снимает
+  его при остановке; client закрывается вместе с context. Один token — один instance.
+- Принимаются только private text messages; остальные updates безопасно игнорируются.
+  ChatId остаётся 64-bit, но не передаётся в AI и не записывается в обычные logs.
+- Существующий stateless AI adapter возвращает Java-owned text. Одна plain-text
+  message без parse mode сохраняет названия/адреса с markup-символами буквально.
+- Стандартное acknowledgment `CONFIRMED_UPDATES_ALL` и offset принадлежат library.
+  Ошибка одного update изолируется; собственных checkpoint, queues или retries нет.
+- Logs содержат только status, call/tool counters, собственные candidate IDs,
+  explanationFallback и результат sendMessage. SDK exceptions/payload/URLs не логируются.
+
+### Telegram finishing — PLANNED
+
+Commands, formatting/length policies, per-chat sequencing, provider/DB/Telegram error UX,
+429/retry_after и проверка library offset/restart/failure behavior остаются PLANNED.
+Memory и selection также отсутствуют; их future lifecycle:
+[AI](AI.md#conversationstate-и-selection-context).
 
 Если library достаточно управляет offset, checkpoint storage не нужен. При доказанной
 необходимости допустим один technical lastProcessedUpdateId на bot instance.
