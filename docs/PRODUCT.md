@@ -12,6 +12,8 @@ Minsk Restaurant AI Bot помогает выбрать ресторан из с
 - Java Restaurant Search по полным структурированным критериям посещения.
 - До трёх кандидатов в стабильном порядке с подтверждёнными reason codes.
 - REST catalog/details/menu/recommendations и Swagger.
+- Stateless Spring AI search по полному natural-language запросу, controlled
+  ExplanationPlan и Java factual card/fallback; [AI contract](AI.md).
 
 Чек, расписание и меню имеют отдельные источники и даты проверки. Поиск работает
 при частичном или отсутствующем меню. [Модель и происхождение данных](DATABASE.md).
@@ -28,7 +30,9 @@ Minsk Restaurant AI Bot помогает выбрать ресторан из с
 6. «А если нас четверо?» меняет гостей, сохраняя остальные критерии.
 7. `/new` очищает разговор, критерии и последнюю подборку.
 
-Telegram, разговорные уточнения, AI tools и сохранение контекста пока не реализованы.
+Telegram, разговорное продолжение, menu/details tools и сохранение контекста пока
+не реализованы. Stateless AI search реализован на уровне application service;
+основной Telegram journey остаётся PLANNED.
 Правила tools/memory/reference resolution: [AI](AI.md).
 
 ## MVP — MUST
@@ -41,7 +45,7 @@ Telegram, разговорные уточнения, AI tools и сохране�
 | Чек | Проверяемый ориентир на гостя с type/source/date | IMPLEMENTED |
 | Меню | 5–10 позиций на заведение, только PARTIAL | IMPLEMENTED для 3 филиалов |
 | Telegram | Личные чаты, русский язык, long polling | PLANNED |
-| AI | Один provider/model, Spring AI Tool Calling и Structured Output | PLANNED |
+| AI | Один provider/model, Spring AI Tool Calling и Structured Output | IMPLEMENTED для stateless search; другие tools PLANNED |
 | Контекст | Ограниченная ChatMemory и последняя показанная подборка по chatId | PLANNED |
 | Команды | `/start`, `/help`, `/new` | PLANNED |
 | Google | Enrichment известного ресторана; только после проверки доступности/условий | PLANNED, DEFERRED |
@@ -70,8 +74,9 @@ Provider/модель и доверенные tool contracts: [AI](AI.md).
 **Контекст — PLANNED.** «Первый/второй/последний» ссылается только на текущую успешно
 показанную подборку. Неоднозначное название требует уточнения; разные чаты изолированы.
 
-**Ошибки AI/Google — PLANNED.** REST Java search работает независимо от этих внешних
-сервисов. При failed explanation остаётся Java factual card; недоступный рейтинг
+**Ошибки AI — IMPLEMENTED для search; Google — PLANNED.** REST Java search работает
+независимо от этих внешних сервисов. При failed explanation остаётся Java factual card;
+недоступный рейтинг
 не придумывается и не восстанавливается из разговорной памяти.
 
 Собственное недельное расписание не гарантирует праздничных исключений. Продукт

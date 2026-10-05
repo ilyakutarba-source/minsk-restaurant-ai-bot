@@ -18,7 +18,7 @@ public record SearchCriteria(int guests, BigDecimal totalBudgetByn, LocalDate da
                              Cuisine cuisine, Set<RestaurantTag> preferredTags) {
     public static final ZoneId MINSK = ZoneId.of("Europe/Minsk");
 
-    static SearchCriteria normalize(SearchRequest input, Clock clock) {
+    public static SearchCriteria normalize(SearchRequest input, Clock clock) {
         if (input == null || input.guests() == null || input.guests() < 1 || input.guests() > 6) {
             throw new IllegalArgumentException("Guests must be an integer between 1 and 6");
         }

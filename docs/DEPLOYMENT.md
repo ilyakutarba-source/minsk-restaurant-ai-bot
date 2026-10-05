@@ -8,7 +8,10 @@ Hibernate проверяет схему через `ddl-auto=validate`. HTTP bin
 Test profile использует H2 без внешних API/ключей и доступен для локального REST demo.
 Команды запуска и проверки: [README](../README.md#running-locally).
 
-AI provider, Telegram, Google и persistent conversation state пока не подключены.
+AI provider подключён для opt-in stateless search: `AI_ENABLED=true` и `AIAI_API_KEY`.
+Без enabled AI REST работает без ключа и внешних вызовов; test profile отключает AI.
+Production ChatClient/search/explanation и limits: [AI](AI.md).
+Telegram, Google и persistent conversation state пока не подключены.
 Dockerfile, Compose и CI configuration пока отсутствуют. Ниже описан **PLANNED**
 deployment contract, а не инструкция уже готового контейнерного запуска.
 
@@ -37,6 +40,8 @@ CPU/RAM/disk должны учитывать application, PostgreSQL, image buil
 | DB_PASSWORD | Пароль DB из внешней среды |
 | SPRING_PROFILES_ACTIVE | Spring profile; test включает H2 |
 | SPRING_DATASOURCE_PASSWORD | Пароль отдельной test DB при PostgreSQL tests |
+| AI_ENABLED | Opt-in production AI search; default false |
+| AIAI_API_KEY | Runtime credential AIAI.BY при AI_ENABLED=true |
 
 DB_URL/DB_USER используются прямо в application.yml. Test connection overrides и
 команда проверки: [DATABASE](DATABASE.md#postgresql-acceptance).
@@ -45,8 +50,6 @@ Planned integration/container variables; они ещё не связаны с п
 
 | Переменная | Назначение |
 |---|---|
-| AIAI_API_KEY | Runtime credential выбранного AI provider |
-| AI_API_KEY / AI_MODEL / AI_BASE_URL | Общие integration settings с явным mapping; model по выбранному contract — gpt-4.1-mini |
 | TELEGRAM_BOT_TOKEN | Секрет Telegram bot token |
 | TELEGRAM_ALLOWED_CHAT_IDS | Optional allowlist private chats для demo |
 | GOOGLE_PLACES_ENABLED | Conditional enrichment flag после проверки доступности/условий |
@@ -54,10 +57,11 @@ Planned integration/container variables; они ещё не связаны с п
 | POSTGRES_DB / POSTGRES_USER / POSTGRES_PASSWORD | Инициализация PostgreSQL container |
 | APP_TIMEZONE | Planned явная runtime setting; текущий Search Clock уже использует Europe/Minsk |
 
-`AI_*` и AIAI_API_KEY не распознаются starter автоматически: требуется explicit mapping.
-Выбранные Spring AI 1.1.8 properties: api-key из AIAI_API_KEY,
-base-url `https://api.aiai.by`, completions-path `/v1/chat/completions`, model `gpt-4.1-mini`.
-Origin base и versioned path не должны дублировать `/v1`. Retry max-attempts=1 и
+AiConfiguration создаёт production model явно: key из `restaurant-bot.ai.api-key`
+через AIAI_API_KEY, base-url `https://api.aiai.by`, completions-path
+`/v1/chat/completions`, model `gpt-4.1-mini`. Provider auto-models и memory auto-config
+отключены. `restaurant-bot.ai.explanation-enabled=false` отключает optional second call.
+Origin base и versioned path не должны дублировать `/v1`. Retry/transport timeouts и
 исполнение в пределах turn budget принадлежат [AI](AI.md#bounded-execution).
 
 DB_PASSWORD и POSTGRES_PASSWORD должны согласовываться при первой инициализации

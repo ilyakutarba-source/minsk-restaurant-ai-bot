@@ -1,0 +1,139 @@
+package by.ilya.restaurantbot.ai;
+
+import java.time.Clock;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.IntStream;
+
+import by.ilya.restaurantbot.search.RestaurantSearchService;
+import by.ilya.restaurantbot.search.SearchCriteria;
+import by.ilya.restaurantbot.search.SearchResult;
+import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.converter.BeanOutputConverter;
+import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.ai.openai.api.ResponseFormat;
+
+import static by.ilya.restaurantbot.ai.AiSearchReply.Status;
+
+/** Stateless bounded search turn. Model prose is never rendered to the user. */
+public final class SpringAiSearchAdapter {
+    static final String INITIAL_PROMPT = """
+            Ты ресторанный помощник по собственному каталогу Минска. Для фактического поиска
+            выбери только searchRestaurants, ровно один запрос для одного посещения.
+            Не придумывай рестораны и не вычисляй самостоятельно соответствие бюджету,
+            часам или кухне: это делает Java. Не используй другие tools и не объединяй
+            несколько поисков. При неизвестных или неоднозначных критериях передай null;
+            не угадывай время, валюту или общий бюджет. Поддержаны только BYN и 1–6 гостей.
+            При нескольких посещениях, другой валюте или неподдерживаемом запросе не вызывай tool.
+            Отсутствующая кухня — null, отсутствующие пожелания — пустой preferredTags.
+            Слово «спокойно» соответствует QUIET, «уютно» — COZY, «с друзьями» — FRIENDS.
+            """;
+    private final ChatClient client;
+    private final RestaurantSearchService service;
+    private final Clock clock;
+    private final boolean explanationEnabled;
+    private final SearchFactualRenderer renderer = new SearchFactualRenderer();
+    private final BeanOutputConverter<ExplanationPlan> converter = new BeanOutputConverter<>(ExplanationPlan.class);
+
+    public SpringAiSearchAdapter(ChatModel model, RestaurantSearchService service, Clock clock, boolean explanationEnabled) {
+        // Fresh client without global callbacks, memory or advisors; our model has no default tools.
+        this.client = ChatClient.create(model);
+        this.service = service;
+        this.clock = clock;
+        this.explanationEnabled = explanationEnabled;
+    }
+
+    public AiSearchReply search(String userText) {
+        if (userText == null || userText.isBlank() || userText.length() > 2000) {
+            return controlled(Status.INVALID_INPUT, 0, 0, List.of());
+        }
+        var tool = new SearchRestaurantsTool(service, clock);
+        int modelCalls = 0;
+        ChatResponse first;
+        try {
+            modelCalls++; // Failed attempts count; neither call is retried here.
+            first = client.prompt().system(INITIAL_PROMPT + "\nСегодня в Минске: "
+                    + LocalDate.now(clock.withZone(SearchCriteria.MINSK)))
+                    .user(userText)
+                    .options(OpenAiChatOptions.builder().temperature(0.0).maxTokens(350).N(1)
+                        .internalToolExecutionEnabled(false).parallelToolCalls(false)
+                        .toolCallbacks(tool).build())
+                    .call().chatResponse();
+        } catch (RuntimeException unavailable) {
+            return controlled(Status.TEMPORARILY_UNAVAILABLE, modelCalls, 0, List.of());
+        }
+        if (!usable(first, "TOOL_CALLS")) {
+            return controlled(Status.NEED_CLARIFICATION, modelCalls, 0, List.of());
+        }
+        var calls = first.getResult().getOutput().getToolCalls();
+        // Atomic batch precheck: do not run even the first request in an invalid batch.
+        if (calls.size() != 1 || !SearchRestaurantsTool.NAME.equals(calls.getFirst().name())
+                || !"function".equals(calls.getFirst().type())
+                || calls.getFirst().id() == null || calls.getFirst().id().isBlank()) {
+            return controlled(Status.INVALID_INPUT, modelCalls, 0, List.of());
+        }
+        tool.call(calls.getFirst().arguments());
+        if (tool.status() != Status.OK && tool.status() != Status.NO_RESULTS) {
+            return controlled(tool.status(), modelCalls, tool.executions(), tool.missing());
+        }
+        var result = tool.result();
+        ExplanationPlan plan = null;
+        if (tool.status() == Status.OK && explanationEnabled) {
+            try {
+                modelCalls++;
+                var second = client.prompt().system("""
+                        Choose an explanation plan only from the supplied positions and their allowedReasonCodes.
+                        Return one item per position, 1–2 distinct reasons, phrasing NEUTRAL/WARM/COMPACT.
+                        No factual text, no names, no extra fields, no tools. Do not reorder positions.
+                        """)
+                        .user(explanationProjection(result))
+                        .options(OpenAiChatOptions.builder().temperature(0.0).maxTokens(350).N(1)
+                            .internalToolExecutionEnabled(false).parallelToolCalls(false)
+                            .toolCallbacks(List.of()).toolNames(Set.of()).tools(List.of()).toolChoice("none")
+                            .responseFormat(new ResponseFormat(ResponseFormat.Type.JSON_SCHEMA, converter.getJsonSchema()))
+                            .build())
+                        .call().chatResponse();
+                if (usable(second, "STOP") && second.getResult().getOutput().getToolCalls().isEmpty()) {
+                    var json = second.getResult().getOutput().getText();
+                    if (json == null || json.length() > 2000) throw new IllegalArgumentException();
+                    var parsed = AiJson.mapper().readValue(json, ExplanationPlan.class);
+                    if (parsed != null && parsed.isValidFor(result)) plan = parsed;
+                }
+            } catch (Exception invalidOrFailed) {
+                // Keep the trusted result and render deterministic reasons. No repair/search/retry.
+            }
+        }
+        return new AiSearchReply(tool.status(), result, renderer.render(result, plan), modelCalls,
+                tool.executions(), tool.status() == Status.OK && plan == null, List.of());
+    }
+
+    private static boolean usable(ChatResponse response, String finishReason) {
+        if (response == null || response.getResults().size() != 1 || response.getResult().getOutput() == null) return false;
+        var output = response.getResult().getOutput();
+        var refusal = output.getMetadata().get("refusal");
+        return (refusal == null || refusal.toString().isBlank())
+                && finishReason.equals(response.getResult().getMetadata().getFinishReason());
+    }
+
+    private static String explanationProjection(SearchResult result) throws Exception {
+        var candidates = IntStream.range(0, result.candidates().size()).mapToObj(i -> Map.of(
+                "position", i + 1,
+                "tags", result.candidates().get(i).restaurant().tags().stream().sorted().toList(),
+                "allowedReasonCodes", result.candidates().get(i).allowedReasonCodes())).toList();
+        return AiJson.mapper().writeValueAsString(Map.of("candidates", candidates,
+                "preferredTags", result.normalizedCriteria().preferredTags().stream().sorted().toList()));
+    }
+
+    private static AiSearchReply controlled(Status status, int calls, int executions, List<String> missing) {
+        String text = switch (status) {
+            case NEED_CLARIFICATION -> "Укажите один запрос: число гостей (1–6), общий бюджет в BYN, дату и точное время в Минске.";
+            case INVALID_INPUT -> "Не удалось принять критерии. Нужен один поиск по поддерживаемым значениям.";
+            default -> "Поиск временно недоступен. Попробуйте позже.";
+        };
+        return new AiSearchReply(status, null, text, calls, executions, false, missing);
+    }
+}

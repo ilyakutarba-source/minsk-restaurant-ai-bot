@@ -1,6 +1,20 @@
 spring:
+  autoconfigure:
+    exclude: org.springframework.ai.model.chat.memory.autoconfigure.ChatMemoryAutoConfiguration
   application:
     name: minsk-restaurant-ai-bot
+  ai:
+    model:
+      chat: none
+      embedding: none
+      image: none
+      moderation: none
+      audio:
+        speech: none
+        transcription: none
+    retry:
+      max-attempts: 1
+
   jackson:
     deserialization:
       accept-float-as-int: false
@@ -16,3 +30,16 @@ spring:
 # REST and Swagger are local demo interfaces (see docs/DEPLOYMENT.md).
 server:
   address: 127.0.0.1
+
+restaurant-bot:
+  ai:
+    enabled: ${AI_ENABLED:false}
+    api-key: ${AIAI_API_KEY:}
+    explanation-enabled: true
+
+# Provider error bodies and request payloads must not enter ordinary logs.
+logging:
+  level:
+    org.springframework.ai: "OFF"
+    org.apache.hc.client5.http: "OFF"
+    org.apache.hc.core5.http: "OFF"

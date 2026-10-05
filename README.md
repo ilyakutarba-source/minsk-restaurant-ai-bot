@@ -1,17 +1,18 @@
 # Minsk Restaurant AI Bot
 
 Дипломный проект Telegram AI-гида по ограниченному каталогу ресторанов Минска.
-Java services и собственная БД определяют факты и результаты поиска; LLM предназначена
+Java services и собственная БД определяют факты и результаты поиска; LLM используется
 для понимания запроса, выбора инструмента и контролируемого объяснения.
 
 ## Features
 
 **IMPLEMENTED:** каталог трёх реальных филиалов, собственные часы и ориентировочные
 чеки, partial menus, controlled JSON import, детерминированный Restaurant Search,
-четыре REST endpoints и Swagger, Flyway и тесты на H2/PostgreSQL.
+четыре REST endpoints и Swagger, Flyway и тесты на H2/PostgreSQL; stateless Spring AI
+search tool, Structured Output explanation и Java factual renderer/fallback.
 
-**PLANNED:** Telegram private chats/long polling, Spring AI Tool Calling и Structured
-Output, разговорные уточнения, PostgreSQL ChatMemory и последняя показанная подборка,
+**PLANNED:** Telegram private chats/long polling, menu/details AI tools, разговорные
+продолжения, PostgreSQL ChatMemory и последняя показанная подборка,
 условное Google Places enrichment, Docker Compose и Dokploy/VPS.
 
 ## Example user scenario
@@ -30,10 +31,10 @@ LLM извлекает критерии, Java выполняет поиск и �
 - Java 21, один Maven module, Maven Wrapper 3.9.16.
 - Spring Boot 3.5.16, Spring Data JPA/Hibernate, PostgreSQL, Flyway.
 - REST и springdoc 2.9.1; H2 для части tests, JUnit 5/Mockito.
-- Spring AI 1.1.8 закреплён BOM; provider starter ещё не подключён.
+- Spring AI 1.1.8 закреплён BOM; OpenAI provider starter и ChatClient подключены.
 - Для AI выбран OpenAI-compatible AIAI.BY и модель `gpt-4.1-mini`.
 
-Точные зависимости: [pom.xml](pom.xml). Конфигурация планируемой интеграции: [AI](docs/AI.md).
+Точные зависимости: [pom.xml](pom.xml). Конфигурация AI: [AI](docs/AI.md).
 
 ## Architecture overview
 
@@ -72,10 +73,11 @@ matchCount DESC → estimatedTotal ASC → restaurant ID ASC
 
 ## AI integration overview
 
-Интеграция в приложение **PLANNED**. Spring AI ChatClient будет использовать три
-read-only tools: searchRestaurants, getRestaurantDetails, getRestaurantMenu.
-Модель выбирает причины объяснения через Structured Output; фактические карточки
-формирует Java. Ограничения исполнения и memory: [AI](docs/AI.md).
+Stateless search **IMPLEMENTED**: Spring AI ChatClient использует только read-only
+searchRestaurants через существующий Java search. Модель выбирает причины объяснения
+через native Structured Output; Java проверяет план и формирует фактические карточки.
+Invalid/failed explanation даёт Java fallback. До двух model calls и одного search
+на turn. Menu/details tools, Telegram и memory остаются PLANNED: [AI](docs/AI.md).
 
 ## Database
 
@@ -101,6 +103,8 @@ HTTP доступен на loopback; REST/Swagger предназначены д�
 
 Default profile требует `DB_URL`, `DB_USER`, `DB_PASSWORD` из внешней среды.
 Test profile использует H2 и не требует внешних ключей или PostgreSQL.
+AI search включается отдельно: `AI_ENABLED=true` и `AIAI_API_KEY` в environment.
+По умолчанию AI отключён; application bean пока не имеет HTTP/Telegram transport.
 Секреты хранятся вне Git. Текущие и запланированные переменные: [DEPLOYMENT](docs/DEPLOYMENT.md#environment-configuration).
 
 ## Running locally
@@ -127,7 +131,16 @@ Test profile использует H2 и не требует внешних кл�
 .\mvnw.cmd clean verify
 ```
 
-Tests проверяют каталог, меню/import, search boundaries, overnight, ranking и REST.
+Tests проверяют каталог, меню/import, search boundaries, overnight, ranking, REST,
+AI tool/plan guards и production SDK через offline loopback HTTP fixtures.
+Обычные test/verify не вызывают live provider и не требуют API key.
+Отдельный минимальный live smoke (один turn, максимум два платных calls), только
+после проверки account budget/quotas и с AIAI_API_KEY в environment:
+
+```powershell
+.\mvnw.cmd "-Dtest=AiaiLiveSmokeIT" test
+```
+
 H2 не заменяет PostgreSQL acceptance. Команда проверки на отдельной пустой test БД:
 [PostgreSQL acceptance](docs/DATABASE.md#postgresql-acceptance).
 
@@ -142,5 +155,6 @@ Docker Compose → Dokploy → VPS — **PLANNED**; Dockerfile/Compose и гот
 сегодня и следующие шесть дней. REST не разбирает естественный язык.
 DERIVED check — собственная ориентировочная оценка, не официальный средний чек.
 Наличие столика, блюда, праздничные часы и тишина не гарантируются.
-AI, Telegram, ChatMemory и Google ещё не интегрированы; Google не участвует в ranking.
+Telegram, ChatMemory, menu/details AI tools и Google ещё не интегрированы;
+Google не участвует в ranking. AI search не использует предыдущие сообщения.
 Booking, публичный admin/chat API, геопоиск и RAG/vector search вне MVP.

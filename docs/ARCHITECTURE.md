@@ -9,6 +9,9 @@
 ```mermaid
 flowchart TD
     REST[REST controllers / Swagger] --> SERVICES[RestaurantService / MenuService / RestaurantSearchService]
+    AI[Spring AI ChatClient / bounded search adapter] --> TOOL[Validated single searchRestaurants request]
+    TOOL --> SERVICES
+    SERVICES --> CARDS[Java factual renderer / validated ExplanationPlan or fallback]
     SERVICES --> DTO[Own DTO / ordered search candidates]
     SERVICES --> JPA[JPA repositories]
     JPA --> PG[(PostgreSQL)]
@@ -16,7 +19,8 @@ flowchart TD
 ```
 
 Пакет `catalog` содержит Restaurant, menu, persistence и services; `search` — criteria,
-filters/ranking и Clock configuration; `api` — тонкие REST controllers.
+filters/ranking и Clock configuration; `api` — тонкие REST controllers; `ai` —
+stateless ChatClient adapter, search tool, plan validation и Java renderer.
 Controllers не выполняют поиск и не возвращают JPA entities. Own DTO создаются внутри
 read-only transactions, `open-in-view=false`. Денежные значения — BigDecimal.
 
@@ -35,10 +39,10 @@ Telegram private chat → ConversationService → Spring AI ChatClient
 | RestaurantService | Own catalog/details | IMPLEMENTED |
 | MenuService / MenuImportService | Partial menu reading и controlled import | IMPLEMENTED |
 | REST adapter | DTO, HTTP mapping, Swagger | IMPLEMENTED |
-| LLM / ChatClient | Interpretation, supported criteria, tool choice, причины объяснения | PLANNED |
+| LLM / ChatClient | Stateless search interpretation, supported criteria, tool choice, причины объяснения | IMPLEMENTED; [limits/contract](AI.md) |
 | ConversationService | Merge criteria, bounded turn, memory/state, отправка и selection | PLANNED |
 | ReferenceResolver | Ordinal/name → restaurantId в текущем чате | PLANNED |
-| Java renderer | Factual cards и validated explanation | PLANNED |
+| Java renderer | Search factual cards и validated explanation/fallback | IMPLEMENTED для search |
 | Telegram adapter | Private chat check, long polling, escaping/send | PLANNED |
 | Google adapter | Conditional Place Details enrichment известного ресторана | PLANNED, DEFERRED |
 
@@ -136,10 +140,12 @@ Menu status: AVAILABLE / NO_RESULTS / DATA_UNAVAILABLE. PARTIAL/source/date со
 при пустом результате, если metadata есть; unknown restaurant → 404.
 Menu filters и import semantics: [DATABASE](DATABASE.md#menu-data-strategy).
 
-## Внешние интеграции — PLANNED
+## Внешние интеграции
 
-AI выбирает tool и причины объяснения; Java определяет реальные ID, цены, часы,
-адреса и порядок. Call limits, model configuration и ChatMemory: [AI](AI.md).
+AI search — IMPLEMENTED: модель выбирает один searchRestaurants request и причины
+объяснения; Java определяет реальные ID, цены, часы, адреса и порядок. Bounded adapter
+вызывает application service напрямую, HTTP/model calls вне DB transactions.
+Другие tools, Telegram и memory — PLANNED. Call limits/configuration: [AI](AI.md).
 Google enrichment допускается только в details известного филиала, по вручную
 проверенному place ID; не формирует каталог/меню и не вызывается для search candidates.
 Live payload не сохраняется в own DB/memory и не передаётся LLM. При Google failure

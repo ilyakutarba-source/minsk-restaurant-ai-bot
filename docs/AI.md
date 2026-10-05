@@ -2,12 +2,15 @@
 
 ## Состояние интеграции
 
-**IMPLEMENTED:** Java catalog/search/menu services и доверенные собственные DTO.
-Spring AI 1.1.8 закреплён через BOM в Maven.
+**IMPLEMENTED:** Spring AI 1.1.8 starter, production ChatClient adapter для stateless
+search, единственный tool `searchRestaurants`, строгая Java validation, trusted
+SearchResult DTO, optional native Structured Output ExplanationPlan и Java factual
+renderer/fallback. Полный natural-language запрос не требует предыдущих сообщений.
+REST search продолжает работать самостоятельно.
 
-**PLANNED:** provider starter, ChatClient, Tool Calling, Structured Output explanation,
-Telegram orchestration, ChatMemory, criteria state и reference resolution. Ни один из
-описанных ниже AI tools пока не подключён к application. REST search работает без AI.
+**PLANNED:** getRestaurantDetails/getRestaurantMenu как AI tools, Telegram orchestration,
+ChatMemory, criteria state и reference resolution. AI search доступен через application
+bean `SpringAiSearchAdapter`, без нового HTTP или Telegram transport.
 Scope: [PRODUCT](PRODUCT.md); service boundaries: [ARCHITECTURE](ARCHITECTURE.md);
 planned persistence: [DATABASE](DATABASE.md#разговор-и-последняя-подборка).
 
@@ -16,18 +19,18 @@ planned persistence: [DATABASE](DATABASE.md#разговор-и-последня
 Выбран стек Java 21 / Spring Boot 3.5.16 / Spring AI 1.1.8, с JUnit 5.
 AI provider — **AIAI.BY**, OpenAI-compatible API, одна модель **gpt-4.1-mini**.
 Для интеграции предназначен `org.springframework.ai:spring-ai-starter-model-openai`,
-для JDBC memory — `spring-ai-starter-model-chat-memory-repository-jdbc`; версии из AI BOM.
-Эти starters ещё не добавлены в application dependencies.
+для planned JDBC memory — `spring-ai-starter-model-chat-memory-repository-jdbc`.
+OpenAI starter добавлен, версии из AI BOM; memory starter отсутствует.
 
 Конфигурация выбранной версии разделяет origin и versioned path:
 
 | Параметр | Выбранное значение / источник |
 |---|---|
 | Provider API root | `https://api.aiai.by/v1` |
-| spring.ai.openai.base-url | `https://api.aiai.by` |
-| spring.ai.openai.chat.completions-path | `/v1/chat/completions` |
-| spring.ai.openai.chat.options.model | `gpt-4.1-mini` |
-| spring.ai.openai.api-key | Runtime environment `AIAI_API_KEY` |
+| OpenAiApi.baseUrl | `https://api.aiai.by` |
+| OpenAiApi.completionsPath | `/v1/chat/completions` |
+| OpenAiChatOptions.model | `gpt-4.1-mini` |
+| restaurant-bot.ai.api-key | Runtime environment `AIAI_API_KEY` |
 
 Нельзя дублировать `/v1` одновременно в base-url и completions-path. `AI_*` имена
 сами по себе не properties starter: mapping задаётся явно. Runtime configuration:
@@ -35,8 +38,10 @@ AI provider — **AIAI.BY**, OpenAI-compatible API, одна модель **gpt-
 
 Выбранная связка поддерживает Tool Calling и native strict JSON Schema Structured
 Output. Native schema и typed conversion не заменяют semantic Java validation.
-Тариф, доступный баланс и account quotas требуют отдельного подтверждения перед
-регулярными вызовами; upstream цены не являются ценами AIAI.BY. Полноценное качество
+Публичный [тариф модели AIAI.BY](https://aiai.by/models/gpt-4-1-mini), проверенный
+2026-10-05: 1.28 BYN/1M input, 5.09 BYN/1M output; [pay-per-use условия](https://aiai.by/pricing).
+Account budget/quotas/caps требуют отдельного подтверждения перед регулярными вызовами;
+публичный тариф не доказывает account limits. Полноценное качество
 multi-turn поведения не подтверждается одной проверкой совместимости.
 
 Version-pinned reference: [OpenAI integration 1.1.8](https://github.com/spring-projects/spring-ai/blob/v1.1.8/spring-ai-docs/src/main/antora/modules/ROOT/pages/api/chat/openai-chat.adoc),
@@ -50,14 +55,29 @@ LLM понимает реплику и supported preferences, выбирает t
 объяснения. Java валидирует criteria, определяет eligibility/ranking, реальные ID,
 цены, часы, адреса, menu items и источники. Модель не переставляет кандидатов.
 
-Доступные tools — только searchRestaurants, getRestaurantDetails, getRestaurantMenu.
+Сейчас доступен только searchRestaurants. getRestaurantDetails/getRestaurantMenu — PLANNED.
 Нет tools для SQL/JPA/EntityManager, записи каталога, arbitrary HTTP URLs, booking
 или данных другого чата. Сервисы не получают factual values из model prose.
 Memory и знания модели не заменяют чтение собственных данных.
 
 ## Гибридный flow и объяснение
 
-Планируемый turn:
+Реализованный stateless search turn:
+
+```text
+user → ChatClient: один tool request, automatic execution disabled
+→ Java: проверить весь batch и arguments
+→ SearchRestaurantsTool → RestaurantSearchService → trusted SearchResult
+→ optional second ChatClient: native ExplanationPlan, tools disabled
+→ Java: validate plan, factual renderer либо deterministic fallback
+```
+
+Ответ `AiSearchReply` содержит status, trusted search result, Java text и счётчики
+modelCalls/toolExecutions. Provider prose/stack trace наружу не возвращаются.
+Отсутствие допустимого tool choice даёт Java clarification; неизвестный/multiple tool
+batch даёт INVALID_INPUT до любого service call. No-results не вызывает explanation.
+
+Будущий разговорный turn — PLANNED:
 
 ```text
 user + bounded memory + server criteria
@@ -76,7 +96,10 @@ user + bounded memory + server criteria
 - reasonCodes: 1–2 из allowedReasonCodes именно этого candidate;
 - phrasing: NEUTRAL / WARM / COMPACT.
 
-Java проверяет position и membership reason codes и формирует 1–2 короткие фразы.
+Java требует ровно одну item на каждую текущую позицию, проверяет unique positions,
+1–2 distinct non-null reasons, membership allowed reasons и supported phrasing.
+Неизвестные JSON поля, дробные positions, duplicate keys и trailing JSON отклоняются.
+Java формирует короткие фразы из фиксированных шаблонов.
 Модель выбирает подтверждённые причины и стиль, не добавляет ресторанные факты.
 Второй call получает только own projection: позиции, supported tags, allowed reasons
 и пожелания. Без names/addresses/phones/URLs/ratings/Google payload и raw tool protocol.
@@ -89,41 +112,52 @@ Factual renderer читает только trusted service DTO. Чек подп�
 
 ## Bounded execution
 
-Ограничения планируемой orchestration обеспечиваются Java, а не текстовой инструкцией:
+Ограничения текущего search adapter обеспечиваются Java:
 
 - Максимум **1 tool execution** и **2 model calls** на пользовательский turn.
 - Budget резервируется до вызова; failed attempt также расходует попытку.
 - Multiple/unknown tool requests отклоняются целиком до service calls.
 - Invalid arguments не исполняются; NO_RESULTS не запускает relaxed search.
 - Второй model call не получает tools, включая client defaults/advisors.
-- Если второй call потрачен на repair первого malformed response, explanation
-  заменяется Java fallback; третьего call нет.
+- Repair malformed response не выполняется; дополнительные model calls отсутствуют.
 - Нет autonomous loops, скрытых SDK/advisor/HTTP retries и while-until-success.
-- Планируемый deadline — 30 секунд; timeout и input/output caps задаются в его пределах.
-- Вход ограничивается разумной длиной, ориентир — 2000 символов.
+- Вход и decoded arguments/explanation ограничены 2000 символами; n=1,
+  temperature=0, maxTokens=350 на каждом call.
+- Connect и pool wait timeout — 2 секунды; response/socket timeout — 10 секунд.
+  Общий жёсткий deadline 30 секунд остаётся PLANNED: эти transport timeouts не доказывают
+  total deadline при DNS, медленной передаче или задержке БД.
 
-Version-specific механизм 1.1.8: explicit callbacks, `internalToolExecutionEnabled(false)`,
-`parallelToolCalls(false)` и ручной `ToolCallingManager.executeToolCalls` после atomic
-precheck. `@Tool(returnDirect=true)` сам по себе не ограничивает число заявленных tools.
-Tools не регистрируются глобально на клиенте второго запроса.
+Version-specific механизм 1.1.8: explicit per-turn ToolCallback,
+`internalToolExecutionEnabled(false)`, `parallelToolCalls(false)` и ручной callback
+после atomic batch precheck. ToolCallingManager не нужен для одного локального tool:
+полный result хранится в Java, raw tool conversation не отправляется вторым call.
+Клиент создаётся через ChatClient.create без default tools/advisors; model defaults
+также не содержат tools. Второй запрос явно имеет empty callbacks/names/tools и
+`toolChoice=none`; попытка tool в его response даёт fallback без исполнения.
+SDK возвращает finishReason как `TOOL_CALLS`/`STOP`; refusal/truncation отклоняются.
 
-У Spring AI 1.1.8 retry default допускает несколько attempts; планируемая конфигурация
-задаёт `spring.ai.retry.max-attempts=1`, при manual model construction — explicit
-RetryTemplate maxAttempts(1), без дополнительных transport retries. Native output
-задаётся ResponseFormat.Type.JSON_SCHEMA с strict schema; BeanOutputConverter
-конвертирует DTO, но не подтверждает смысл reasons. APIs другой major версии сюда
-не переносятся. Connect/read failure и refusal/truncation требуют отдельных checks.
+У Spring AI 1.1.8 retry default допускает несколько attempts. Конфигурация задаёт
+`spring.ai.retry.max-attempts=1`; AiConfiguration создаёт модель вручную с explicit
+RetryTemplate maxAttempts(1), Apache HttpClient с disableAutomaticRetries и без redirects.
+Auto-configured provider models и in-memory ChatMemory отключены. Provider payload logs
+отключены; error handler не читает/не логирует response body. Native output
+задаётся ResponseFormat.Type.JSON_SCHEMA с strict schema от BeanOutputConverter;
+AiJson отдельно выполняет strict typed parsing и ExplanationPlan semantic validation.
+HTTP fixtures на production SDK/transport подтверждают отсутствие повторов при
+401/429/500/503 и обрыве соединения после приёма запроса, а также fallback при failed
+second call. Повторы внутри удалённого provider/upstream не наблюдаемы приложением
+и не объявляются проверенными.
 
 ## Общие tool contracts
 
-Это planned DTO contracts, не текущие Java tool classes.
+Search реализован; остальные contracts и разговорные extensions ниже — PLANNED.
 
 Result: status OK / NO_RESULTS / NEED_CLARIFICATION / NOT_FOUND / DATA_UNAVAILABLE /
 INVALID_INPUT / TEMPORARILY_UNAVAILABLE; bounded own data, warnings, missingFields
 при уточнении, source/verifiedAt там, где относятся к данным. JPA entities, SQL,
 raw provider payload, HTML, stack traces, secrets и чужие данные не передаются модели.
 
-Trusted ToolContext формируется сервером: chatId, generation, currentCriteria,
+Planned Trusted ToolContext формируется сервером: chatId, generation, currentCriteria,
 currentSelectionVersion, исходная реплика. Эти значения не model arguments;
 доступ и scope проверяет Java.
 
@@ -149,6 +183,17 @@ Execution: normalize/merge → validate → clarify missing fields либо су
 Output: normalizedCriteria, ordered own candidates, estimated total, allowed reasons,
 warnings и источники. Missing fields → NEED_CLARIFICATION; invalid values → INVALID_INPUT;
 нет совпадений → NO_RESULTS без нового поиска.
+
+Текущий stateless tool использует существующий SearchRequest (не второй criteria type)
+и SearchCriteria.normalize перед service call. Strict parser отклоняет unknown fields,
+duplicate keys, trailing JSON, string-to-number coercion, fractional guests и unsupported
+enums. PreferredTags array ограничен шестью entries; expanded decimal budget — 2000
+целыми digits, чтобы scientific notation не обходила input cap при setScale.
+Supplied invalid values отклоняются
+даже при missing других полях. Missing required criteria → NEED_CLARIFICATION без search;
+merge/state не реализованы. Java service нормализует и применяет собственные правила повторно.
+Полный SearchResult содержит только существующие собственные DTO, остаётся у renderer;
+callback возвращает технический status, не serialized restaurant facts.
 
 ### Reference input для menu/details
 
@@ -221,11 +266,23 @@ Crash между отправкой и DB commit возможен; exactly-once/
 пользователю предлагается назвать ресторан. Если callbacks появятся, проверяются
 chatId + generation + selectionVersion.
 
-## AI eval — PLANNED
+## AI eval
 
 Tests должны проверять tool/arguments, service result, clarification, references,
 конечный renderer и call limits. Live eval запускается отдельно от обычных Maven tests.
 Фиксируются model/settings и Clock; fixture не выдаётся за реальный каталог.
+
+**IMPLEMENTED:** offline cases 1/11/12: полный запрос, impossible budget без relaxed
+search и explanation по allowed tags/positions. HTTP fixtures используют production
+ChatClient/OpenAiChatModel, fixed Minsk Clock и seeded Java search services; fixture
+ответы не доказывают качество natural-language interpretation реальной модели.
+Unit checks покрывают validation, unknown/multiple tools, оба call budgets,
+refusal/truncation, invalid/failed explanation и неизменность factual result/order.
+Отдельный opt-in `AiaiLiveSmokeIT` проверяет один полный turn на AIAI.BY и не входит
+в обычные clean test/verify. Команда: [README](../README.md#tests).
+Production smoke 2026-10-05 PASS: полный запрос через AIAI.BY/gpt-4.1-mini, один
+Java search, два model calls, valid native ExplanationPlan и Java factual card.
+Остальные eval/multi-turn/adversarial cases и итоговая quality target ниже — PLANNED.
 
 | Case | Expected behavior |
 |---|---|
