@@ -1,6 +1,6 @@
 package by.ilya.restaurantbot.telegram;
 
-import by.ilya.restaurantbot.ai.SpringAiSearchAdapter;
+import by.ilya.restaurantbot.conversation.ConversationService;
 import com.pengrad.telegrambot.TelegramBot;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -30,8 +30,8 @@ public class TelegramConfiguration {
     }
 
     @Bean
-    TelegramUpdateHandler telegramUpdateHandler(TelegramBot bot, SpringAiSearchAdapter adapter) {
-        return new TelegramUpdateHandler(bot, adapter);
+    TelegramUpdateHandler telegramUpdateHandler(TelegramBot bot, ConversationService conversation) {
+        return new TelegramUpdateHandler(bot, conversation);
     }
 
     @Bean

@@ -6,6 +6,9 @@ import java.util.List;
 import by.ilya.restaurantbot.search.RestaurantSearchService;
 import by.ilya.restaurantbot.search.SearchRequest;
 import by.ilya.restaurantbot.telegram.TelegramUpdateHandler;
+import by.ilya.restaurantbot.conversation.ConversationService;
+import by.ilya.restaurantbot.conversation.ConversationStore;
+import org.springframework.ai.chat.memory.ChatMemory;
 import com.pengrad.telegrambot.utility.BotUtils;
 import com.pengrad.telegrambot.TelegramBot;
 import com.pengrad.telegrambot.request.SendMessage;
@@ -32,6 +35,8 @@ import static org.mockito.Mockito.*;
 class TelegramSearchIntegrationTest {
     @Autowired RestaurantSearchService service;
     @Autowired Clock clock;
+    @Autowired ConversationStore store;
+    @Autowired ChatMemory memory;
     private TelegramBot bot;
 
     @BeforeEach
@@ -40,19 +45,20 @@ class TelegramSearchIntegrationTest {
         var sent = mock(SendResponse.class);
         when(sent.isOk()).thenReturn(true);
         when(bot.execute(any(SendMessage.class))).thenReturn(sent);
+        store.reset(store.load(1));
     }
 
     private AiSearchReply deliver(SpringAiSearchAdapter adapter, String text) {
         var observed = new AiSearchReply[1];
-        var transportAdapter = spy(adapter);
+        var conversation = spy(new ConversationService(store, memory, adapter, clock));
         doAnswer(call -> {
             observed[0] = (AiSearchReply) call.callRealMethod();
             return observed[0];
-        }).when(transportAdapter).search(text);
-        new TelegramUpdateHandler(bot, transportAdapter).process(List.of(BotUtils.parseUpdate("""
+        }).when(conversation).handle(eq(1L), eq(text), any());
+        new TelegramUpdateHandler(bot, conversation).process(List.of(BotUtils.parseUpdate("""
                 {"update_id":1,"message":{"message_id":1,"chat":{"id":1,"type":"private"},"text":"%s"}}
                 """.formatted(text))));
-        verify(transportAdapter).search(text);
+        verify(conversation).handle(eq(1L), eq(text), any());
         return observed[0];
     }
 
@@ -135,7 +141,7 @@ class TelegramSearchIntegrationTest {
     }
 
     @Test
-    void nextMessageHasNoPreviousCriteriaMemoryOrSelection() throws Exception {
+    void nextMessageMergesPreviousCriteriaAndUsesSafeMemory() throws Exception {
         try (var fixture = new ProviderFixture(ProviderFixture.selection(FULL),
                 ProviderFixture.selection("{\"guests\":4}"));
              var http = new AiConfiguration().aiHttpClient()) {
@@ -145,10 +151,11 @@ class TelegramSearchIntegrationTest {
             deliver(adapter, "А если нас четверо?");
             var requests = ArgumentCaptor.forClass(SendMessage.class);
             verify(bot, times(2)).execute(requests.capture());
-            assertThat(requests.getAllValues().getLast().getText()).contains("Укажите один запрос").doesNotContain("Pizza Tempo");
+            assertThat(requests.getAllValues().getLast().getText()).contains("Pizza Tempo", "130.80 BYN");
             assertThat(fixture.requests()).hasSize(2);
             assertThat(fixture.requests().getLast().path("messages").toString()).contains("А если нас четверо?")
-                    .doesNotContain("150 BYN", "Pizza Tempo", "итальянская кухня");
+                    .contains("150 BYN", "Pizza Tempo", "итальянская кухня")
+                    .doesNotContain("tool_calls", "tool_call_id");
         }
     }
 }

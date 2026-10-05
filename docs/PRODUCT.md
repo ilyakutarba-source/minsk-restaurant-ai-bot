@@ -2,7 +2,7 @@
 
 Minsk Restaurant AI Bot помогает выбрать ресторан из собственного ограниченного
 каталога Минска и получить сведения о выбранном заведении. Основной целевой UI —
-русскоязычный Telegram private chat; полный stateless поиск доступен в Telegram,
+русскоязычный Telegram private chat; поиск с уточнениями доступен в Telegram,
 структурированный поиск и чтение каталога — через REST/Swagger.
 
 ## Реализованные возможности — IMPLEMENTED
@@ -17,11 +17,12 @@ Minsk Restaurant AI Bot помогает выбрать ресторан из с
   ExplanationPlan и Java factual card/fallback; [AI contract](AI.md).
 - Telegram private text messages и long polling: полный запрос → существующий AI
   search → собственная PostgreSQL → Java factual card → sendMessage.
+- Bounded PostgreSQL conversation memory, сохранение и продолжение критериев, базовый `/new`.
 
 Чек, расписание и меню имеют отдельные источники и даты проверки. Поиск работает
 при частичном или отсутствующем меню. [Модель и происхождение данных](DATABASE.md).
 
-## Core user journey — первые три шага IMPLEMENTED; продолжение PLANNED
+## Core user journey — шаги 1–3, 6 и базовый 7 IMPLEMENTED; references PLANNED
 
 1. Пользователь: «Сегодня в 21:00 нас двое, до 150 BYN, итальянская кухня, хочется спокойно».
 2. AI извлекает критерии; при недостающих или неоднозначных данных задаётся уточнение.
@@ -31,12 +32,12 @@ Minsk Restaurant AI Bot помогает выбрать ресторан из с
 5. «До скольки первый?» перечитывает собственные часы; рейтинг запрашивается только
    при доступной условной Google-интеграции.
 6. «А если нас четверо?» меняет гостей, сохраняя остальные критерии.
-7. `/new` очищает разговор, критерии и последнюю подборку.
+7. `/new` очищает разговор и критерии; очистка последней подборки будет добавлена вместе с selection.
 
-Первые три шага работают для одного полного self-contained сообщения в Telegram.
-При недостающих данных возвращается Java clarification; следующий запрос должен
-снова содержать полные критерии. Разговорное продолжение (шаги 4–7), memory,
-references, menu/details tools и commands остаются PLANNED.
+Полный self-contained запрос и короткие уточнения работают в Telegram. Валидные
+частичные критерии сохраняются; Java спрашивает оставшиеся обязательные или
+неоднозначные поля. Шаги 4–5, references, menu/details tools, `/start` и `/help`
+остаются PLANNED.
 Правила tools/memory/reference resolution: [AI](AI.md).
 
 ## MVP — MUST
@@ -48,10 +49,10 @@ references, menu/details tools и commands остаются PLANNED.
 | Поиск | Гости, общий бюджет, дата/время, optional cuisine/tags; до 3 вариантов | IMPLEMENTED |
 | Чек | Проверяемый ориентир на гостя с type/source/date | IMPLEMENTED |
 | Меню | 5–10 позиций на заведение, только PARTIAL | IMPLEMENTED для 3 филиалов |
-| Telegram | Личные чаты, русский язык, long polling | IMPLEMENTED для stateless search; finishing PLANNED |
+| Telegram | Личные чаты, русский язык, long polling | IMPLEMENTED для conversation search; finishing PLANNED |
 | AI | Один provider/model, Spring AI Tool Calling и Structured Output | IMPLEMENTED для stateless search; другие tools PLANNED |
-| Контекст | Ограниченная ChatMemory и последняя показанная подборка по chatId | PLANNED |
-| Команды | `/start`, `/help`, `/new` | PLANNED |
+| Контекст | Ограниченная ChatMemory и последняя показанная подборка по chatId | Memory/criteria IMPLEMENTED; selection PLANNED |
+| Команды | `/start`, `/help`, `/new` | Базовый `/new` IMPLEMENTED; `/start`, `/help` PLANNED |
 | Google | Enrichment известного ресторана; только после проверки доступности/условий | PLANNED, DEFERRED |
 | Проверка backend | Четыре REST endpoints, Swagger, H2 и PostgreSQL tests | IMPLEMENTED |
 | Доставка | Docker Compose, Dokploy/VPS и persistent PostgreSQL | PLANNED |

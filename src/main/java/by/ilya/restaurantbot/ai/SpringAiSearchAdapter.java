@@ -5,11 +5,14 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.UnaryOperator;
 import java.util.stream.IntStream;
 
 import by.ilya.restaurantbot.search.RestaurantSearchService;
 import by.ilya.restaurantbot.search.SearchCriteria;
+import by.ilya.restaurantbot.search.SearchRequest;
 import by.ilya.restaurantbot.search.SearchResult;
+import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
@@ -19,7 +22,7 @@ import org.springframework.ai.openai.api.ResponseFormat;
 
 import static by.ilya.restaurantbot.ai.AiSearchReply.Status;
 
-/** Stateless bounded search turn. Model prose is never rendered to the user. */
+/** Bounded search turn with an optional safe history and server-owned criteria preparation. */
 public final class SpringAiSearchAdapter {
     static final String INITIAL_PROMPT = """
             Ты ресторанный помощник по собственному каталогу Минска. Для фактического поиска
@@ -29,7 +32,10 @@ public final class SpringAiSearchAdapter {
             несколько поисков. При неизвестных или неоднозначных критериях передай null;
             не угадывай время, валюту или общий бюджет. Поддержаны только BYN и 1–6 гостей.
             При нескольких посещениях, другой валюте или неподдерживаемом запросе не вызывай tool.
-            Отсутствующая кухня — null, отсутствующие пожелания — пустой preferredTags.
+            Верни только новые значения из текущей реплики. Не копируй прежние критерии:
+            Java сама сохраняет и объединяет их. Отсутствующее поле, кухня и пожелания — null.
+            preferredTags заданные пользователем заменяют весь набор; [] только при явном снятии пожеланий.
+            При неоднозначной дате, времени, валюте или бюджете не вызывай tool, запроси уточнение.
             Слово «спокойно» соответствует QUIET, «уютно» — COZY, «с друзьями» — FRIENDS.
             """;
     private final ChatClient client;
@@ -48,16 +54,25 @@ public final class SpringAiSearchAdapter {
     }
 
     public AiSearchReply search(String userText) {
+        return search(userText, List.of(), UnaryOperator.identity());
+    }
+
+    public AiSearchReply search(String userText, List<Message> history, UnaryOperator<SearchRequest> prepare) {
+        return search(userText, history, prepare, List.of());
+    }
+
+    public AiSearchReply search(String userText, List<Message> history, UnaryOperator<SearchRequest> prepare, List<String> ambiguous) {
         if (userText == null || userText.isBlank() || userText.length() > 2000) {
             return controlled(Status.INVALID_INPUT, 0, 0, List.of());
         }
-        var tool = new SearchRestaurantsTool(service, clock);
+        var tool = new SearchRestaurantsTool(service, clock, prepare, ambiguous);
         int modelCalls = 0;
         ChatResponse first;
         try {
             modelCalls++; // Failed attempts count; neither call is retried here.
             first = client.prompt().system(INITIAL_PROMPT + "\nСегодня в Минске: "
                     + LocalDate.now(clock.withZone(SearchCriteria.MINSK)))
+                    .messages(boundedContext(history))
                     .user(userText)
                     .options(OpenAiChatOptions.builder().temperature(0.0).maxTokens(350).N(1)
                         .internalToolExecutionEnabled(false).parallelToolCalls(false)
@@ -111,6 +126,15 @@ public final class SpringAiSearchAdapter {
                 tool.executions(), tool.status() == Status.OK && plan == null, List.of());
     }
 
+    private static List<Message> boundedContext(List<Message> history) {
+        int start = history.size();
+        int remaining = 8000;
+        while (start > 0 && remaining >= history.get(start - 1).getText().length()) {
+            remaining -= history.get(--start).getText().length();
+        }
+        return history.subList(start, history.size());
+    }
+
     private static boolean usable(ChatResponse response, String finishReason) {
         if (response == null || response.getResults().size() != 1 || response.getResult().getOutput() == null) return false;
         var output = response.getResult().getOutput();
@@ -130,10 +154,21 @@ public final class SpringAiSearchAdapter {
 
     private static AiSearchReply controlled(Status status, int calls, int executions, List<String> missing) {
         String text = switch (status) {
-            case NEED_CLARIFICATION -> "Укажите один запрос: число гостей (1–6), общий бюджет в BYN, дату и точное время в Минске.";
+            case NEED_CLARIFICATION -> clarification(missing);
             case INVALID_INPUT -> "Не удалось принять критерии. Нужен один поиск по поддерживаемым значениям.";
             default -> "Поиск временно недоступен. Попробуйте позже.";
         };
         return new AiSearchReply(status, null, text, calls, executions, false, missing);
+    }
+
+    public static String clarification(List<String> missing) {
+        if (missing.isEmpty()) return "Уточните неоднозначные критерии: общий бюджет в BYN, однозначную дату или точное время HH:mm в Минске.";
+        return "Уточните: " + String.join(", ", missing.stream().map(field -> switch (field) {
+            case "guests" -> "число гостей (1–6)";
+            case "totalBudgetByn" -> "общий бюджет на всех гостей в BYN";
+            case "date" -> "дату посещения";
+            case "time" -> "точное время HH:mm в Минске";
+            default -> throw new IllegalArgumentException("Unsupported criteria field");
+        }).toList()) + ".";
     }
 }

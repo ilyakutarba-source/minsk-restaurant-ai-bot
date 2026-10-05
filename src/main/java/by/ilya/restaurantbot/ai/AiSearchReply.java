@@ -4,7 +4,7 @@ import java.util.List;
 
 import by.ilya.restaurantbot.search.SearchResult;
 
-/** Java-owned result for a future transport; never a provider response. */
+/** Java-owned result for application transports; never a provider response. */
 public record AiSearchReply(Status status, SearchResult searchResult, String text,
                             int modelCalls, int toolExecutions, boolean explanationFallback,
                             List<String> missingFields) {

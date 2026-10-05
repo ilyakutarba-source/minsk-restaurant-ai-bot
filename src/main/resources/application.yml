@@ -14,6 +14,14 @@ spring:
         transcription: none
     retry:
       max-attempts: 1
+    chat:
+      memory:
+        repository:
+          jdbc:
+            initialize-schema: never
+
+  flyway:
+    locations: classpath:db/migration,classpath:db/memory/{vendor}
 
   jackson:
     deserialization:

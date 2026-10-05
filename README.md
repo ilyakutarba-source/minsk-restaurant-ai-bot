@@ -9,21 +9,22 @@ Java services и собственная БД определяют факты и 
 **IMPLEMENTED:** каталог трёх реальных филиалов, собственные часы и ориентировочные
 чеки, partial menus, controlled JSON import, детерминированный Restaurant Search,
 четыре REST endpoints и Swagger, Flyway и тесты на H2/PostgreSQL; stateless Spring AI
-search tool, Structured Output explanation и Java factual renderer/fallback.
+search tool, Structured Output explanation и Java factual renderer/fallback;
+Telegram private chats/long polling, bounded PostgreSQL ChatMemory, criteria continuation и базовый `/new`.
 
-**PLANNED:** Telegram private chats/long polling, menu/details AI tools, разговорные
-продолжения, PostgreSQL ChatMemory и последняя показанная подборка,
+**PLANNED:** menu/details AI tools и последняя показанная подборка/references, `/start`, `/help`,
 условное Google Places enrichment, Docker Compose и Dokploy/VPS.
 
 ## Example user scenario
 
-Целевой Telegram-сценарий после подключения AI и транспорта:
+Работающий Telegram-сценарий при enabled AI и runtime bot token:
 
 > Сегодня в 21:00 нас двое, общий бюджет до 150 BYN, итальянская кухня, хочется спокойно.
 
 LLM извлекает критерии, Java выполняет поиск и возвращает до трёх вариантов.
 Запрос «Меню второго» будет разрешаться по последней показанной подборке.
-Сейчас полный структурированный запрос можно проверить через REST/Swagger без AI.
+Короткое «А если нас четверо?» сохраняет остальные критерии. `/new` очищает memory
+и criteria без AI calls. Полный структурированный запрос доступен через REST/Swagger без AI.
 Пользовательские сценарии и scope: [PRODUCT](docs/PRODUCT.md).
 
 ## Tech stack
@@ -39,8 +40,8 @@ LLM извлекает критерии, Java выполняет поиск и �
 ## Architecture overview
 
 Один Spring Boot application — modular monolith. REST controllers вызывают
-application services; services читают JPA repositories. Будущий Telegram adapter
-будет использовать те же services напрямую. У LLM нет SQL/JPA-доступа.
+application services; services читают JPA repositories. Telegram adapter использует
+ConversationService и тот же Java search напрямую. У LLM нет SQL/JPA-доступа.
 Границы компонентов: [ARCHITECTURE](docs/ARCHITECTURE.md).
 
 ## Restaurant Search overview
@@ -77,11 +78,12 @@ Stateless search **IMPLEMENTED**: Spring AI ChatClient использует то
 searchRestaurants через существующий Java search. Модель выбирает причины объяснения
 через native Structured Output; Java проверяет план и формирует фактические карточки.
 Invalid/failed explanation даёт Java fallback. До двух model calls и одного search
-на turn. Menu/details tools, Telegram и memory остаются PLANNED: [AI](docs/AI.md).
+на turn. Telegram conversation entry добавляет safe memory и Java criteria merge;
+menu/details tools и references остаются PLANNED: [AI](docs/AI.md).
 
 ## Database
 
-Flyway V1–V4 создаёт каталог/меню и применяет локальные datasets; Hibernate использует
+Flyway V1–V6 создаёт каталог/меню, conversation state и JDBC memory, применяет локальные datasets; Hibernate использует
 `validate`. У данных сохранены source и verifiedAt. Меню всегда PARTIAL; отсутствие
 позиции в БД не доказывает её отсутствия в полном меню. Поиск не зависит от MenuItem.
 Модель, provenance и import contract: [DATABASE](docs/DATABASE.md).
@@ -104,7 +106,8 @@ HTTP доступен на loopback; REST/Swagger предназначены д�
 Default profile требует `DB_URL`, `DB_USER`, `DB_PASSWORD` из внешней среды.
 Test profile использует H2 и не требует внешних ключей или PostgreSQL.
 AI search включается отдельно: `AI_ENABLED=true` и `AIAI_API_KEY` в environment.
-По умолчанию AI отключён; application bean пока не имеет HTTP/Telegram transport.
+По умолчанию AI отключён. Для private Telegram long polling задайте также
+`TELEGRAM_BOT_TOKEN` в environment запускаемого процесса. Memory использует ту же DB.
 Секреты хранятся вне Git. Текущие и запланированные переменные: [DEPLOYMENT](docs/DEPLOYMENT.md#environment-configuration).
 
 ## Running locally
@@ -132,7 +135,8 @@ AI search включается отдельно: `AI_ENABLED=true` и `AIAI_API_
 ```
 
 Tests проверяют каталог, меню/import, search boundaries, overnight, ranking, REST,
-AI tool/plan guards и production SDK через offline loopback HTTP fixtures.
+AI tool/plan guards и production SDK через offline loopback HTTP fixtures,
+criteria merge/ambiguity, two-chat isolation, `/new`, window/safe writes и application restart.
 Обычные test/verify не вызывают live provider и не требуют API key.
 Отдельный минимальный live smoke (один turn, максимум два платных calls), только
 после проверки account budget/quotas и с AIAI_API_KEY в environment:
@@ -155,6 +159,6 @@ Docker Compose → Dokploy → VPS — **PLANNED**; Dockerfile/Compose и гот
 сегодня и следующие шесть дней. REST не разбирает естественный язык.
 DERIVED check — собственная ориентировочная оценка, не официальный средний чек.
 Наличие столика, блюда, праздничные часы и тишина не гарантируются.
-Telegram, ChatMemory, menu/details AI tools и Google ещё не интегрированы;
-Google не участвует в ranking. AI search не использует предыдущие сообщения.
+Menu/details AI tools, selection references и Google ещё не интегрированы;
+Google не участвует в ranking. Memory ограничена 20 user/assistant messages на чат.
 Booking, публичный admin/chat API, геопоиск и RAG/vector search вне MVP.

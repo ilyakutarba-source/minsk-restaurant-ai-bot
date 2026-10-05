@@ -1,6 +1,6 @@
 package by.ilya.restaurantbot.telegram;
 
-import by.ilya.restaurantbot.ai.SpringAiSearchAdapter;
+import by.ilya.restaurantbot.conversation.ConversationService;
 import com.pengrad.telegrambot.TelegramBot;
 import com.pengrad.telegrambot.ExceptionHandler;
 import org.junit.jupiter.api.Test;
@@ -13,7 +13,7 @@ import static org.mockito.Mockito.*;
 class TelegramConfigurationTest {
     private final ApplicationContextRunner runner = new ApplicationContextRunner()
             .withUserConfiguration(TelegramConfiguration.class)
-            .withBean(SpringAiSearchAdapter.class, () -> mock(SpringAiSearchAdapter.class));
+            .withBean(ConversationService.class, () -> mock(ConversationService.class));
 
     @Test
     void disabledAiDoesNotCreateTransportEvenWithToken() {

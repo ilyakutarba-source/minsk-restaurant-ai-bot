@@ -3,16 +3,19 @@
 ## Текущий запуск — IMPLEMENTED
 
 Требуются JDK 21, Maven Wrapper 3.9.16 и PostgreSQL для default profile.
-Spring Boot получает DB connection из внешней среды, Flyway применяет V1–V4,
+Spring Boot получает DB connection из внешней среды, Flyway применяет V1–V6,
 Hibernate проверяет схему через `ddl-auto=validate`. HTTP bind — `127.0.0.1`.
 Test profile использует H2 без внешних API/ключей и доступен для локального REST demo.
 Команды запуска и проверки: [README](../README.md#running-locally).
 
-AI provider подключён для opt-in stateless search: `AI_ENABLED=true` и `AIAI_API_KEY`.
+AI provider подключён для opt-in search: `AI_ENABLED=true` и `AIAI_API_KEY`.
 Без enabled AI REST работает без ключа и внешних вызовов; test profile отключает AI.
 Production ChatClient/search/explanation и limits: [AI](AI.md).
 Telegram private-text long polling подключён к тому же search adapter при непустом
-TELEGRAM_BOT_TOKEN и enabled AI. Google и persistent conversation state пока не подключены.
+TELEGRAM_BOT_TOKEN и enabled AI. ConversationState и bounded JDBC ChatMemory
+используют ту же persistent PostgreSQL; restart приложения восстанавливает критерии и memory.
+Схема: [DATABASE](DATABASE.md#разговор-и-последняя-подборка). Новых env variables нет.
+Google пока не подключён.
 Dockerfile, Compose и CI configuration пока отсутствуют. Ниже описан **PLANNED**
 deployment contract, а не инструкция уже готового контейнерного запуска.
 
@@ -115,7 +118,7 @@ Spring Security вне MVP при закрытом HTTP. Telegram chatId не а
   его при остановке; client закрывается вместе с context. Один token — один instance.
 - Принимаются только private text messages; остальные updates безопасно игнорируются.
   ChatId остаётся 64-bit, но не передаётся в AI и не записывается в обычные logs.
-- Существующий stateless AI adapter возвращает Java-owned text. Одна plain-text
+- ConversationService использует существующий AI adapter и Java-owned text. Одна plain-text
   message без parse mode сохраняет названия/адреса с markup-символами буквально.
 - Стандартное acknowledgment `CONFIRMED_UPDATES_ALL` и offset принадлежат library.
   Ошибка одного update изолируется; собственных checkpoint, queues или retries нет.
@@ -124,9 +127,9 @@ Spring Security вне MVP при закрытом HTTP. Telegram chatId не а
 
 ### Telegram finishing — PLANNED
 
-Commands, formatting/length policies, per-chat sequencing, provider/DB/Telegram error UX,
+Commands кроме базового `/new`, formatting/length policies, final per-chat sequencing/error UX,
 429/retry_after и проверка library offset/restart/failure behavior остаются PLANNED.
-Memory и selection также отсутствуют; их future lifecycle:
+Memory/criteria и process-local turn serialization реализованы; selection отсутствует. Lifecycle:
 [AI](AI.md#conversationstate-и-selection-context).
 
 Если library достаточно управляет offset, checkpoint storage не нужен. При доказанной
@@ -177,7 +180,7 @@ Domain для long polling не требуется.
 ## Redeploy и backup — PLANNED
 
 Образ может обновляться при сохранении named volume. Проверяются каталог/меню,
-planned memory/selection, один poller и совместимость версии с применённой схемой.
+memory/currentCriteria и planned selection, один poller и совместимость версии с применённой схемой.
 Откат image не откатывает Flyway migrations автоматически.
 
 Backup должен сохраняться вне ephemeral container/Git и иметь дату/schema version.

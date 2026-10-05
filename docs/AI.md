@@ -6,21 +6,22 @@
 search, единственный tool `searchRestaurants`, строгая Java validation, trusted
 SearchResult DTO, optional native Structured Output ExplanationPlan и Java factual
 renderer/fallback. Полный natural-language запрос не требует предыдущих сообщений.
-REST search продолжает работать самостоятельно.
+REST search продолжает работать самостоятельно. Telegram ConversationService,
+bounded PostgreSQL ChatMemory, currentCriteria/merge/clarification и базовый `/new` реализованы.
 
-**PLANNED:** getRestaurantDetails/getRestaurantMenu как AI tools, Telegram orchestration,
-ChatMemory, criteria state и reference resolution. AI search доступен через application
-bean `SpringAiSearchAdapter`, без нового HTTP или Telegram transport.
+**PLANNED:** getRestaurantDetails/getRestaurantMenu как AI tools, selection и reference
+resolution, `/start`, `/help` и final Telegram finishing. Stateless application entry
+`SpringAiSearchAdapter.search(text)` сохранён; Telegram использует conversation entry.
 Scope: [PRODUCT](PRODUCT.md); service boundaries: [ARCHITECTURE](ARCHITECTURE.md);
-planned persistence: [DATABASE](DATABASE.md#разговор-и-последняя-подборка).
+persistence: [DATABASE](DATABASE.md#разговор-и-последняя-подборка).
 
 ## Provider и совместимость
 
 Выбран стек Java 21 / Spring Boot 3.5.16 / Spring AI 1.1.8, с JUnit 5.
 AI provider — **AIAI.BY**, OpenAI-compatible API, одна модель **gpt-4.1-mini**.
 Для интеграции предназначен `org.springframework.ai:spring-ai-starter-model-openai`,
-для planned JDBC memory — `spring-ai-starter-model-chat-memory-repository-jdbc`.
-OpenAI starter добавлен, версии из AI BOM; memory starter отсутствует.
+для JDBC memory — `spring-ai-starter-model-chat-memory-repository-jdbc`.
+Оба starter подключены, версии из AI BOM 1.1.8 без отдельных overrides.
 
 Конфигурация выбранной версии разделяет origin и versioned path:
 
@@ -77,17 +78,19 @@ modelCalls/toolExecutions. Provider prose/stack trace наружу не возв
 Отсутствие допустимого tool choice даёт Java clarification; неизвестный/multiple tool
 batch даёт INVALID_INPUT до любого service call. No-results не вызывает explanation.
 
-Будущий разговорный turn — PLANNED:
+Разговорный turn — IMPLEMENTED:
 
 ```text
-user + bounded memory + server criteria
-→ ChatClient: tool choice / clarification
-→ Java: validate exactly one request and arguments
+user + bounded safe memory (до 8000 context characters)
+→ ChatClient: только partial criteria текущей реплики / abstain при ambiguity
+→ Java: validate exactly one request and supplied arguments
+→ merge с authoritative server currentCriteria, validate merged state
+→ clarify missing/ambiguous fields либо search
 → tool → existing service → trusted DTO
 → optional second ChatClient call: Structured Output, no tools
 → Java: validate explanation, build factual cards
-→ Telegram sendMessage
-→ on success: save selection and safe memory
+→ save valid criteria; Telegram sendMessage вне DB transaction
+→ on successful send: one manual user + safe assistant memory write
 ```
 
 Модель возвращает **ExplanationPlan**, не свободную factual paragraph:
@@ -150,16 +153,16 @@ second call. Повторы внутри удалённого provider/upstream 
 
 ## Общие tool contracts
 
-Search реализован; остальные contracts и разговорные extensions ниже — PLANNED.
+Search и criteria continuation реализованы; menu/details/reference contracts ниже — PLANNED.
 
 Result: status OK / NO_RESULTS / NEED_CLARIFICATION / NOT_FOUND / DATA_UNAVAILABLE /
 INVALID_INPUT / TEMPORARILY_UNAVAILABLE; bounded own data, warnings, missingFields
 при уточнении, source/verifiedAt там, где относятся к данным. JPA entities, SQL,
 raw provider payload, HTML, stack traces, secrets и чужие данные не передаются модели.
 
-Planned Trusted ToolContext формируется сервером: chatId, generation, currentCriteria,
-currentSelectionVersion, исходная реплика. Эти значения не model arguments;
-доступ и scope проверяет Java.
+ConversationService формирует server context из chatId, generation и currentCriteria.
+Per-turn Java callback объединяет SearchRequest до service call; эти значения не
+model arguments. ChatId/conversationId не передаются модели. Selection context PLANNED.
 
 ### searchRestaurants
 
@@ -179,7 +182,8 @@ AI не меняет бюджет/кухню/время для получени�
 Follow-up: отсутствующее/null поле означает «нет нового значения», Java сохраняет
 previous criteria. Заданный preferredTags заменяет весь набор; пустой массив очищает
 теги. Заданная cuisine заменяет кухню. `/new` снимает предыдущий контекст без patch DSL.
-Execution: normalize/merge → validate → clarify missing fields либо существующий Java search.
+Execution: validate supplied values → normalize/merge → validate merged state →
+clarify missing/ambiguous fields либо существующий Java search.
 Output: normalizedCriteria, ordered own candidates, estimated total, allowed reasons,
 warnings и источники. Missing fields → NEED_CLARIFICATION; invalid values → INVALID_INPUT;
 нет совпадений → NO_RESULTS без нового поиска.
@@ -191,9 +195,18 @@ enums. PreferredTags array ограничен шестью entries; expanded dec
 целыми digits, чтобы scientific notation не обходила input cap при setScale.
 Supplied invalid values отклоняются
 даже при missing других полях. Missing required criteria → NEED_CLARIFICATION без search;
-merge/state не реализованы. Java service нормализует и применяет собственные правила повторно.
+conversation entry сохраняет валидные partial values даже при clarification.
+Java service нормализует и применяет собственные правила повторно.
 Полный SearchResult содержит только существующие собственные DTO, остаётся у renderer;
 callback возвращает технический status, не serialized restaurant facts.
+
+Model prompt требует только новые значения, null для отсутствующих полей и abstention
+при неоднозначности. Дополнительные conservative Java guards покрывают vague time/date,
+неясный budget, per-person amounts и unsupported/unclear currency. При таком wording
+соответствующее новое поле не принимается даже при guessed model value; прежнее
+подтверждённое значение сохраняется, текущий search блокируется. Это ограниченные
+guards, не самостоятельный NLP parser. Missing/ambiguous fields transient и не хранятся
+в state. Provider prose при abstention заменяется Java clarification.
 
 ### Reference input для menu/details
 
@@ -224,9 +237,9 @@ source/date/PARTIAL. DATA_UNAVAILABLE при отсутствии saved menu; NO
 
 ## Chat Memory и conversationId
 
-**PLANNED:** MessageWindowChatMemory + JdbcChatMemoryRepository + PostgreSQL,
+**IMPLEMENTED:** MessageWindowChatMemory + JdbcChatMemoryRepository + PostgreSQL,
 без отдельной UserProfile/history entity. Начальное окно — до 20 обычных сообщений;
-дополнительно ограничивается model context по token/input budget.
+дополнительно первый model context получает до 8000 characters полных recent messages.
 
 ```text
 conversationId = "telegram:" + chatId + ":" + generation
@@ -239,15 +252,22 @@ ID формирует сервер; chatId — 64-bit. Личные чаты и�
 без Google content, serialized tool results и промежуточного tool protocol.
 Factual follow-up перечитывает БД, даже если похожий ответ есть в памяти.
 
-`/new` обрабатывается Java без AI: очистить old memory, criteria/selection,
-увеличить generation. Обычный restart должен сохранять актуальный state/memory.
+`/new` обрабатывается Java без AI/tool: в одной короткой transaction очистить old memory,
+criteria и увеличить generation. Confirmation не записывается в новый пустой transcript.
+Selection reset будет добавлен после реализации selection. Обычный restart сохраняет state/memory.
 TTL/selection expiry не являются обязательными; окно ограничивает длину разговора,
-но не общее число чатов. Схема planned storage: [DATABASE](DATABASE.md#разговор-и-последняя-подборка).
+но не общее число чатов. Схема storage: [DATABASE](DATABASE.md#разговор-и-последняя-подборка).
 
 ## ConversationState и Selection context
 
-CurrentCriteria хранят нормализованные значения. Missing fields вычисляются из них.
-SelectionVersion и SelectionItem хранят только текущие position/restaurantId;
+**IMPLEMENTED:** currentCriteria хранят нормализованные значения. Missing fields вычисляются из них.
+ConversationService владеет единственным manual write path; automatic advisors отсутствуют.
+На один successfully delivered turn пишется одна пара USER/ASSISTANT, включая clarification
+и Java explanation fallback. Failed send не записывает transcript; валидные criteria уже сохранены.
+DB/HTTP не объединяются в distributed transaction; crash recovery/exactly-once не обещаются.
+Bounded process-local locks сериализуют turn и `/new`; сервер работает одним instance.
+
+**PLANNED selection:** SelectionVersion и SelectionItem хранят только текущие position/restaurantId;
 цены/cuisine/tags/Google snapshots не сохраняются.
 
 | Reference | Resolution |
@@ -282,7 +302,10 @@ refusal/truncation, invalid/failed explanation и неизменность factu
 в обычные clean test/verify. Команда: [README](../README.md#tests).
 Production smoke 2026-10-05 PASS: полный запрос через AIAI.BY/gpt-4.1-mini, один
 Java search, два model calls, valid native ExplanationPlan и Java factual card.
-Остальные eval/multi-turn/adversarial cases и итоговая quality target ниже — PLANNED.
+Offline conversation checks покрывают partial/short replies, replace/clear tags,
+ambiguity, isolation, restart, `/new`, safe transcript и window. Live multi-turn
+quality и остальные reference/adversarial cases ниже — PLANNED; offline fixtures
+не доказывают natural-language качество реального provider.
 
 | Case | Expected behavior |
 |---|---|

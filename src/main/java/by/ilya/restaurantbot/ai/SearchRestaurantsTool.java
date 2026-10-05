@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.UnaryOperator;
 
 import by.ilya.restaurantbot.search.RestaurantSearchService;
 import by.ilya.restaurantbot.search.SearchCriteria;
@@ -30,11 +31,13 @@ final class SearchRestaurantsTool implements ToolCallback {
                       "cuisine":{"type":["string","null"],"enum":["BELARUSIAN","ITALIAN","GEORGIAN",null]},
                       "preferredTags":{"type":["array","null"],"items":{"type":"string",
                        "enum":["COZY","QUIET","ROMANTIC","CASUAL","FRIENDS","PREMIUM"]},"maxItems":6}},
-                     "required":["guests","totalBudgetByn","date","time"]}
+                     "required":[]}
                     """).build();
 
     private final RestaurantSearchService service;
     private final Clock clock;
+    private final UnaryOperator<SearchRequest> prepare;
+    private final List<String> ambiguous;
     private boolean consumed;
     private int executions;
     private Status status;
@@ -42,8 +45,18 @@ final class SearchRestaurantsTool implements ToolCallback {
     private List<String> missing = List.of();
 
     SearchRestaurantsTool(RestaurantSearchService service, Clock clock) {
+        this(service, clock, UnaryOperator.identity());
+    }
+
+    SearchRestaurantsTool(RestaurantSearchService service, Clock clock, UnaryOperator<SearchRequest> prepare) {
+        this(service, clock, prepare, List.of());
+    }
+
+    SearchRestaurantsTool(RestaurantSearchService service, Clock clock, UnaryOperator<SearchRequest> prepare, List<String> ambiguous) {
         this.service = service;
         this.clock = clock;
+        this.prepare = prepare;
+        this.ambiguous = ambiguous;
     }
 
     @Override
@@ -82,11 +95,13 @@ final class SearchRestaurantsTool implements ToolCallback {
                     request.date() == null ? "TODAY" : request.date(),
                     request.time() == null ? "12:00" : request.time(),
                     request.cuisine(), request.preferredTags()), clock);
+            request = prepare.apply(request);
             var fields = new ArrayList<String>();
             if (request.guests() == null) fields.add("guests");
             if (request.totalBudgetByn() == null) fields.add("totalBudgetByn");
             if (request.date() == null) fields.add("date");
             if (request.time() == null) fields.add("time");
+            for (String field : ambiguous) if (!fields.contains(field)) fields.add(field);
             missing = List.copyOf(fields);
             if (!missing.isEmpty()) {
                 status = Status.NEED_CLARIFICATION;

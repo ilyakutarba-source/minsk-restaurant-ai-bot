@@ -9,7 +9,10 @@
 ```mermaid
 flowchart TD
     TELEGRAM[Telegram private text message] --> TRANSPORT[Telegram adapter / Pengrad long polling]
-    TRANSPORT --> AI
+    TRANSPORT --> CONVERSATION[ConversationService / criteria merge / clarification / new]
+    CONVERSATION --> MEMORY[Bounded ChatMemory / ConversationState]
+    MEMORY --> PG
+    CONVERSATION --> AI
     REST[REST controllers / Swagger] --> SERVICES[RestaurantService / MenuService / RestaurantSearchService]
     AI[Spring AI ChatClient / bounded search adapter] --> TOOL[Validated single searchRestaurants request]
     TOOL --> SERVICES
@@ -18,30 +21,34 @@ flowchart TD
     SERVICES --> DTO[Own DTO / ordered search candidates]
     SERVICES --> JPA[JPA repositories]
     JPA --> PG[(PostgreSQL)]
-    FLYWAY[Flyway V1–V4] --> PG
+    FLYWAY[Flyway V1–V6] --> PG
 ```
 
 Пакет `catalog` содержит Restaurant, menu, persistence и services; `search` — criteria,
 filters/ranking и Clock configuration; `api` — тонкие REST controllers; `ai` —
-stateless ChatClient adapter, search tool, plan validation и Java renderer;
+bounded ChatClient adapter, search tool, plan validation и Java renderer;
+`conversation` — ConversationService, typed criteria merge, JDBC state и memory configuration;
 `telegram` — private text filtering, library polling lifecycle и plain-text sendMessage.
 Controllers не выполняют поиск и не возвращают JPA entities. Own DTO создаются внутри
 read-only transactions, `open-in-view=false`. Денежные значения — BigDecimal.
 
 Реализованный Telegram slice: private chat → TelegramUpdateHandler →
-SpringAiSearchAdapter → searchRestaurants → RestaurantSearchService → PostgreSQL →
+ConversationService → bounded memory/currentCriteria → SpringAiSearchAdapter →
+validated partial criteria → Java merge → searchRestaurants → RestaurantSearchService → PostgreSQL →
 trusted SearchResult → optional explanation + existing Java renderer → sendMessage.
-Handler не добавляет model calls, search или retries, не читает repository и не
-сохраняет контекст. Только полное self-contained сообщение; неполный запрос получает
-существующий controlled AI result. Runtime activation/polling: [DEPLOYMENT](DEPLOYMENT.md#telegram-long-polling--implemented).
+Handler не добавляет model calls, search или retries и не читает repository.
+ConversationService сохраняет валидные критерии в короткой transaction, отправляет
+Java reply через transport callback вне transaction и при успешной отправке один раз
+сохраняет user text + safe assistant projection. `/new` очищает память/criteria и
+увеличивает generation без AI. Runtime: [DEPLOYMENT](DEPLOYMENT.md#telegram-long-polling--implemented).
 
-## Планируемые компоненты — PLANNED
+## Компоненты и продолжение архитектуры
 
 ```text
 Telegram private chat → ConversationService → Spring AI ChatClient
 → validated single tool request → existing application service → trusted DTO
 → optional Structured Output explanation → Java factual renderer → sendMessage
-→ save selection and safe memory after successful send
+→ save safe memory after successful send; selection remains PLANNED
 ```
 
 | Компонент | Ответственность | Состояние |
@@ -51,15 +58,15 @@ Telegram private chat → ConversationService → Spring AI ChatClient
 | MenuService / MenuImportService | Partial menu reading и controlled import | IMPLEMENTED |
 | REST adapter | DTO, HTTP mapping, Swagger | IMPLEMENTED |
 | LLM / ChatClient | Stateless search interpretation, supported criteria, tool choice, причины объяснения | IMPLEMENTED; [limits/contract](AI.md) |
-| ConversationService | Merge criteria, bounded turn, memory/state, отправка и selection | PLANNED |
+| ConversationService | Merge criteria, clarification, bounded memory/state, delivery callback, `/new` | IMPLEMENTED; selection PLANNED |
 | ReferenceResolver | Ordinal/name → restaurantId в текущем чате | PLANNED |
 | Java renderer | Search factual cards и validated explanation/fallback | IMPLEMENTED для search |
-| Telegram adapter | Private text check, long polling, plain-text send | IMPLEMENTED для stateless slice |
+| Telegram adapter | Private text check, long polling, plain-text send | IMPLEMENTED для conversation search |
 | Google adapter | Conditional Place Details enrichment известного ресторана | PLANNED, DEFERRED |
 
 Adapters → application services → repositories/clients. Services поиска/меню/details
 не зависят от Telegram, ConversationService или Spring AI SDK. Telegram вызывает
-SpringAiSearchAdapter bean напрямую, без HTTP-запросов к собственному приложению.
+ConversationService, который использует существующий SpringAiSearchAdapter, без HTTP к своему приложению.
 LLM не получает repositories, EntityManager, SQL или доступ к БД.
 HTTP/LLM calls выполняются вне DB transactions. Memory и reference contracts: [AI](AI.md).
 
@@ -72,7 +79,9 @@ cuisine и preferredTags опциональны. Поддержаны Минск
 следующие шесть дней. Clock определяет текущую дату в Europe/Minsk независимо от ОС.
 REST принимает уже структурированный запрос, не разбирает естественный язык.
 Неоднозначность бюджета/времени и missing fields требуют уточнения;
-stateless Telegram slice не сохраняет предыдущие критерии. Merge остаётся PLANNED.
+Java сохраняет normalized currentCriteria и объединяет follow-up до search service.
+Supplied invalid values отклоняются до merge; missing fields вычисляются заново.
+Точные merge/ambiguity/memory contracts принадлежат [AI](AI.md).
 
 ### Hard filters
 
@@ -157,7 +166,7 @@ Menu filters и import semantics: [DATABASE](DATABASE.md#menu-data-strategy).
 AI search — IMPLEMENTED: модель выбирает один searchRestaurants request и причины
 объяснения; Java определяет реальные ID, цены, часы, адреса и порядок. Bounded adapter
 вызывает application service напрямую, HTTP/model calls вне DB transactions.
-Telegram stateless transport — IMPLEMENTED; другие tools и memory — PLANNED.
+Telegram conversation transport и memory — IMPLEMENTED; другие tools — PLANNED.
 Call limits/configuration: [AI](AI.md).
 Google enrichment допускается только в details известного филиала, по вручную
 проверенному place ID; не формирует каталог/меню и не вызывается для search candidates.

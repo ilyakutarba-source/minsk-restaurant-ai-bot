@@ -1,7 +1,7 @@
 # Данные и PostgreSQL
 
-**IMPLEMENTED:** каталог, partial menu, Flyway V1–V4 и чтение данных для Java search.
-**PLANNED:** conversation state, selection, JDBC ChatMemory и enrichment mapping.
+**IMPLEMENTED:** каталог, partial menu, Flyway V1–V6, ConversationState и JDBC ChatMemory.
+**PLANNED:** SelectionItem и enrichment mapping.
 Search rules: [ARCHITECTURE](ARCHITECTURE.md#правила-поиска-и-рекомендаций).
 Разговорное поведение: [AI](AI.md). Scope: [PRODUCT](PRODUCT.md).
 
@@ -18,7 +18,7 @@ Search rules: [ARCHITECTURE](ARCHITECTURE.md#правила-поиска-и-ре
 | MenuItem | id, restaurantId, seedKey, name, category, dishType optional, priceByn, portion/description/source optional, active | Собственные 5–10 полезных позиций; stable key для import |
 
 Таблица выше описывает существующую модель. Optional website/phone/googlePlaceId и
-conversation entities ещё не реализованы. Planned state описан в разделе
+SelectionItem ещё не реализован. Conversation state описан в разделе
 [Разговор и последняя подборка](#разговор-и-последняя-подборка).
 
 Отдельные TelegramUser, UserProfile, Favorite, RecommendationHistory, delivery status/checkpoint entities отсутствуют. Также нет Google rating/review таблиц, MenuVersion и универсального datasource registry.
@@ -113,7 +113,7 @@ Import заменяет сохранённую часть только пере�
 
 ## Разговор и последняя подборка
 
-**PLANNED:** таблицы и migrations для этих объектов отсутствуют. Проектируемая модель:
+ConversationState/JDBC memory — **IMPLEMENTED**; SelectionItem — **PLANNED**.
 
 ### ConversationState
 
@@ -122,14 +122,21 @@ Import заменяет сохранённую часть только пере�
 | chatId | BIGINT, PK; Telegram private chat, авторитетный scope |
 | generation | Неотрицательный счётчик reset, часть derived conversationId |
 | currentCriteria | Компактная структура normalized guests/budget/date/time/cuisine/tags |
-| selectionVersion | Неотрицательный счётчик показанной selection |
+| selectionVersion | Неотрицательное reserved поле; до selection остаётся 0 |
 | updatedAt | Время последнего изменения; troubleshooting, будущий cleanup |
 
-Одна строка на чат; нет истории generations. conversationId вычисляется из chatId/generation, отдельно хранить его не обязательно. currentCriteria допустимо хранить JSON/JSONB с явной сериализацией: это единый state, который не участвует в SQL search ресторана. В отличие от него cuisine/tags Restaurant хранятся нормализованно.
+Одна строка conversation_state на чат; нет истории generations. conversationId
+вычисляется из chatId/generation, отдельного column нет. current_criteria — compact
+typed JSON в VARCHAR(4000), явно сериализованный SearchRequest: guests Integer,
+budget BigDecimal, normalized ISO date/HH:mm strings, optional cuisine/tags enums.
+Это state разговора и не участвует в SQL restaurant filtering. JDBC ConversationStore
+использует существующий transaction manager; model/Telegram calls вне transactions.
 
 Нет expiresAt, expectedFields, workflow status, delivery status, userId и наборов snapshot. Missing fields вычисляются по criteria. updatedAt не означает обязательный scheduled TTL.
 
 ### SelectionItem
+
+**PLANNED:** таблица и persistence отсутствуют.
 
 chatId обязателен в дополнение к предложенным selectionVersion/position/restaurantId: version и position не уникальны между чатами. Он служит FK на ConversationState и предотвращает смешение selection разных пользователей.
 
@@ -150,7 +157,7 @@ erDiagram
 ```
 
 Planned relations: ConversationState → SelectionItem и Restaurant → SelectionItem.
-Spring AI memory будет связана логически по derived conversationId; framework schema
+Spring AI memory связана логически по derived conversationId; framework schema
 не получает искусственную FK/duplicating entity. Lifecycle принадлежит [AI](AI.md).
 
 ## Constraints
@@ -164,8 +171,8 @@ Spring AI memory будет связана логически по derived conve
 - Enum values хранятся строками, не ordinal; unique (restaurant_id, enum_value) в collection tables.
 - FK MenuItem/OpeningInterval/enum collections → Restaurant.
 
+ConversationState.chatId PK, generation/selectionVersion ≥0 — IMPLEMENTED.
 Planned constraints: googlePlaceId nullable unique с ручным mapping;
-ConversationState.chatId PK, generation/selectionVersion ≥0;
 SelectionItem PK (chat_id, position), position 1–3, selectionVersion >0,
 FK на ConversationState и Restaurant. Restaurant будет деактивироваться, а не
 физически удаляться при наличии selection references.
@@ -177,8 +184,8 @@ Constraints не доказывают актуальность источник�
 - FK access indexes: MenuItem покрывается unique (restaurant_id, seed_key);
   OpeningInterval — PK (restaurant_id, weekday, opens_at).
 - Collection tables покрываются составными PK (restaurant_id, enum_value).
-- Planned: ConversationState по chatId — PK; SelectionItem по chatId/position —
-  составной PK, FK access index по restaurantId; JDBC memory indexes — из официальной схемы.
+- ConversationState по chatId — PK; JDBC memory index (conversation_id, timestamp) из официальной схемы.
+- Planned SelectionItem по chatId/position — составной PK, FK access index по restaurantId.
 - Нет expiresAt index, history index и ranking tuning для десятка заведений.
 - BIGINT/Long для Telegram IDs, NUMERIC/BigDecimal для BYN.
 - Не сохранять JPA entities в tool/API responses.
@@ -193,21 +200,28 @@ Constraints не доказывают актуальность источник�
 | V2 seed first three restaurants | Первоначальные 3 филиала; 21 недельный интервал | IMPLEMENTED |
 | V3 create partial menu | menu_items; menuSource/menuVerifiedAt/menuCoverage на restaurants | IMPLEMENTED |
 | V4 seed partial menu (Java) | Локальный immutable JSON: 18 items для существующих 3 ресторанов | IMPLEMENTED |
-| Последующие migrations | State, exact JDBC memory schema, SelectionItem | PLANNED |
+| V5 create conversation state | chat_id, generation, current_criteria JSON text, selection_version, updated_at | IMPLEMENTED |
+| V6 create JDBC chat memory | Spring AI 1.1.8 official PostgreSQL/H2 DDL + conversation ID length adaptation | IMPLEMENTED |
+| Последующие migrations | SelectionItem | PLANNED |
 
 Polling checkpoint storage допускается только при подтверждённой необходимости,
 если библиотека Telegram не покрывает offset. Отдельная domain subsystem не нужна.
 
 Hibernate ddl-auto=validate. Все изменения схемы — через Flyway; применённые versioned
-migrations не переписываются. Planned JDBC memory использует официальную PostgreSQL
+migrations не переписываются. JDBC memory использует официальную PostgreSQL
 схему Spring AI 1.1.8; её framework initialization должно быть отключено через
-`spring.ai.chat.memory.repository.jdbc.initialize-schema=never`. Memory migrations
-пока нет. Java search не требует дополнительной таблицы.
+`spring.ai.chat.memory.repository.jdbc.initialize-schema=never`.
+Flyway locations: common `db/migration` плюс `db/memory/{vendor}`. V6 использует точные
+DDL resources dependency 1.1.8 для PostgreSQL и H2 без compatibility mode. Затем
+conversation_id расширяется с VARCHAR(36) до VARCHAR(64): server ID с signed Long
+chatId и Long generation может быть длиннее 36. Остальные framework columns/index/
+type checks сохранены. Memory tables не моделируются JPA entities и не имеют FK на state.
+Java search не требует дополнительной таблицы.
 
 ## PostgreSQL acceptance
 
 H2 test profile использует те же migrations и Hibernate validate без compatibility
-mode. H2 не доказывает PostgreSQL SQL/constraints или planned JDBC memory compatibility.
+mode. H2 не доказывает PostgreSQL SQL/constraints или JDBC memory compatibility.
 Текущие PostgreSQL checks:
 
 - Flyway на пустой БД и повторный старт.
@@ -215,13 +229,17 @@ mode. H2 не доказывает PostgreSQL SQL/constraints или planned JDB
 - Decimal check, strict cuisine, budget boundary, day/overnight и stable ranking.
 - Search остаётся тем же после удаления всех MenuItem rows и menu metadata.
 
-Planned memory/selection checks: restart, `/new`, изоляция chatId, failed/successful send.
-Они не входят в выполненную проверку существующей схемы.
+Conversation checks: два независимых chatId, typed partial state, 20-message eviction,
+safe manual writes, `/new` и application restart. ConversationRestartTest закрывает
+полный Spring context/datasource, затем создаёт новые против той же БД; проверяет
+generation/currentCriteria/memory и follow-up после восстановления. Физический restart
+PostgreSQL server не требуется для этого application-restart contract.
+Selection persistence/send lifecycle остаются PLANNED.
 
 Тесты каталога используют тот же Flyway SQL и Hibernate validate на H2 без compatibility mode. Для повторения PostgreSQL проверки нужна отдельная пустая development/test БД. Подключение передаётся извне (не использовать рабочую БД):
 
 ```powershell
-.\mvnw.cmd test "-Dtest=RestaurantCatalogTest,PartialMenuTest,RestaurantSearchTest,RecommendationErrorTest" `
+.\mvnw.cmd test "-Dtest=*Test,!RestaurantBotApplicationTest" `
   "-Dspring.datasource.url=$env:DB_URL" `
   "-Dspring.datasource.username=$env:DB_USER" `
   "-Dspring.datasource.driver-class-name=org.postgresql.Driver"
@@ -231,5 +249,8 @@ Planned memory/selection checks: restart, `/new`, изоляция chatId, faile
 Тесты проверяют migrations/reapply, mappings, constraints, REST, import/rollback и
 Java search; изменения тестовых строк откатываются или восстанавливаются.
 Search tests используют фиксированный Clock. Существующий набор проверен на
-PostgreSQL 17.10: Flyway на пустой test БД/reapply и Hibernate validate прошли.
+PostgreSQL 17.10: Flyway V1–V6 на пустой test БД/reapply и Hibernate validate прошли.
+Полный PostgreSQL suite: 228 tests, 0 failures/errors/skipped, включая application
+context/datasource restart, восстановление criteria/generation/bounded memory и `/new`.
+H2 clean test/verify: 229 tests; H2-specific bootstrap test исключён из PostgreSQL suite.
 Обычная сборка использует H2: [README](../README.md#tests).
