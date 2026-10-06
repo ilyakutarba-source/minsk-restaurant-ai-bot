@@ -44,18 +44,18 @@ public class ConversationService {
             }
             var criteria = new by.ilya.restaurantbot.search.SearchRequest[]{state.currentCriteria()};
             var ambiguous = text == null ? List.<String>of() : CriteriaAmbiguity.fields(text);
-            var reply = adapter.search(text, memory.get(state.conversationId()), supplied -> {
+            var reply = adapter.turn(chatId, text, memory.get(state.conversationId()), supplied -> {
                 criteria[0] = CriteriaMerge.merge(state.currentCriteria(), CriteriaAmbiguity.confirmedOnly(supplied, ambiguous), clock);
                 return criteria[0];
             }, ambiguous);
-            if (reply.status() == AiSearchReply.Status.NEED_CLARIFICATION && reply.missingFields().isEmpty()) {
+            if (reply.followUpResult() == null && reply.status() == AiSearchReply.Status.NEED_CLARIFICATION && reply.missingFields().isEmpty()) {
                 var fields = new java.util.ArrayList<>(CriteriaMerge.missing(criteria[0]));
                 for (String field : ambiguous) if (!fields.contains(field)) fields.add(field);
                 reply = new AiSearchReply(reply.status(), null, SpringAiSearchAdapter.clarification(fields),
                         reply.modelCalls(), reply.toolExecutions(), false, List.copyOf(fields));
             }
-            if (reply.status() == AiSearchReply.Status.OK || reply.status() == AiSearchReply.Status.NO_RESULTS
-                    || reply.status() == AiSearchReply.Status.NEED_CLARIFICATION) {
+            if (reply.followUpResult() == null && (reply.status() == AiSearchReply.Status.OK || reply.status() == AiSearchReply.Status.NO_RESULTS
+                    || reply.status() == AiSearchReply.Status.NEED_CLARIFICATION)) {
                 store.saveCriteria(state, criteria[0]);
             }
             if (Boolean.TRUE.equals(send.apply(reply))) {

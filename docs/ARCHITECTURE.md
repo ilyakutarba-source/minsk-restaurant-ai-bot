@@ -14,12 +14,13 @@ flowchart TD
     MEMORY --> PG
     CONVERSATION --> AI
     REST[REST controllers / Swagger] --> SERVICES[RestaurantService / MenuService / RestaurantSearchService]
-    AI[Spring AI ChatClient / bounded search adapter] --> TOOL[Validated single searchRestaurants request]
+    AI[Spring AI ChatClient / bounded adapter] --> TOOL[Exactly one of 3 validated product tools]
     TOOL --> SERVICES
+    TOOL --> REFERENCE
     SERVICES --> CARDS[Java factual renderer / validated ExplanationPlan or fallback]
     CARDS --> SEND[Telegram sendMessage / plain text]
     SEND --> DELIVERED[Successful send / ConversationService]
-    DELIVERED --> SELECTION[SelectionService / atomic current selection replacement]
+    DELIVERED --> SELECTION[Delivered search only / atomic current selection replacement]
     SELECTION --> PG
     REFERENCE[ReferenceResolver / ordinal, last, exact name] --> SELECTION
     REFERENCE --> SERVICES
@@ -31,7 +32,7 @@ flowchart TD
 
 Пакет `catalog` содержит Restaurant, menu, persistence и services; `search` — criteria,
 filters/ranking и Clock configuration; `api` — тонкие REST controllers; `ai` —
-bounded ChatClient adapter, search tool, plan validation и Java renderer;
+bounded ChatClient adapter, три read-only tools, plan validation и Java renderers;
 `conversation` — ConversationService, typed criteria merge, JDBC state/selection, ReferenceResolver и memory configuration;
 `telegram` — private text filtering, library polling lifecycle и plain-text sendMessage.
 Controllers не выполняют поиск и не возвращают JPA entities. Own DTO создаются внутри
@@ -42,7 +43,13 @@ ConversationService → bounded memory/currentCriteria → SpringAiSearchAdapter
 validated partial criteria → Java merge → searchRestaurants → RestaurantSearchService → PostgreSQL →
 trusted SearchResult → optional explanation + existing Java renderer → sendMessage.
 Handler не добавляет model calls, search или retries и не читает repository.
-ConversationService сохраняет валидные критерии в короткой transaction, отправляет
+Menu/details routing: тот же первый ChatClient call выбирает getRestaurantMenu либо
+getRestaurantDetails → strict reference/filters/focus validation → ReferenceResolver
+с текущим server chatId → resolved ID → MenuService/RestaurantService → own DTO →
+Java plain-text renderer. Эти turns не вызывают RestaurantSearchService, criteria
+merge/save или второй model call; не заменяют selection и не меняют selectionVersion.
+Факты перечитываются, даже если memory содержит прежний ответ.
+Для search ConversationService сохраняет валидные критерии в короткой transaction, отправляет
 Java reply через transport callback вне transaction и при успешной отправке один раз
 сохраняет user text + safe assistant projection и через SelectionService атомарно
 заменяет текущую подборку реально показанными ID. `/new` очищает память/criteria/selection и
@@ -54,7 +61,7 @@ Java reply через transport callback вне transaction и при успеш
 Telegram private chat → ConversationService → Spring AI ChatClient
 → validated single tool request → existing application service → trusted DTO
 → optional Structured Output explanation → Java factual renderer → sendMessage
-→ after successful send: atomic selection replacement and one safe memory write
+→ after successful send: one safe memory write; delivered search replaces selection
 ```
 
 | Компонент | Ответственность | Состояние |
@@ -63,18 +70,23 @@ Telegram private chat → ConversationService → Spring AI ChatClient
 | RestaurantService | Own catalog/details | IMPLEMENTED |
 | MenuService / MenuImportService | Partial menu reading и controlled import | IMPLEMENTED |
 | REST adapter | DTO, HTTP mapping, Swagger | IMPLEMENTED |
-| LLM / ChatClient | Stateless search interpretation, supported criteria, tool choice, причины объяснения | IMPLEMENTED; [limits/contract](AI.md) |
+| LLM / ChatClient | Search/menu/details interpretation, supported arguments, выбор одного из трёх tools, причины search explanation | IMPLEMENTED; [limits/contract](AI.md) |
 | ConversationService | Merge criteria, clarification, bounded memory/state, delivery callback, selection lifecycle, `/new` | IMPLEMENTED |
 | SelectionService / SelectionItemRepository | Текущие показанные ID/positions, атомарная замена и version | IMPLEMENTED |
-| ReferenceResolver | Ordinal/last/exact name → restaurantId в текущем чате | IMPLEMENTED foundation; menu/details AI adapters PLANNED |
-| Java renderer | Search factual cards и validated explanation/fallback | IMPLEMENTED для search |
-| Telegram adapter | Private text check, long polling, plain-text send | IMPLEMENTED для conversation search |
+| ReferenceResolver | Ordinal/last/exact name → restaurantId в текущем чате | IMPLEMENTED; используется обоими follow-up tools |
+| Java renderer | Search factual cards/explanation fallback, own details и PARTIAL menu | IMPLEMENTED |
+| Telegram adapter | Private text check, long polling, plain-text send | IMPLEMENTED для conversation search/menu/details |
 | Google adapter | Conditional Place Details enrichment известного ресторана | PLANNED, DEFERRED |
 
 Adapters → application services → repositories/clients. Services поиска/меню/details
 не зависят от Telegram, ConversationService или Spring AI SDK. Telegram вызывает
 ConversationService, который использует существующий SpringAiSearchAdapter, без HTTP к своему приложению.
 LLM не получает repositories, EntityManager, SQL или доступ к БД.
+Follow-up adapters получают только ReferenceResolver и существующие application
+services. MenuDetails/RestaurantDetails — собственные DTO, без entities/provider
+payload. Полные DTO остаются у Java renderer; manual tool callback отдаёт только
+status, без отправки raw tool protocol модели. Menu source/date/PARTIAL сохраняются;
+контакты/rating не придумываются при отсутствии данных. Contracts: [AI](AI.md#общие-tool-contracts).
 HTTP/LLM calls выполняются вне DB transactions. Memory и reference contracts: [AI](AI.md).
 
 ReferenceResolver читает текущие SelectionItem через SelectionService; имена
@@ -181,7 +193,8 @@ Menu filters и import semantics: [DATABASE](DATABASE.md#menu-data-strategy).
 AI search — IMPLEMENTED: модель выбирает один searchRestaurants request и причины
 объяснения; Java определяет реальные ID, цены, часы, адреса и порядок. Bounded adapter
 вызывает application service напрямую, HTTP/model calls вне DB transactions.
-Telegram conversation transport и memory — IMPLEMENTED; другие tools — PLANNED.
+Telegram conversation transport/memory и getRestaurantMenu/getRestaurantDetails —
+IMPLEMENTED для собственных данных; всего tools ровно три.
 Call limits/configuration: [AI](AI.md).
 Google enrichment допускается только в details известного филиала, по вручную
 проверенному place ID; не формирует каталог/меню и не вызывается для search candidates.

@@ -8,6 +8,9 @@ import java.util.Set;
 import java.util.function.UnaryOperator;
 import java.util.stream.IntStream;
 
+import by.ilya.restaurantbot.catalog.MenuService;
+import by.ilya.restaurantbot.catalog.RestaurantService;
+import by.ilya.restaurantbot.conversation.ReferenceResolver;
 import by.ilya.restaurantbot.search.RestaurantSearchService;
 import by.ilya.restaurantbot.search.SearchCriteria;
 import by.ilya.restaurantbot.search.SearchRequest;
@@ -22,13 +25,13 @@ import org.springframework.ai.openai.api.ResponseFormat;
 
 import static by.ilya.restaurantbot.ai.AiSearchReply.Status;
 
-/** Bounded search turn with an optional safe history and server-owned criteria preparation. */
+/** Bounded product turn with safe history, server-owned criteria and reference scope. */
 public final class SpringAiSearchAdapter {
     static final String INITIAL_PROMPT = """
             Ты ресторанный помощник по собственному каталогу Минска. Для фактического поиска
-            выбери только searchRestaurants, ровно один запрос для одного посещения.
+            выбери searchRestaurants, ровно один запрос для одного посещения.
             Не придумывай рестораны и не вычисляй самостоятельно соответствие бюджету,
-            часам или кухне: это делает Java. Не используй другие tools и не объединяй
+            часам или кухне: это делает Java. Не объединяй
             несколько поисков. При неизвестных или неоднозначных критериях передай null;
             не угадывай время, валюту или общий бюджет. Поддержаны только BYN и 1–6 гостей.
             При нескольких посещениях, другой валюте или неподдерживаемом запросе не вызывай tool.
@@ -37,20 +40,40 @@ public final class SpringAiSearchAdapter {
             preferredTags заданные пользователем заменяют весь набор; [] только при явном снятии пожеланий.
             При неоднозначной дате, времени, валюте или бюджете не вызывай tool, запроси уточнение.
             Слово «спокойно» соответствует QUIET, «уютно» — COZY, «с друзьями» — FRIENDS.
+            Вопрос о меню конкретного ресторана → только getRestaurantMenu.
+            «Есть паста у первого?» → reference.ordinal=1, dishType=PASTA.
+            Фильтр maxItemPriceByn — цена одной позиции, не общий бюджет посещения.
+            Вопрос об адресе, собственных часах или контактах → только getRestaurantDetails.
+            «До скольки третий?» → reference.ordinal=3, focus=HOURS; адрес → focus=ALL.
+            Для обоих tools ровно один selector: ordinal 1–3, last=true или точное name.
+            Не передавай restaurantId и не вычисляй ID/порядок из памяти: это делает Java.
+            Не используй search для menu/details, не копируй факты из памяти в ответ.
+            На одну реплику допустим только один из трёх tools; не вызывай несколько.
             """;
     private final ChatClient client;
     private final RestaurantSearchService service;
     private final Clock clock;
     private final boolean explanationEnabled;
+    private final ReferenceResolver resolver;
+    private final MenuService menus;
+    private final RestaurantService catalog;
     private final SearchFactualRenderer renderer = new SearchFactualRenderer();
     private final BeanOutputConverter<ExplanationPlan> converter = new BeanOutputConverter<>(ExplanationPlan.class);
 
     public SpringAiSearchAdapter(ChatModel model, RestaurantSearchService service, Clock clock, boolean explanationEnabled) {
+        this(model, service, clock, explanationEnabled, null, null, null);
+    }
+
+    public SpringAiSearchAdapter(ChatModel model, RestaurantSearchService service, Clock clock, boolean explanationEnabled,
+                                 ReferenceResolver resolver, MenuService menus, RestaurantService catalog) {
         // Fresh client without global callbacks, memory or advisors; our model has no default tools.
         this.client = ChatClient.create(model);
         this.service = service;
         this.clock = clock;
         this.explanationEnabled = explanationEnabled;
+        this.resolver = resolver;
+        this.menus = menus;
+        this.catalog = catalog;
     }
 
     public AiSearchReply search(String userText) {
@@ -62,10 +85,18 @@ public final class SpringAiSearchAdapter {
     }
 
     public AiSearchReply search(String userText, List<Message> history, UnaryOperator<SearchRequest> prepare, List<String> ambiguous) {
+        return turn(null, userText, history, prepare, ambiguous);
+    }
+
+    public AiSearchReply turn(Long chatId, String userText, List<Message> history,
+                              UnaryOperator<SearchRequest> prepare, List<String> ambiguous) {
         if (userText == null || userText.isBlank() || userText.length() > 2000) {
             return controlled(Status.INVALID_INPUT, 0, 0, List.of());
         }
         var tool = new SearchRestaurantsTool(service, clock, prepare, ambiguous);
+        var menuTool = new RestaurantFollowUpTool(RestaurantFollowUpResult.Kind.MENU, chatId, resolver, menus, catalog);
+        var detailsTool = new RestaurantFollowUpTool(RestaurantFollowUpResult.Kind.DETAILS, chatId, resolver, menus, catalog);
+        var tools = List.of(tool, detailsTool, menuTool);
         int modelCalls = 0;
         ChatResponse first;
         try {
@@ -76,7 +107,7 @@ public final class SpringAiSearchAdapter {
                     .user(userText)
                     .options(OpenAiChatOptions.builder().temperature(0.0).maxTokens(350).N(1)
                         .internalToolExecutionEnabled(false).parallelToolCalls(false)
-                        .toolCallbacks(tool).build())
+                        .toolCallbacks(tools).build())
                     .call().chatResponse();
         } catch (RuntimeException unavailable) {
             return controlled(Status.TEMPORARILY_UNAVAILABLE, modelCalls, 0, List.of());
@@ -86,10 +117,17 @@ public final class SpringAiSearchAdapter {
         }
         var calls = first.getResult().getOutput().getToolCalls();
         // Atomic batch precheck: do not run even the first request in an invalid batch.
-        if (calls.size() != 1 || !SearchRestaurantsTool.NAME.equals(calls.getFirst().name())
+        if (calls.size() != 1 || tools.stream().noneMatch(t -> t.getToolDefinition().name().equals(calls.getFirst().name()))
                 || !"function".equals(calls.getFirst().type())
                 || calls.getFirst().id() == null || calls.getFirst().id().isBlank()) {
             return controlled(Status.INVALID_INPUT, modelCalls, 0, List.of());
+        }
+        if (!SearchRestaurantsTool.NAME.equals(calls.getFirst().name())) {
+            var selected = RestaurantFollowUpTool.MENU.equals(calls.getFirst().name()) ? menuTool : detailsTool;
+            selected.call(calls.getFirst().arguments());
+            return new AiSearchReply(selected.status(), null,
+                    new RestaurantFollowUpRenderer().render(selected.status(), selected.result()),
+                    modelCalls, selected.executions(), false, List.of(), selected.result());
         }
         tool.call(calls.getFirst().arguments());
         if (tool.status() != Status.OK && tool.status() != Status.NO_RESULTS) {

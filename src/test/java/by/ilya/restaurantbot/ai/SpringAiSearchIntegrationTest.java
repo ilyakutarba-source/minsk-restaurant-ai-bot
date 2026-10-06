@@ -58,7 +58,9 @@ class SpringAiSearchIntegrationTest {
             var requests = fixture.requests();
             assertThat(requests).hasSize(2);
             assertThat(requests.getFirst().path("model").asText()).isEqualTo("gpt-4.1-mini");
-            assertThat(requests.getFirst().path("tools")).hasSize(1);
+            assertThat(requests.getFirst().path("tools")).hasSize(3);
+            assertThat(requests.getFirst().path("tools")).extracting(t -> t.path("function").path("name").asText())
+                    .containsExactly("searchRestaurants", "getRestaurantDetails", "getRestaurantMenu");
             var tool = requests.getFirst().path("tools").get(0).path("function");
             assertThat(tool.path("name").asText()).isEqualTo("searchRestaurants");
             assertThat(tool.path("parameters").path("additionalProperties").asBoolean()).isFalse();

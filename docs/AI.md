@@ -3,16 +3,16 @@
 ## Состояние интеграции
 
 **IMPLEMENTED:** Spring AI 1.1.8 starter, production ChatClient adapter для stateless
-search, единственный tool `searchRestaurants`, строгая Java validation, trusted
+search и conversation routing, ровно три tools `searchRestaurants`,
+`getRestaurantDetails`, `getRestaurantMenu`, строгая Java validation, trusted
 SearchResult DTO, optional native Structured Output ExplanationPlan и Java factual
 renderer/fallback. Полный natural-language запрос не требует предыдущих сообщений.
 REST search продолжает работать самостоятельно. Telegram ConversationService,
 bounded PostgreSQL ChatMemory, currentCriteria/merge/clarification и базовый `/new` реализованы.
-Текущая delivered selection и deterministic Java ReferenceResolver реализованы
-как foundation для будущих menu/details tools.
+Текущая delivered selection и deterministic Java ReferenceResolver используются
+menu/details tools для свежего чтения через MenuService/RestaurantService и Java rendering.
 
-**PLANNED:** getRestaurantDetails/getRestaurantMenu как AI tools и end-to-end
-reference follow-up, `/start`, `/help` и final Telegram finishing. Stateless application entry
+**PLANNED:** Google enrichment, `/start`, `/help` и final Telegram finishing. Stateless application entry
 `SpringAiSearchAdapter.search(text)` сохранён; Telegram использует conversation entry.
 Scope: [PRODUCT](PRODUCT.md); service boundaries: [ARCHITECTURE](ARCHITECTURE.md);
 persistence: [DATABASE](DATABASE.md#разговор-и-последняя-подборка).
@@ -58,7 +58,8 @@ LLM понимает реплику и supported preferences, выбирает t
 объяснения. Java валидирует criteria, определяет eligibility/ranking, реальные ID,
 цены, часы, адреса, menu items и источники. Модель не переставляет кандидатов.
 
-Сейчас доступен только searchRestaurants. getRestaurantDetails/getRestaurantMenu — PLANNED.
+Доступны ровно searchRestaurants, getRestaurantDetails и getRestaurantMenu.
+ReferenceResolver остаётся внутренним Java-механизмом, без отдельного tool.
 Нет tools для SQL/JPA/EntityManager, записи каталога, arbitrary HTTP URLs, booking
 или данных другого чата. Сервисы не получают factual values из model prose.
 Memory и знания модели не заменяют чтение собственных данных.
@@ -79,6 +80,24 @@ user → ChatClient: один tool request, automatic execution disabled
 modelCalls/toolExecutions. Provider prose/stack trace наружу не возвращаются.
 Отсутствие допустимого tool choice даёт Java clarification; неизвестный/multiple tool
 batch даёт INVALID_INPUT до любого service call. No-results не вызывает explanation.
+
+Menu/details conversational turn — IMPLEMENTED:
+
+```text
+user + bounded safe memory → ChatClient: exactly one menu/details request
+→ Java strict typed arguments/reference/filter validation
+→ ReferenceResolver(current chatId) → Java restaurantId
+→ MenuService / RestaurantService: reread own DTO
+→ Java factual renderer → Telegram sendMessage
+→ on successful send: one ordinary user + delivered Java assistant text memory write
+```
+
+На menu/details turn один model call и максимум один tool execution; второго call нет.
+Search, criteria preparation/merge/save и selection replacement не выполняются.
+Reference errors получают собственный Java clarification/NOT_FOUND, без вопросов
+о search criteria. Даже если history содержит адрес/часы/цену, renderer использует
+только новое чтение service. Callback возвращает только status JSON; полные own DTO
+остаются в Java и не отправляются модели как tool result или protocol.
 
 Разговорный turn — IMPLEMENTED:
 
@@ -118,7 +137,7 @@ Factual renderer читает только trusted service DTO. Чек подп�
 
 ## Bounded execution
 
-Ограничения текущего search adapter обеспечиваются Java:
+Ограничения текущего adapter для всех трёх tools обеспечиваются Java:
 
 - Максимум **1 tool execution** и **2 model calls** на пользовательский turn.
 - Budget резервируется до вызова; failed attempt также расходует попытку.
@@ -135,7 +154,7 @@ Factual renderer читает только trusted service DTO. Чек подп�
 
 Version-specific механизм 1.1.8: explicit per-turn ToolCallback,
 `internalToolExecutionEnabled(false)`, `parallelToolCalls(false)` и ручной callback
-после atomic batch precheck. ToolCallingManager не нужен для одного локального tool:
+после atomic batch precheck. ToolCallingManager не нужен для одного выбранного локального tool:
 полный result хранится в Java, raw tool conversation не отправляется вторым call.
 Клиент создаётся через ChatClient.create без default tools/advisors; model defaults
 также не содержат tools. Второй запрос явно имеет empty callbacks/names/tools и
@@ -156,8 +175,8 @@ second call. Повторы внутри удалённого provider/upstream 
 
 ## Общие tool contracts
 
-Search, criteria continuation и Java reference input/resolution реализованы;
-menu/details tools ниже — PLANNED.
+Search, criteria continuation, Java reference input/resolution и оба menu/details
+tools ниже — IMPLEMENTED. Product tools ровно 3, один execution на turn.
 
 Result: status OK / NO_RESULTS / NEED_CLARIFICATION / NOT_FOUND / DATA_UNAVAILABLE /
 INVALID_INPUT / TEMPORARILY_UNAVAILABLE; bounded own data, warnings, missingFields
@@ -215,7 +234,7 @@ guards, не самостоятельный NLP parser. Missing/ambiguous fields
 
 ### Reference input для menu/details
 
-**IMPLEMENTED Java foundation; подключение menu/details tools — PLANNED.**
+**IMPLEMENTED Java resolution и подключение menu/details tools.**
 
 Ровно один selector: ordinal=1/2/3, last=true либо name. restaurantId не является
 произвольным argument модели. Java ReferenceResolver использует текущую selection;
@@ -232,20 +251,30 @@ whitespace до одного пробела, lower-case Locale.ROOT. При не
 Resolution: OK с одним Java-resolved ID, NEED_CLARIFICATION без ID для отсутствующей
 позиции/selection или нескольких совпавших имён, NOT_FOUND без ID для неизвестного
 имени, INVALID_INPUT без ID для нарушенного selector contract. Resolver не вызывает
-AI, Telegram, restaurant search и не парсит ChatMemory. Сам разбор natural-language
-menu/details реплик пока не подключён.
+AI, Telegram, restaurant search и не парсит ChatMemory. Natural-language menu/details
+реплики интерпретирует первый model call; Java принимает только structured reference.
 
 ### getRestaurantDetails
 
+**IMPLEMENTED для собственных данных; Google enrichment — PLANNED.**
+
 Input: reference, optional focus ALL / HOURS / CONTACTS / RATING.
-Execution: resolve → own details → conditional Google только при необходимости для
-ALL/RATING/HOURS и enabled integration. Search не запускается.
-Output: одно заведение, ownData, отдельная live googleData для Java renderer,
-source statuses/warnings/live checkedAt. Model projection — только безопасные own reasons.
-No selection/ambiguous reference → NEED_CLARIFICATION; unknown ID → NOT_FOUND;
-Google failure → ownData + warning, без старого рейтинга из memory.
+Execution: resolve → RestaurantService.getRestaurant → свежий RestaurantDetails DTO
+→ Java factual renderer. Search не запускается. Default/null focus — ALL.
+Output: одно заведение, собственные name/address/cuisines/check и source/date;
+HOURS/ALL показывают own weekly schedule с явным next-day у overnight intervals и
+оговоркой о праздничных исключениях. Phone/website отсутствуют в текущей модели;
+ALL/CONTACTS честно сообщают, что они не сохранены, без придуманных contacts/URLs.
+RATING возвращает own name/address и сообщение о недоступном рейтинге, без Google call.
+В callback/model context возвращается только status; DTO остаётся у Java renderer.
+Ordinal/last без selection или ambiguous reference → NEED_CLARIFICATION;
+unknown name/ID → NOT_FOUND; exact name без selection разрешается по own catalog;
+service failure → TEMPORARILY_UNAVAILABLE. Conditional Google для ALL/RATING/HOURS,
+отдельные live googleData/attribution/warnings/checkedAt и failure fallback — PLANNED.
 
 ### getRestaurantMenu
+
+**IMPLEMENTED.**
 
 Input: reference, optional supported dishType (в текущей модели только PASTA) и
 maxItemPriceByn — цена одной позиции, не общий budget search.
@@ -253,6 +282,11 @@ Execution: resolve → существующий MenuService → Java filters.
 Output: одно заведение, до 10 own items, prices BYN, portion при наличии,
 source/date/PARTIAL. DATA_UNAVAILABLE при отсутствии saved menu; NO_RESULTS означает
 «Не найдено в сохранённой части меню». Нет inference allergens/ingredients/availability.
+Strict parsing отклоняет unknown fields, duplicate keys, trailing JSON, numeric
+name/ordinal coercion и неподдерживаемые enum. maxItemPriceByn следует existing
+положительному NUMERIC(10,2) contract; oversized scientific exponent отклоняется
+до чтения reference/menu. Callback возвращает только status; MenuDetails DTO
+остаётся в Java, source/date/PARTIAL показываются и при пустом filtered результате.
 
 ## Chat Memory и conversationId
 
@@ -304,8 +338,8 @@ Bounded process-local locks сериализуют turn и `/new`; сервер 
 positions соответствуют порядку trusted candidates, который полностью показывает
 текущий Java renderer. Explanation failure/fallback не меняет эти ID/порядок.
 Clarification, invalid input, provider failure и отсутствие search не меняют selection.
-REST search не является Telegram delivery и не сохраняет selection. Будущие
-menu/details её не заменяют. Явный failed send не меняет rows или version.
+REST search не является Telegram delivery и не сохраняет selection. Реализованные
+menu/details её не заменяют и не меняют version/criteria. Явный failed send не меняет rows или version.
 `/new` удаляет rows в той же transaction, что memory/criteria reset и increment
 generation; selectionVersion сохраняется как монотонный счётчик, новая подборка
 получит следующую version. History, snapshots и expiry отсутствуют.
@@ -339,11 +373,18 @@ Production smoke 2026-10-05 PASS: полный запрос через AIAI.BY/g
 Java search, два model calls, valid native ExplanationPlan и Java factual card.
 Offline conversation checks покрывают partial/short replies, replace/clear tags,
 ambiguity, isolation, restart, `/new`, safe transcript и window. Live multi-turn
-quality и end-to-end menu/details/adversarial cases ниже — PLANNED; offline fixtures
+quality и полный итоговый adversarial eval ниже — PLANNED; offline fixtures
 не доказывают natural-language качество реального provider.
 Offline resolver/selection tests покрывают 1/2/3 позиции, last, exact normalized names,
 ambiguity, chat isolation, replacement/empty/reset, Telegram send failure и DB rollback;
 тот же suite выполнен на PostgreSQL с application restart.
+Offline menu/details checks реализованы: delivered search → menu второго, PASTA и
+per-item price filters, PARTIAL empty/unavailable, own weekly/overnight hours и fresh
+address при ложных facts в ChatMemory, exact/ambiguous/unknown references, two-chat
+isolation, `/new`, failed Telegram send и menu follow-up после application restart.
+Production SDK fixtures подтверждают exactly three registered tools, отсутствие
+search на menu/details и второго tool execution. Эти проверки не являются
+live проверкой качества выбора tool реальной моделью.
 
 | Case | Expected behavior |
 |---|---|

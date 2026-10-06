@@ -78,10 +78,22 @@ class ConversationRestartTest {
             assertThat(memory.get(restored.conversationId()).getFirst().getText()).isEqualTo("User turn 2");
             assertThat(memory.get(restored.conversationId()).getLast().getText()).isEqualTo("Safe reply 11");
             var model = mock(ChatModel.class);
-            when(model.call(any(Prompt.class))).thenReturn(selection("{\"guests\":4}"));
             var clock = second.getBean(Clock.class);
-            var adapter = new SpringAiSearchAdapter(model, second.getBean(RestaurantSearchService.class), clock, false);
+            var adapter = new SpringAiSearchAdapter(model, second.getBean(RestaurantSearchService.class), clock, false,
+                    second.getBean(by.ilya.restaurantbot.conversation.ReferenceResolver.class),
+                    second.getBean(by.ilya.restaurantbot.catalog.MenuService.class),
+                    second.getBean(by.ilya.restaurantbot.catalog.RestaurantService.class));
             var conversation = new ConversationService(store, memory, adapter, clock, second.getBean(by.ilya.restaurantbot.conversation.SelectionService.class));
+            when(model.call(any(Prompt.class))).thenReturn(AiFixtures.response("invented", "TOOL_CALLS", java.util.List.of(
+                    AiFixtures.tool("getRestaurantMenu", "{\"reference\":{\"ordinal\":2}}"))));
+            var menu = conversation.handle(chat, "Меню второго", sent -> true);
+            assertThat(menu.followUpResult().menu().restaurantId()).isEqualTo(1);
+            assertThat(menu.followUpResult().menu().items()).hasSize(6);
+            assertThat(menu.text()).contains("Драники с мачанкой по-белорусски").doesNotContain("invented");
+            assertThat(store.load(chat)).isEqualTo(restored);
+            assertThat(menu.modelCalls()).isEqualTo(1);
+            assertThat(menu.toolExecutions()).isEqualTo(1);
+            when(model.call(any(Prompt.class))).thenReturn(selection("{\"guests\":4}"));
             var reply = conversation.handle(chat, "А если нас четверо?", sent -> true);
             assertThat(reply.status()).isEqualTo(OK);
             assertThat(reply.text()).contains("130.80 BYN");

@@ -56,7 +56,8 @@ class SpringAiSearchAdapterTest {
         var firstOptions = (OpenAiChatOptions) prompts.getAllValues().getFirst().getOptions();
         assertThat(firstOptions.getInternalToolExecutionEnabled()).isFalse();
         assertThat(firstOptions.getParallelToolCalls()).isFalse();
-        assertThat(firstOptions.getToolCallbacks()).hasSize(1);
+        assertThat(firstOptions.getToolCallbacks()).extracting(t -> t.getToolDefinition().name())
+                .containsExactly("searchRestaurants", "getRestaurantDetails", "getRestaurantMenu");
         var secondOptions = (OpenAiChatOptions) prompts.getAllValues().getLast().getOptions();
         assertThat(secondOptions.getInternalToolExecutionEnabled()).isFalse();
         assertThat(secondOptions.getToolCallbacks()).isEmpty();
@@ -154,6 +155,27 @@ class SpringAiSearchAdapterTest {
         verify(service).search(any());
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"getRestaurantMenu", "getRestaurantDetails"})
+    void secondModelResponseCannotExecuteEitherNewTool(String name) {
+        var resolver = mock(by.ilya.restaurantbot.conversation.ReferenceResolver.class);
+        var menus = mock(by.ilya.restaurantbot.catalog.MenuService.class);
+        var catalog = mock(by.ilya.restaurantbot.catalog.RestaurantService.class);
+        var complete = new SpringAiSearchAdapter(model, service, CLOCK, true, resolver, menus, catalog);
+        when(model.call(any(Prompt.class))).thenReturn(selection(FULL),
+                response("invented facts", "TOOL_CALLS", List.of(tool(name, "{\"reference\":{\"ordinal\":1}}"))));
+        var reply = complete.turn(81L, "Полный запрос", List.of(), java.util.function.UnaryOperator.identity(), List.of());
+        assertThat(reply.status()).isEqualTo(OK);
+        assertThat(reply.modelCalls()).isEqualTo(2);
+        assertThat(reply.toolExecutions()).isEqualTo(1);
+        assertThat(reply.followUpResult()).isNull();
+        assertThat(reply.explanationFallback()).isTrue();
+        assertThat(reply.text()).isEqualTo(new SearchFactualRenderer().render(result(), null));
+        verifyNoInteractions(resolver, menus, catalog);
+        verify(service).search(any());
+        verify(model, times(2)).call(any(Prompt.class));
+    }
+
     @Test
     void firstProviderAndServiceFailuresAreControlledAndConsumeAttempts() {
         when(model.call(any(Prompt.class))).thenThrow(new RuntimeException("private payload"));
@@ -224,7 +246,7 @@ class SpringAiSearchAdapterTest {
             for (var file : files.toList()) {
                 assertThat(Files.readString(file)).doesNotContain("RestaurantRepository", "MenuItemRepository",
                         "EntityManager", "jakarta.persistence", "java.sql", "JdbcTemplate", "ChatMemory",
-                        "ConversationState", "SelectionItem", "ReferenceResolver");
+                        "ConversationState", "SelectionItem");
             }
         }
     }

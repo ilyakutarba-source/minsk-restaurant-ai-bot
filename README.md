@@ -10,9 +10,10 @@ Java services и собственная БД определяют факты и 
 чеки, partial menus, controlled JSON import, детерминированный Restaurant Search,
 четыре REST endpoints и Swagger, Flyway и тесты на H2/PostgreSQL; stateless Spring AI
 search tool, Structured Output explanation и Java factual renderer/fallback;
-Telegram private chats/long polling, bounded PostgreSQL ChatMemory, criteria continuation и базовый `/new`.
+Telegram private chats/long polling, bounded PostgreSQL ChatMemory, criteria continuation,
+current selection/references, menu/details follow-up и базовый `/new`.
 
-**PLANNED:** menu/details AI tools и последняя показанная подборка/references, `/start`, `/help`,
+**PLANNED:** `/start`, `/help`,
 условное Google Places enrichment, Docker Compose и Dokploy/VPS.
 
 ## Example user scenario
@@ -22,9 +23,11 @@ Telegram private chats/long polling, bounded PostgreSQL ChatMemory, criteria con
 > Сегодня в 21:00 нас двое, общий бюджет до 150 BYN, итальянская кухня, хочется спокойно.
 
 LLM извлекает критерии, Java выполняет поиск и возвращает до трёх вариантов.
-Запрос «Меню второго» будет разрешаться по последней показанной подборке.
+Запрос «Меню второго» читает сохранённую часть меню по последней показанной подборке.
+«Есть паста у первого?» применяет PASTA filter; «До скольки третий?» перечитывает
+собственное недельное расписание через Java services.
 Короткое «А если нас четверо?» сохраняет остальные критерии. `/new` очищает memory
-и criteria без AI calls. Полный структурированный запрос доступен через REST/Swagger без AI.
+и criteria/selection без AI calls. Полный структурированный запрос доступен через REST/Swagger без AI.
 Пользовательские сценарии и scope: [PRODUCT](docs/PRODUCT.md).
 
 ## Tech stack
@@ -74,16 +77,18 @@ matchCount DESC → estimatedTotal ASC → restaurant ID ASC
 
 ## AI integration overview
 
-Stateless search **IMPLEMENTED**: Spring AI ChatClient использует только read-only
-searchRestaurants через существующий Java search. Модель выбирает причины объяснения
+**IMPLEMENTED:** Spring AI ChatClient выбирает один из ровно трёх read-only tools:
+searchRestaurants, getRestaurantDetails, getRestaurantMenu. Модель выбирает причины объяснения
 через native Structured Output; Java проверяет план и формирует фактические карточки.
-Invalid/failed explanation даёт Java fallback. До двух model calls и одного search
-на turn. Telegram conversation entry добавляет safe memory и Java criteria merge;
-menu/details tools и references остаются PLANNED: [AI](docs/AI.md).
+Invalid/failed search explanation даёт Java fallback. До двух model calls и одного tool
+execution на turn; во втором call tools отключены. Menu/details используют один model
+call, существующий ReferenceResolver и MenuService/RestaurantService; Java формирует
+фактический ответ без search. Telegram conversation entry добавляет safe memory и Java criteria merge.
+Contracts: [AI](docs/AI.md).
 
 ## Database
 
-Flyway V1–V6 создаёт каталог/меню, conversation state и JDBC memory, применяет локальные datasets; Hibernate использует
+Flyway V1–V7 создаёт каталог/меню, conversation state, JDBC memory и selection, применяет локальные datasets; Hibernate использует
 `validate`. У данных сохранены source и verifiedAt. Меню всегда PARTIAL; отсутствие
 позиции в БД не доказывает её отсутствия в полном меню. Поиск не зависит от MenuItem.
 Модель, provenance и import contract: [DATABASE](docs/DATABASE.md).
@@ -136,7 +141,8 @@ AI search включается отдельно: `AI_ENABLED=true` и `AIAI_API_
 
 Tests проверяют каталог, меню/import, search boundaries, overnight, ranking, REST,
 AI tool/plan guards и production SDK через offline loopback HTTP fixtures,
-criteria merge/ambiguity, two-chat isolation, `/new`, window/safe writes и application restart.
+criteria merge/ambiguity, two-chat isolation, `/new`, window/safe writes и application restart;
+menu/details routing, exact/ordinal references, fresh own facts и PARTIAL semantics.
 Обычные test/verify не вызывают live provider и не требуют API key.
 Отдельный минимальный live smoke (один turn, максимум два платных calls), только
 после проверки account budget/quotas и с AIAI_API_KEY в environment:
@@ -159,6 +165,7 @@ Docker Compose → Dokploy → VPS — **PLANNED**; Dockerfile/Compose и гот
 сегодня и следующие шесть дней. REST не разбирает естественный язык.
 DERIVED check — собственная ориентировочная оценка, не официальный средний чек.
 Наличие столика, блюда, праздничные часы и тишина не гарантируются.
-Menu/details AI tools, selection references и Google ещё не интегрированы;
-Google не участвует в ranking. Memory ограничена 20 user/assistant messages на чат.
+Google ещё не интегрирован и не участвует в ranking. Собственные телефон/website
+не сохранены; details явно сообщает об отсутствии этих полей.
+Memory ограничена 20 user/assistant messages на чат.
 Booking, публичный admin/chat API, геопоиск и RAG/vector search вне MVP.

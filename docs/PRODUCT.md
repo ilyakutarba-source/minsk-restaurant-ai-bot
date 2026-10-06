@@ -19,11 +19,13 @@ Minsk Restaurant AI Bot помогает выбрать ресторан из с
   search → собственная PostgreSQL → Java factual card → sendMessage.
 - Bounded PostgreSQL conversation memory, сохранение и продолжение критериев, базовый `/new`.
 - Текущая успешно показанная подборка по chatId и Java foundation для ordinal/last/exact-name references.
+- Telegram menu/details follow-up: ReferenceResolver → MenuService/RestaurantService,
+  supported PASTA/price filter, PARTIAL caveat и свежие собственные facts в Java response.
 
 Чек, расписание и меню имеют отдельные источники и даты проверки. Поиск работает
 при частичном или отсутствующем меню. [Модель и происхождение данных](DATABASE.md).
 
-## Core user journey — шаги 1–3, 6–7 IMPLEMENTED; menu/details follow-up PLANNED
+## Core user journey — IMPLEMENTED; Google enrichment PLANNED
 
 1. Пользователь: «Сегодня в 21:00 нас двое, до 150 BYN, итальянская кухня, хочется спокойно».
 2. AI извлекает критерии; при недостающих или неоднозначных данных задаётся уточнение.
@@ -37,9 +39,8 @@ Minsk Restaurant AI Bot помогает выбрать ресторан из с
 
 Полный self-contained запрос и короткие уточнения работают в Telegram. Валидные
 частичные критерии сохраняются; Java спрашивает оставшиеся обязательные или
-неоднозначные поля. Java resolution по последней подборке реализован; шаги 4–5,
-menu/details tools, `/start` и `/help`
-остаются PLANNED.
+неоднозначные поля. Java resolution по последней подборке и menu/details tools реализованы,
+включая шаги 4–5 для собственных данных. Google rating, `/start` и `/help` остаются PLANNED.
 Правила tools/memory/reference resolution: [AI](AI.md).
 
 ## MVP — MUST
@@ -51,8 +52,8 @@ menu/details tools, `/start` и `/help`
 | Поиск | Гости, общий бюджет, дата/время, optional cuisine/tags; до 3 вариантов | IMPLEMENTED |
 | Чек | Проверяемый ориентир на гостя с type/source/date | IMPLEMENTED |
 | Меню | 5–10 позиций на заведение, только PARTIAL | IMPLEMENTED для 3 филиалов |
-| Telegram | Личные чаты, русский язык, long polling | IMPLEMENTED для conversation search; finishing PLANNED |
-| AI | Один provider/model, Spring AI Tool Calling и Structured Output | IMPLEMENTED для stateless search; другие tools PLANNED |
+| Telegram | Личные чаты, русский язык, long polling | IMPLEMENTED для conversation search/menu/details; finishing PLANNED |
+| AI | Один provider/model, Spring AI Tool Calling и Structured Output | IMPLEMENTED: ровно 3 tools, Java factual rendering |
 | Контекст | Ограниченная ChatMemory и последняя показанная подборка по chatId | Memory/criteria/selection и Java ReferenceResolver IMPLEMENTED |
 | Команды | `/start`, `/help`, `/new` | Базовый `/new` IMPLEMENTED; `/start`, `/help` PLANNED |
 | Google | Enrichment известного ресторана; только после проверки доступности/условий | PLANNED, DEFERRED |
@@ -78,13 +79,13 @@ Telegram возвращает честный NO_RESULTS и предлагает 
 **Меню.** «Не найдено в сохранённой части меню» не означает отсутствие блюда вообще.
 Наличие блюда, аллергены и неуказанные ингредиенты не выводятся из его названия.
 
-**Контекст — IMPLEMENTED foundation.** «Первый/второй/третий/последний» ссылается только на текущую успешно
+**Контекст — IMPLEMENTED.** «Первый/второй/третий/последний» ссылается только на текущую успешно
 показанную подборку. Неоднозначное название требует уточнения; разные чаты изолированы.
 Пустая успешно отправленная выдача очищает подборку; failed send сохраняет прежнюю.
-Java resolver поддерживает exact normalized name. Вызов resolver из menu/details
-AI tools и законченный Telegram follow-up остаются PLANNED.
+Java resolver поддерживает exact normalized name; menu/details AI tools используют
+его в Telegram follow-up, без нового поиска и замены текущей подборки.
 
-**Ошибки AI — IMPLEMENTED для search; Google — PLANNED.** REST Java search работает
+**Ошибки AI — IMPLEMENTED для search/menu/details; Google — PLANNED.** REST Java search работает
 независимо от этих внешних сервисов. При failed explanation остаётся Java factual card;
 недоступный рейтинг
 не придумывается и не восстанавливается из разговорной памяти.

@@ -1,6 +1,6 @@
 package by.ilya.restaurantbot.conversation;
 
-/** Foundation for future menu/details inputs; never accepts an arbitrary restaurantId. */
+/** Menu/details selector; never accepts an arbitrary restaurantId. */
 public record RestaurantReference(Integer ordinal, Boolean last, String name) {
     public boolean isValid() {
         int selectors = (ordinal == null ? 0 : 1) + (last == null ? 0 : 1) + (name == null ? 0 : 1);

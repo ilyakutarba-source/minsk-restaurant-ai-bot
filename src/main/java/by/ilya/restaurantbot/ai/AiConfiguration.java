@@ -4,6 +4,9 @@ import java.io.IOException;
 import java.net.URI;
 import java.time.Clock;
 
+import by.ilya.restaurantbot.catalog.MenuService;
+import by.ilya.restaurantbot.catalog.RestaurantService;
+import by.ilya.restaurantbot.conversation.ReferenceResolver;
 import by.ilya.restaurantbot.search.RestaurantSearchService;
 import org.apache.hc.client5.http.config.ConnectionConfig;
 import org.apache.hc.client5.http.config.RequestConfig;
@@ -72,7 +75,8 @@ public class AiConfiguration {
     @Bean
     SpringAiSearchAdapter springAiSearchAdapter(OpenAiChatModel searchChatModel,
             RestaurantSearchService service, Clock clock,
+            ReferenceResolver resolver, MenuService menus, RestaurantService catalog,
             @Value("${restaurant-bot.ai.explanation-enabled:true}") boolean explanationEnabled) {
-        return new SpringAiSearchAdapter(searchChatModel, service, clock, explanationEnabled);
+        return new SpringAiSearchAdapter(searchChatModel, service, clock, explanationEnabled, resolver, menus, catalog);
     }
 }

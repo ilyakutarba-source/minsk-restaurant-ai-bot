@@ -44,9 +44,13 @@ final class ProviderFixture implements AutoCloseable {
     @Override public void close() { server.stop(0); }
 
     static Reply selection(String args) throws Exception {
+        return tool("searchRestaurants", args);
+    }
+
+    static Reply tool(String name, String args) throws Exception {
         return response(Map.of("role", "assistant", "tool_calls", List.of(Map.of(
                 "id", "fixture-call-1", "type", "function", "function",
-                Map.of("name", "searchRestaurants", "arguments", args)))), "tool_calls");
+                Map.of("name", name, "arguments", args)))), "tool_calls");
     }
 
     static Reply explanation(String json) throws Exception {
