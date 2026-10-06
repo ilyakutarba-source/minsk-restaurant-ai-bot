@@ -19,7 +19,9 @@ TELEGRAM_BOT_TOKEN и enabled AI. ConversationState и bounded JDBC ChatMemory
 Схема: [DATABASE](DATABASE.md#разговор-и-последняя-подборка). Новых env variables нет.
 Google Places enrichment исключён из текущего MVP; Google key для deployment не требуется.
 Dockerfile и `compose.yaml` реализованы в TASK-13. Remote Dokploy/VPS acceptance
-ещё не выполнен: текущий SSH key-based доступ отклонён. CI configuration отсутствует.
+ещё не выполнен. Noninteractive SSH key-based доступ и read-only VPS audit подтверждены
+2026-10-06; deployment candidate publication и remote smoke остаются pending.
+CI configuration отсутствует.
 Наличие deployment files не означает завершённую remote приёмку.
 
 ### Проверка TASK-13 — 2026-10-06
@@ -27,15 +29,15 @@ Dockerfile и `compose.yaml` реализованы в TASK-13. Remote Dokploy/V
 | Gate | Фактический результат |
 |---|---|
 | Maven clean verify | PASS: 399 tests, failures/errors/skipped=0, JDK 21 |
-| Clean checkout image build | PASS: чистый archive HEAD плюс deployment files, build внутри image через Wrapper |
+| Clean checkout image build | PASS: повторный local gate из чистого archive candidate 5c9b6bb; Dockerfile/Compose/ignore совпадают с рабочими файлами; build через Wrapper |
 | Local Docker/Compose | PASS: Engine 29.8.0, Compose 5.5.1; отдельный smoke project/fresh volume |
 | Fresh schema/startup | PASS: PostgreSQL 17.10, Flyway V1–V9, Hibernate validate |
 | Dataset/HTTP | PASS: 10 active restaurants, 60 menu items; catalog/OpenAPI/Swagger HTTP 200 |
 | Image | PASS: Java 21.0.11, UID/GID 10001; jar present, no source/Wrapper/.env в app runtime |
-| Local network/mapping | PASS: app 127.0.0.1 host bind, postgres без host ports; explicit credential mapping |
+| Local network/mapping | PASS: Docker port mapping и Windows host listener 127.0.0.1:18080 → app:8080; postgres без host ports; explicit credential mapping |
 | Local restart/recreate | PASS: оба services healthy; тот же volume, synthetic mutable criteria/selection/memory preserved |
-| Candidate security audit | PASS: доступные secret values не найдены в candidate files/image history/ordinary local app logs; build args отсутствуют |
-| VPS resources/access | USER_INPUT_REQUIRED: текущий SSH key rejected; CPU/RAM/disk/Docker/Dokploy/backup space UNKNOWN |
+| Candidate security audit | PASS: известные secret values не найдены в tracked files/image metadata/history/build/app/postgres logs; build args и baked runtime credentials отсутствуют |
+| VPS access/audit | PASS: noninteractive SSH, Docker CLI/daemon, Compose, healthy Dokploy; resource verdict PARTIAL — подробнее ниже |
 | Remote deployment/Telegram/AIAI | NOT RUN; существующей доступной browser session Dokploy нет |
 | Remote exposure/persistence/backup smoke | NOT RUN; local results их не заменяют |
 
@@ -43,7 +45,15 @@ Local container smoke использовал disabled AI, empty external keys/to
 mutable rows, без paid/provider/Telegram calls. После проверки удалены только
 его disposable containers/network/volume/image и temporary credential file. Remote Telegram ordinal follow-up и actual
 Dokploy redeploy обязательны для завершённой deployment acceptance. TASK-13 PARTIAL,
-remote BLOCKED; TASK-14 не начиналась. Public docs содержат только sanitized summary.
+remote deployment PENDING; TASK-14 не начиналась. Public docs содержат только sanitized summary.
+Повторный LOCAL DEPLOYMENT этап завершён по запросу пользователя: `clean verify`
+399 PASS, новый fresh PostgreSQL volume, actual image build/startup/health/HTTP/security
+и targeted cleanup PASS. AI/Telegram были отключены, реальные provider calls не выполнялись.
+Runtime contract перепроверен по application.yml и Java configuration: default HTTP
+address 127.0.0.1, default port 8080; Compose override address 0.0.0.0 внутри app.
+Allowlist не поддерживается, healthcheck использует existing catalog GET с чтением БД.
+Source/pom/старые Flyway migrations и AI contract не изменены относительно TASK-12;
+tools ровно три, Google config не добавлен. Remote deployment в этом этапе не запускался.
 
 ## Target — remote acceptance PENDING
 
@@ -54,11 +64,48 @@ GitHub repository → Dokploy Compose project → VPS
 ```
 
 Runtime — Java 21. Выбран remote AIAI API, локальная модель/GPU не требуется.
-CPU/RAM/disk должны учитывать application, PostgreSQL, image build, Dokploy overhead
-и backup storage. VPS CPU/RAM/disk, Docker version, Dokploy и backup space остаются
-UNKNOWN; resource verdict PARTIAL до успешного read-only remote audit.
+CPU/RAM/disk учитывают application, PostgreSQL, image build, Dokploy overhead и backup
+storage. Фактический read-only audit приведён ниже; resource verdict PARTIAL до проверки
+image build peak и работы этого приложения в общей VPS среде.
 Один bot token — один активный poller. Microservices, replicas и публичный webhook
 не входят в MVP. Scope: [PRODUCT](PRODUCT.md).
+
+### VPS resource/access audit — 2026-10-06
+
+| Проверка | Наблюдение |
+|---|---|
+| SSH | Noninteractive key-based access PASS через настроенный локальный alias |
+| ОС | Ubuntu 24.04.5 LTS, Linux 6.8.0-139-generic |
+| CPU | 2 logical CPUs; load average 0.01/0.06/0.02, CPU idle 99–100% в короткой выборке |
+| RAM | 3.82 GiB total, 1.90 GiB available на момент audit; swap отсутствует |
+| Disk / backup filesystem | 77.40 GiB total, 65.77 GiB available, 12% used; inode usage 6% |
+| Docker | Client/Engine 28.5.0, overlay2; daemon доступен через текущий SSH account |
+| Compose | 5.5.1 |
+| Dokploy | Container image v0.30.6, healthy; localhost HTTP 200. Authenticated UI/API session не проверялась |
+| Existing inventory | 5 running containers, 3 named volumes, 6 networks; Dokploy и другой учебный проект |
+| Existing memory use | Dokploy около 929 MiB; остальные четыре containers суммарно около 414 MiB в одной выборке |
+| Existing memory limits | У всех пяти containers HostConfig.Memory=0 / MemorySwap=0: явные container limits отсутствуют |
+| Docker storage | Images около 4.45 GB, volumes около 118 MB; build cache отсутствует |
+| Target inventory | Minsk Restaurant Bot containers/volumes/networks отсутствуют |
+| App port candidate | 18080 свободен на момент `ss -lnt`; повторно проверить перед deploy, host bind только loopback |
+| Backup permissions | User-owned home filesystem доступен для записи и имеет тот же запас места; `/var/backups` напрямую недоступен; noninteractive sudo недоступен |
+
+**Resource verdict: PARTIAL.** Доступ/CPU/disk/Docker/Compose/Dokploy подтверждены.
+Запас RAM выглядит достаточным для одного runtime app + PostgreSQL с учётом local
+smoke measurements, но build peak, совместная нагрузка с существующим проектом и
+remote runtime ещё не измерены. Отсутствие swap и container memory limits учитывается
+перед build/deploy; факт healthy Dokploy не закрывает эти acceptance gates.
+
+Listeners: TCP 22/80/443/3000/2377/7946 на all interfaces, DNS 53 на loopback.
+80/443/3000 соответствуют существующим Traefik/Dokploy, 2377/7946 — активному Docker
+Swarm. Публичная достижимость через host/provider firewall этим audit не проверялась.
+PostgreSQL 5432 и application 8080/18080 host listeners отсутствуют. Новый проект
+использует Compose mode и отдельную bridge network; существующий Swarm не меняется.
+
+Audit не создавал/останавливал/удалял containers, volumes или networks, не менял
+firewall/SSH/Dokploy configuration и не выводил secrets/environment values. Private operational
+details и inventory evidence остаются local-only. SSH blocker устранён; ранее
+отклонённый push candidate всё ещё требует прямого подтверждения точного repository.
 
 ## Environment configuration
 
@@ -324,7 +371,7 @@ Flyway validate, один poller; пользователь отправляет 
 
 Логический custom-format dump включает conversation state/memory/selection и является
 приватными данными. Хранить вне app container/checkout/Git, например в выделенном
-`/var/backups/minsk-restaurant-ai-bot`; directory 700, files 600, доступ только у
+`$HOME/backups/minsk-restaurant-ai-bot`; directory 700, files 600, доступ только у
 operational owner. Выполнять из фактического Dokploy Compose directory с его `.env`
 и stable project name. У owner должны быть права создать этот каталог; не менять
 права чужих backup directories. Шаблон для Linux VPS:
@@ -332,7 +379,7 @@ operational owner. Выполнять из фактического Dokploy Comp
 ```sh
 umask 077
 compose_project='replace-with-actual-dokploy-project-name'
-backup_dir=/var/backups/minsk-restaurant-ai-bot
+backup_dir="$HOME/backups/minsk-restaurant-ai-bot"
 install -d -m 700 "$backup_dir"
 dump="$backup_dir/restaurantbot-$(date -u +%Y%m%dT%H%M%SZ).dump"
 docker compose -p "$compose_project" -f compose.yaml exec -T postgres \
@@ -348,7 +395,9 @@ variables. В shell не включать `set -x`. `.partial` при ошибк
 backup. Проверить итоговые size/permissions; dump/list contents не выводить и не
 создавать public download URL. Archive validation не доказывает полный restore.
 Здесь имя файла датировано; рядом приватно записать schema version V9 и deployment
-revision без credentials. Actual remote backup path/owner/space ещё не подтверждены.
+revision без credentials. Read-only audit подтвердил writable user-owned home filesystem
+и запас 65.77 GiB. Выделенный backup directory ещё не создан, его permissions и
+actual dump/list smoke остаются pending; `/var/backups` недоступен без elevation.
 
 Retention и внешняя копия требуют отдельного operational решения: один dump на том же
 VPS не защищает от потери диска, место контролируется перед каждой копией. Автоматический
