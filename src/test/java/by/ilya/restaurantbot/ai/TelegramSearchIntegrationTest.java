@@ -88,9 +88,9 @@ class TelegramSearchIntegrationTest {
             String message = "Сегодня в 21:00 нас двое, общий бюджет 150 BYN, итальянская кухня.";
             var reply = deliver(adapter, message);
             var text = sentText();
-            assertThat(text).contains("1. Pizza Tempo (ID: 2)", "Карла Маркса, 26",
-                    "Ориентировочный чек на 2 гостей: 65.40 BYN", "21:00", "не гарантия итоговой суммы")
-                    .doesNotContain("Васильки", "Хинкальня", "provider payload");
+            assertThat(text).contains("1. 🍽 Pizza Tempo", "Карла Маркса, 26",
+                    "≈65.40 BYN на 2 гостей", "21:00", "не гарантия итоговой суммы")
+                    .doesNotContain("Васильки", "Хинкальня", "provider payload", "ID:", "https://", "DERIVED");
             assertThat(reply.modelCalls()).isEqualTo(2);
             assertThat(reply.toolExecutions()).isEqualTo(1);
             assertThat(reply.explanationFallback()).isEqualTo(!explanation.equals("valid"));
@@ -118,7 +118,7 @@ class TelegramSearchIntegrationTest {
             int previous = -1;
             for (int i = 0; i < expected.candidates().size(); i++) {
                 var candidate = expected.candidates().get(i);
-                var heading = (i + 1) + ". " + candidate.restaurant().name() + " (ID: " + candidate.restaurant().id() + ")";
+                var heading = (i + 1) + ". 🍽 " + candidate.restaurant().name() + "\n📍 " + candidate.restaurant().address();
                 int position = text.indexOf(heading);
                 assertThat(position).isGreaterThan(previous);
                 previous = position;
@@ -127,7 +127,7 @@ class TelegramSearchIntegrationTest {
             assertThat(text).doesNotContain("4. ");
             assertThat(selections.current(1)).extracting(by.ilya.restaurantbot.conversation.SelectionItem::restaurantId)
                     .containsExactlyElementsOf(expected.candidates().stream().map(c -> c.restaurant().id()).toList());
-            // Existing three-record dataset must fit a single plain-text Telegram message.
+            // Three complete cards must fit a single plain-text Telegram message.
             assertThat(text.length()).isLessThanOrEqualTo(4096);
             assertThat(fixture.requests()).hasSize(1);
         }

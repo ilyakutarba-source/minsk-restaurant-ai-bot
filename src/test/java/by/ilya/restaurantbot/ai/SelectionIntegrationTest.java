@@ -98,7 +98,8 @@ class SelectionIntegrationTest {
         assertThat(repository.findCurrent(A)).allSatisfy(item -> assertThat(item.selectionVersion()).isEqualTo(version + 1));
         assertThat(store.load(A).selectionVersion()).isEqualTo(version + 1);
         for (int i = 0; i < shown.size(); i++) {
-            assertThat(reply.text()).contains((i + 1) + ". " + catalog.getRestaurant(shown.get(i)).orElseThrow().name());
+            var restaurant = catalog.getRestaurant(shown.get(i)).orElseThrow();
+            assertThat(reply.text()).contains((i + 1) + ". 🍽 " + restaurant.name() + "\n📍 " + restaurant.address());
             assertThat(resolver.resolve(A, new RestaurantReference(i + 1, null, null)).restaurantId()).isEqualTo(shown.get(i));
         }
         // A subsequent criteria save cannot restore the previous selection version.

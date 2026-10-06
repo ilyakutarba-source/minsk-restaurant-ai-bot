@@ -144,7 +144,7 @@ abstract class FinalAiEvalSupport {
                 var candidate=r.searchResult().candidates().get(i);
                 assertThat(candidate.restaurant()).isEqualTo(catalog.getRestaurant(candidate.restaurant().id()).orElseThrow());
                 assertThat(candidate.estimatedTotalByn()).isLessThanOrEqualTo(c.totalBudgetByn());
-                String heading=(i+1)+". "+candidate.restaurant().name()+" (ID: "+candidate.restaurant().id()+")";
+                String heading=(i+1)+". 🍽 "+candidate.restaurant().name()+"\n📍 "+candidate.restaurant().address();
                 int position=r.text().indexOf(heading);assertThat(position).isGreaterThan(previousPosition);previousPosition=position;
             }
             if(Set.of(1,11,12).contains(n)) {

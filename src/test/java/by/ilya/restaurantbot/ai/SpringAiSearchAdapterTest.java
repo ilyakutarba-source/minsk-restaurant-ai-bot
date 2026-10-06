@@ -44,9 +44,10 @@ class SpringAiSearchAdapterTest {
         assertThat(reply.modelCalls()).isEqualTo(2);
         assertThat(reply.toolExecutions()).isEqualTo(1);
         assertThat(reply.explanationFallback()).isFalse();
-        assertThat(reply.text()).contains("Synthetic fixture restaurant", "ID: 42", "Synthetic fixture address",
-                "65.40 BYN", "32.70 BYN", "2026-10-02", "21:00", "https://example.test/check", "Может подойти:")
-                .doesNotContain("ignored model prose");
+        assertThat(reply.text()).contains("1. 🍽 Synthetic fixture restaurant", "Synthetic fixture address",
+                "≈65.40 BYN на 2 гостей", "2026-10-02", "21:00", "Может подойти:")
+                .doesNotContain("ignored model prose", "ID:", "https://", "PUBLISHED", "Расписание:");
+        assertThat(reply.searchResult()).isEqualTo(result());
         var request = ArgumentCaptor.forClass(SearchRequest.class);
         verify(service).search(request.capture());
         assertThat(request.getValue()).isEqualTo(AiJson.mapper().readValue(FULL, SearchRequest.class));
@@ -297,7 +298,8 @@ class SpringAiSearchAdapterTest {
         var reversed = new ExplanationPlan(List.of(item2, item1));
         assertThat(reversed.isValidFor(search)).isTrue();
         var text = new SearchFactualRenderer().render(search, reversed);
-        assertThat(text.indexOf("ID: 42")).isLessThan(text.indexOf("ID: 99"));
+        assertThat(text).contains("1. 🍽 Synthetic fixture restaurant", "2. 🍽 Second synthetic restaurant");
+        assertThat(text.indexOf("1. 🍽")).isLessThan(text.indexOf("2. 🍽"));
         assertThat(new ExplanationPlan(List.of(item1, item1)).isValidFor(search)).isFalse();
         assertThat(new ExplanationPlan(List.of(item1)).isValidFor(search)).isFalse();
         assertThat(new SearchFactualRenderer().render(search, new ExplanationPlan(List.of(item1, item1))))

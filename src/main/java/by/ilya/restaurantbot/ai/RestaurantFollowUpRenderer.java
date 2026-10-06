@@ -22,19 +22,19 @@ final class RestaurantFollowUpRenderer {
 
     private String menu(RestaurantFollowUpResult result) {
         var data = result.menu();
-        var text = new StringBuilder("Сохранённое меню ресторана (ID: ").append(data.restaurantId()).append(")\n")
-                .append(data.notice()).append('\n');
-        if (data.coverage() != null) text.append("Покрытие: ").append(data.coverage()).append('\n');
-        metadata(text, "Источник меню", data.source(), data.verifiedAt());
+        var text = new StringBuilder("🍽 Сохранённая часть меню");
+        if (data.coverage() != null) text.append(" (").append(data.coverage()).append(')');
+        text.append('\n').append(data.notice()).append("\n\n");
         for (var item : data.items()) {
             text.append("• ").append(item.name()).append(" — ").append(money(item.priceByn())).append(" BYN");
-            if (item.portion() != null) text.append("; ").append(item.portion());
+            if (item.portion() != null) text.append(" · ").append(item.portion());
             text.append('\n');
-            if (item.source() != null && !item.source().equals(data.source())) text.append("Источник позиции: ").append(item.source()).append('\n');
         }
         if (data.status() != by.ilya.restaurantbot.catalog.MenuDetails.Status.AVAILABLE) {
             text.append("Сохранена только часть меню; наличие блюд и актуальность цен не гарантируются.\n");
         }
+        text.append('\n');
+        metadata(text, "Источник меню", data.source(), data.verifiedAt());
         return text.toString().stripTrailing();
     }
 

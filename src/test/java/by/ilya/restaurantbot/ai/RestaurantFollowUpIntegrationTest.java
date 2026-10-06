@@ -203,7 +203,13 @@ class RestaurantFollowUpIntegrationTest {
         clearInvocations(model);
         var last = turn(B, text, tool, "{\"reference\":{\"last\":true}}", true);
         assertThat(last.status()).isEqualTo(OK);
-        assertThat(last.text()).contains("ID: 3");
+        if (last.followUpResult().menu() != null) {
+            assertThat(last.followUpResult().menu().restaurantId()).isEqualTo(3);
+            assertThat(last.text()).contains("Шашлык из свинины").doesNotContain("ID:");
+        } else {
+            assertThat(last.followUpResult().details().id()).isEqualTo(3);
+            assertThat(last.text()).contains("Хинкальня", "Дзержинского, 104");
+        }
         assertOneFollowUp(last);
     }
 
@@ -290,7 +296,10 @@ class RestaurantFollowUpIntegrationTest {
                     .containsExactly("searchRestaurants", "getRestaurantDetails", "getRestaurantMenu");
             assertThat(fixture.requests().getFirst().path("parallel_tool_calls").asBoolean()).isFalse();
             assertThat(fixture.requests().getFirst().toString()).doesNotContain(Long.toString(A), "telegram:", "selection_version");
-            assertThat(reply.text()).contains("ID: 1");
+            if (reply.followUpResult().menu() != null) {
+                assertThat(reply.followUpResult().menu().restaurantId()).isEqualTo(1);
+                assertThat(reply.text()).contains("Драники с мачанкой по-белорусски").doesNotContain("ID:");
+            } else assertThat(reply.followUpResult().details().id()).isEqualTo(1);
             verifyNoInteractions(search);
         }
     }
