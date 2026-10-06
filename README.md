@@ -11,9 +11,10 @@ Java services и собственная БД определяют факты и 
 четыре REST endpoints и Swagger, Flyway и тесты на H2/PostgreSQL; stateless Spring AI
 search tool, Structured Output explanation и Java factual renderer/fallback;
 Telegram private chats/long polling, bounded PostgreSQL ChatMemory, criteria continuation,
-current selection/references, menu/details follow-up и базовый `/new`.
+current selection/references, menu/details follow-up, `/start`, `/help`, `/new`,
+controlled errors/unsupported requests и input/output limits.
 
-**PLANNED:** `/start`, `/help`, Docker Compose и Dokploy/VPS.
+**PLANNED:** Docker Compose и Dokploy/VPS.
 
 **EXCLUDED FROM CURRENT MVP:** Google Places enrichment. Рейтинг и live часы Google
 не входят в текущий scope; [продуктовое решение](docs/PRODUCT.md#google-places--excluded-from-current-mvp).
@@ -31,6 +32,14 @@ LLM извлекает критерии, Java выполняет поиск и �
 Короткое «А если нас четверо?» сохраняет остальные критерии. `/new` очищает memory
 и criteria/selection без AI calls. Полный структурированный запрос доступен через REST/Swagger без AI.
 Пользовательские сценарии и scope: [PRODUCT](docs/PRODUCT.md).
+
+Команды: `/start` — знакомство, `/help` — примеры поиска и follow-up,
+`/new` — новый разговор без старых критериев и ordinal references. Все команды Java-only,
+без AI calls. Бот объясняет ограничения booking, other city и currency; использует
+только Минск/BYN. Вход ограничен 2000 символами. Длинные plain-text ответы делятся
+без потери фактов на части до 4096; failed/partial send не обновляет transcript/selection.
+Один poller, sequential turns одного чата, без guaranteed/exactly-once delivery.
+Update/offset и restart boundaries: [DEPLOYMENT](docs/DEPLOYMENT.md#update--offset-behavior).
 
 ## Tech stack
 
@@ -145,6 +154,9 @@ Tests проверяют каталог, меню/import, search boundaries, ove
 AI tool/plan guards и production SDK через offline loopback HTTP fixtures,
 criteria merge/ambiguity, two-chat isolation, `/new`, window/safe writes и application restart;
 menu/details routing, exact/ordinal references, fresh own facts и PARTIAL semantics.
+Telegram finishing tests также проверяют commands/unsupported/errors, response timeout
+на production AI SDK, split/partial failure, concurrent same-chat turns и two-chat isolation;
+Pengrad offset/restart/429 smoke использует только локальный HTTP fixture.
 Обычные test/verify не вызывают live provider и не требуют API key.
 Отдельный минимальный live smoke (один turn, максимум два платных calls), только
 после проверки account budget/quotas и с AIAI_API_KEY в environment:

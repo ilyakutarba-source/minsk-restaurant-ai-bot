@@ -35,6 +35,10 @@ public final class SpringAiSearchAdapter {
             несколько поисков. При неизвестных или неоднозначных критериях передай null;
             не угадывай время, валюту или общий бюджет. Поддержаны только BYN и 1–6 гостей.
             При нескольких посещениях, другой валюте или неподдерживаемом запросе не вызывай tool.
+            Бронирование и другие города не поддерживаются. При явно указанном городе кроме Минска
+            не вызывай ни один tool; не подменяй город Минском. Это относится и к menu/details.
+            Для unsupported запроса верни без tool только один код: UNSUPPORTED_BOOKING,
+            UNSUPPORTED_CITY или UNSUPPORTED_CURRENCY. Не добавляй факты или свободный текст.
             Верни только новые значения из текущей реплики. Не копируй прежние критерии:
             Java сама сохраняет и объединяет их. Отсутствующее поле, кухня и пожелания — null.
             preferredTags заданные пользователем заменяют весь набор; [] только при явном снятии пожеланий.
@@ -91,8 +95,11 @@ public final class SpringAiSearchAdapter {
     public AiSearchReply turn(Long chatId, String userText, List<Message> history,
                               UnaryOperator<SearchRequest> prepare, List<String> ambiguous) {
         if (userText == null || userText.isBlank() || userText.length() > 2000) {
-            return controlled(Status.INVALID_INPUT, 0, 0, List.of());
+            return new AiSearchReply(Status.INVALID_INPUT, null, "Напишите непустой запрос длиной до 2000 символов.",
+                    0, 0, false, List.of());
         }
+        var unsupported = UnsupportedRequests.reason(userText);
+        if (unsupported != null) return new AiSearchReply(Status.INVALID_INPUT, null, unsupported, 0, 0, false, List.of());
         var tool = new SearchRestaurantsTool(service, clock, prepare, ambiguous);
         var menuTool = new RestaurantFollowUpTool(RestaurantFollowUpResult.Kind.MENU, chatId, resolver, menus, catalog);
         var detailsTool = new RestaurantFollowUpTool(RestaurantFollowUpResult.Kind.DETAILS, chatId, resolver, menus, catalog);
@@ -111,6 +118,10 @@ public final class SpringAiSearchAdapter {
                     .call().chatResponse();
         } catch (RuntimeException unavailable) {
             return controlled(Status.TEMPORARILY_UNAVAILABLE, modelCalls, 0, List.of());
+        }
+        if (usable(first, "STOP") && first.getResult().getOutput().getToolCalls().isEmpty()) {
+            var scope = UnsupportedRequests.modelReason(first.getResult().getOutput().getText());
+            if (scope != null) return new AiSearchReply(Status.INVALID_INPUT, null, scope, modelCalls, 0, false, List.of());
         }
         if (!usable(first, "TOOL_CALLS")) {
             return controlled(Status.NEED_CLARIFICATION, modelCalls, 0, List.of());
@@ -200,7 +211,8 @@ public final class SpringAiSearchAdapter {
     }
 
     public static String clarification(List<String> missing) {
-        if (missing.isEmpty()) return "Уточните неоднозначные критерии: общий бюджет в BYN, однозначную дату или точное время HH:mm в Минске.";
+        if (missing.isEmpty()) return "Работаю только с каталогом Минска, бюджетом в BYN, без бронирования. "
+                + "Уточните критерии: общий бюджет, дату или точное время HH:mm. Примеры: /help.";
         return "Уточните: " + String.join(", ", missing.stream().map(field -> switch (field) {
             case "guests" -> "число гостей (1–6)";
             case "totalBudgetByn" -> "общий бюджет на всех гостей в BYN";

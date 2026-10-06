@@ -3,7 +3,7 @@
 ## Текущий запуск — IMPLEMENTED
 
 Требуются JDK 21, Maven Wrapper 3.9.16 и PostgreSQL для default profile.
-Spring Boot получает DB connection из внешней среды, Flyway применяет V1–V6,
+Spring Boot получает DB connection из внешней среды, Flyway применяет V1–V7,
 Hibernate проверяет схему через `ddl-auto=validate`. HTTP bind — `127.0.0.1`.
 Test profile использует H2 без внешних API/ключей и доступен для локального REST demo.
 Команды запуска и проверки: [README](../README.md#running-locally).
@@ -116,23 +116,61 @@ Spring Security вне MVP при закрытом HTTP. Telegram chatId не а
   его при остановке; client закрывается вместе с context. Один token — один instance.
 - Принимаются только private text messages; остальные updates безопасно игнорируются.
   ChatId остаётся 64-bit, но не передаётся в AI и не записывается в обычные logs.
-- ConversationService использует существующий AI adapter и Java-owned text. Одна plain-text
-  message без parse mode сохраняет названия/адреса с markup-символами буквально.
+- ConversationService использует существующий AI adapter и Java-owned text.
+  Plain text без parse mode сохраняет названия/адреса с markup-символами буквально.
+  Ответ разделяется без усечения на части ≤4096 UTF-16 units, предпочтительно по строкам,
+  с сохранением Unicode surrogate pairs. Все части отправляются последовательно;
+  только их полный успех позволяет записать transcript/новую selection. Partial send
+  уже может показать часть карточки; прежняя selection/version сохраняется, retry отсутствует.
 - Стандартное acknowledgment `CONFIRMED_UPDATES_ALL` и offset принадлежат library.
-  Ошибка одного update изолируется; собственных checkpoint, queues или retries нет.
+  Ошибка одного update изолируется; собственных checkpoint, queues или send retries нет.
 - Logs содержат только status, call/tool counters, собственные candidate IDs,
   explanationFallback и результат sendMessage. SDK exceptions/payload/URLs не логируются.
+  Pengrad fallback в JUL `global` при shutdown также отключён: library stop обнуляет
+  exception handler, и transport callback иногда приходит после этого.
 
-### Telegram finishing — PLANNED
+### Telegram finishing — IMPLEMENTED
 
-Commands кроме базового `/new`, formatting/length policies, final per-chat sequencing/error UX,
-429/retry_after и проверка library offset/restart/failure behavior остаются PLANNED.
-Memory/criteria и process-local turn serialization реализованы; selection отсутствует. Lifecycle:
+`/start`, `/help`, `/new`, unsupported requests и input/error guards реализованы.
+Input/AI budgets: [AI](AI.md#bounded-execution). Same-chat serialization и isolation:
+[ARCHITECTURE](ARCHITECTURE.md#telegram-turn-serialization-и-delivery-boundary).
+Memory/criteria/selection сохраняются в PostgreSQL; send-aware lifecycle:
 [AI](AI.md#conversationstate-и-selection-context).
 
-Если library достаточно управляет offset, checkpoint storage не нужен. При доказанной
-необходимости допустим один technical lastProcessedUpdateId на bot instance.
-Exactly-once delivery и delivery state machine не обещаются; crash может дать повтор.
+Pengrad использует explicit OkHttp transport: connect 2s, write/read 10s, без automatic
+connection retries/redirects. Library увеличивает read timeout для долгого getUpdates;
+sendMessage остаётся с 10s read timeout. API error/null/transport exception дают failed
+send, без повторной отправки. `429` возвращает `errorCode` и `parameters.retryAfter()`;
+числа безопасно логируются. Автоматического resend после retry_after нет. Library
+polling errors вызывают sanitized exception handler, затем следующий getUpdates после
+собственной паузы (default 100ms в 10.1.0); SleepUpdatesHandler не применяет retry_after как
+отдельную задержку. Это ограничение выбранной library, без новой delivery queue.
+
+### Update / offset behavior
+
+Проверена именно Pengrad 10.1.0: `SleepUpdatesHandler` вызывает listener синхронно,
+после возврата `CONFIRMED_UPDATES_ALL` задаёт offset = last updateId + 1 и делает
+следующий getUpdates. [Versioned source](https://github.com/pengrad/java-telegram-bot-api/blob/10.1.0/library/src/main/java/com/pengrad/telegrambot/impl/SleepUpdatesHandler.java).
+Telegram считает update подтверждённым при запросе с большим offset:
+[getUpdates contract](https://core.telegram.org/bots/api#getupdates).
+
+Наш handler подтверждает batch после обработки, включая ignored non-private updates
+и explicit send failures. Delivery failure не вызывает автоматическое повторение
+update. Следующий poll не начинается, пока batch/turn не завершён. RuntimeException
+одного update изолируется; library listener exception без такого catch может прервать
+переход к следующему poll. Ошибки VM/crash не перехватываются как normal success.
+
+Loopback smoke на реальных SDK/transport подтвердил batch IDs 41–42 → next offset 43,
+продолжение после failed send/update и новый poller без local offset. Library держит
+offset в request памяти; новый listener/application начинает с default GetUpdates
+без сохранённого checkpoint и запрашивает доступные unconfirmed updates Telegram.
+Custom offset storage/state machine отсутствует: стандартного поведения достаточно.
+
+Ordinary application restart сохраняет PostgreSQL conversation state/memory/selection
+(отдельный acceptance suite). Crash между обработкой/send/DB commit/следующим getUpdates
+может оставить повтор или несогласованную доставку; exactly-once/guaranteed delivery
+не обещаются. Live Telegram crash/restart НЕ наблюдался, эта граница UNKNOWN,
+описана по contract/source; loopback smoke не выдаётся за live Telegram smoke.
 
 ## Google Places — EXCLUDED FROM CURRENT MVP
 

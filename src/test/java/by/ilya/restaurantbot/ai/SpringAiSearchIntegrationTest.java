@@ -132,4 +132,17 @@ class SpringAiSearchIntegrationTest {
             assertThat(reply.toolExecutions()).isEqualTo(1);
         }
     }
+
+    @Test
+    void productionResponseTimeoutConsumesOneAttemptAndDoesNotExecuteOrRetryTool() throws Exception {
+        try (var fixture = new ProviderFixture(new ProviderFixture.Reply(200, "{}", 11_000));
+             var http = new AiConfiguration().aiHttpClient()) {
+            var reply = adapter(fixture, http).search("Полный запрос");
+            assertThat(reply.status()).isEqualTo(TEMPORARILY_UNAVAILABLE);
+            assertThat(reply.modelCalls()).isEqualTo(1);
+            assertThat(reply.toolExecutions()).isZero();
+            assertThat(fixture.requests()).hasSize(1);
+            assertThat(reply.text()).doesNotContain("Exception", "timeout", "payload");
+        }
+    }
 }

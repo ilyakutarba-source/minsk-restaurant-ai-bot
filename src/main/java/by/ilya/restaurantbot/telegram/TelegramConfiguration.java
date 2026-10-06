@@ -26,7 +26,15 @@ public class TelegramConfiguration {
 
     @Bean(destroyMethod = "shutdown")
     TelegramBot telegramBot(@Value("${restaurant-bot.telegram.bot-token}") String token) {
-        return new TelegramBot(token);
+        return new TelegramBot.Builder(token).okHttpClient(transport()).build();
+    }
+
+    static okhttp3.OkHttpClient transport() {
+        return new okhttp3.OkHttpClient.Builder().retryOnConnectionFailure(false)
+                .followRedirects(false).followSslRedirects(false)
+                .connectTimeout(2, java.util.concurrent.TimeUnit.SECONDS)
+                .readTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+                .writeTimeout(10, java.util.concurrent.TimeUnit.SECONDS).build();
     }
 
     @Bean

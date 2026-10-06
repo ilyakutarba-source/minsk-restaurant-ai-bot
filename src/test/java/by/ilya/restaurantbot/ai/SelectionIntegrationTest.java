@@ -151,6 +151,48 @@ class SelectionIntegrationTest {
     }
 
     @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void splitDeliveryCommitsOnlyAfterEveryPartSucceeded(boolean allSent) throws Exception {
+        oldSelection();
+        var old = repository.findCurrent(A);
+        long version = store.load(A).selectionVersion();
+        var result = search.search(AiJson.mapper().readValue(FULL, by.ilya.restaurantbot.search.SearchRequest.class));
+        // Exercise a future longer own card without truncating any trusted factual text.
+        var text = new SearchFactualRenderer().render(result, null) + "\n" + "Источник: ".repeat(900);
+        var adapter = mock(SpringAiSearchAdapter.class);
+        when(adapter.turn(eq(A), anyString(), anyList(), any(), anyList())).thenReturn(
+                new AiSearchReply(AiSearchReply.Status.OK, result, text, 1, 1, true, List.of()));
+        var service = new ConversationService(store, memory, adapter, clock, selections);
+        var bot = mock(TelegramBot.class);
+        var requests = new java.util.ArrayList<String>();
+        when(bot.execute(any(SendMessage.class))).thenAnswer(call -> {
+            assertThat(repository.findCurrent(A)).isEqualTo(old);
+            assertThat(memory.get(store.load(A).conversationId())).isEmpty();
+            requests.add(((SendMessage) call.getArgument(0)).getText());
+            var response = mock(SendResponse.class);
+            when(response.isOk()).thenReturn(allSent || requests.size() == 1);
+            return response;
+        });
+        var update = BotUtils.parseUpdate("""
+                {"update_id":1,"message":{"message_id":1,"chat":{"id":%d,"type":"private"},"text":"Запрос"}}
+                """.formatted(A));
+        new TelegramUpdateHandler(bot, service).process(List.of(update));
+        assertThat(requests).allSatisfy(part -> assertThat(part.length()).isLessThanOrEqualTo(4096));
+        if (allSent) {
+            assertThat(String.join("", requests)).isEqualTo(text);
+            assertThat(repository.findCurrent(A)).extracting(SelectionItem::restaurantId).containsExactly(2L);
+            assertThat(store.load(A).selectionVersion()).isEqualTo(version + 1);
+            assertThat(memory.get(store.load(A).conversationId())).hasSize(2);
+            assertThat(memory.get(store.load(A).conversationId()).getLast().getText()).isEqualTo(text);
+        } else {
+            assertThat(requests).hasSize(2);
+            assertThat(repository.findCurrent(A)).isEqualTo(old);
+            assertThat(store.load(A).selectionVersion()).isEqualTo(version);
+            assertThat(memory.get(store.load(A).conversationId())).isEmpty();
+        }
+    }
+
+    @ParameterizedTest
     @ValueSource(strings = {"{\"time\":\"25:00\"}", "{}", "abstain", "provider-failure"})
     void invalidClarificationAndNoSearchLeaveSelectionUnchanged(String args) {
         oldSelection();

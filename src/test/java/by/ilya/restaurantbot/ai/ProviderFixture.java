@@ -11,7 +11,9 @@ import com.sun.net.httpserver.HttpServer;
 
 /** Loopback HTTP fixture exercises the real SDK without external calls or credentials. */
 final class ProviderFixture implements AutoCloseable {
-    record Reply(int status, String body) { }
+    record Reply(int status, String body, long delayMillis) {
+        Reply(int status, String body) { this(status, body, 0); }
+    }
     private final HttpServer server;
     private final ArrayDeque<Reply> replies = new ArrayDeque<>();
     private final List<JsonNode> requests = new ArrayList<>();
@@ -29,6 +31,10 @@ final class ProviderFixture implements AutoCloseable {
             if (reply.status() == 0) { // Connection dies after the server received the request.
                 exchange.close();
                 return;
+            }
+            if (reply.delayMillis() > 0) {
+                try { Thread.sleep(reply.delayMillis()); }
+                catch (InterruptedException stopped) { Thread.currentThread().interrupt(); }
             }
             byte[] body = reply.body().getBytes(java.nio.charset.StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set("Content-Type", "application/json");

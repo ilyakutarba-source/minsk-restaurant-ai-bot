@@ -15,7 +15,7 @@ menu/details tools для свежего чтения через MenuService/Res
 **EXCLUDED FROM CURRENT MVP:** Google enrichment; [продуктовое решение](PRODUCT.md#google-places--excluded-from-current-mvp).
 Google adapter не существует и не является AI tool. Product tools остаются ровно три.
 
-**PLANNED:** `/start`, `/help` и final Telegram finishing. Stateless application entry
+**IMPLEMENTED:** `/start`, `/help`, `/new` и Telegram finishing/controlled errors. Stateless application entry
 `SpringAiSearchAdapter.search(text)` сохранён; Telegram использует conversation entry.
 Scope: [PRODUCT](PRODUCT.md); service boundaries: [ARCHITECTURE](ARCHITECTURE.md);
 persistence: [DATABASE](DATABASE.md#разговор-и-последняя-подборка).
@@ -155,6 +155,26 @@ Factual renderer читает только trusted service DTO. Чек подп�
 - Connect и pool wait timeout — 2 секунды; response/socket timeout — 10 секунд.
   Общий жёсткий deadline 30 секунд остаётся PLANNED: эти transport timeouts не доказывают
   total deadline при DNS, медленной передаче или задержке БД.
+
+TASK-11 проверяет границы 2000/2001 для user input, decoded arguments и structured
+explanation. Oversized input не вызывает модель/DB; oversized arguments не исполняют
+service, oversized explanation использует прежнюю Java factual card/fallback.
+Production HTTP fixture с задержкой 11 секунд подтверждает response timeout и одну
+попытку без tool execution/retry. NO_RESULTS завершает turn с одним search и одним
+model call. SDK/transport failures не добавляют repair/повторный search.
+
+До первого model call conservative Java scope guards отклоняют явные booking слова,
+checks для чужих валют (USD/EUR/PLN/RUB/GBP/UAH/KZT и распространённые
+названия/символы), распространённые other-city names и explicit «в городе/город X»
+кроме Минска. Это ограниченные guards, не универсальный NLP parser: остальные
+формулировки интерпретирует модель с обязательным abstention для booking/other city/currency:
+STOP без tool, только UNSUPPORTED_BOOKING / UNSUPPORTED_CITY / UNSUPPORTED_CURRENCY.
+Java принимает ровно эти коды (ответ ≤2000 characters) и формирует собственный scope
+response: 1 model call, 0 tools, без criteria/selection update. Произвольный prose/refusal/
+truncation не интерпретируется как код и даёт обычное Java clarification, без model facts.
+Java clarification напоминает Минск/BYN/без бронирования и не выводит provider prose.
+Guard rejection — INVALID_INPUT, 0 model/tool calls, без criteria/selection update;
+успешно отправленный Java ответ сохраняется обычной safe memory парой.
 
 Version-specific механизм 1.1.8: explicit per-turn ToolCallback,
 `internalToolExecutionEnabled(false)`, `parallelToolCalls(false)` и ручной callback
@@ -314,6 +334,15 @@ criteria и текущие SelectionItem, увеличить generation. Confirm
 в новый пустой transcript. Обычный restart сохраняет state/memory/selection.
 TTL/selection expiry не являются обязательными; окно ограничивает длину разговора,
 но не общее число чатов. Схема storage: [DATABASE](DATABASE.md#разговор-и-последняя-подборка).
+
+`/start` и `/help` (включая command suffix/arguments), unknown commands обрабатываются
+ConversationService в Java до DB/AI; они не меняют criteria/selection/generation и
+не записывают help в ChatMemory. `/new` использует тот же reset lifecycle.
+DB load/memory read/criteria save/reset failures дают безопасный temporary response;
+при failed transcript save после доставки пользователь получает сообщение о невозможности
+сохранить разговор. Повторных model/tool calls нет. При explicit failed/partial send
+memory pair не пишется и selection/version не меняются. Telegram split и polling
+boundary: [DEPLOYMENT](DEPLOYMENT.md#telegram-long-polling--implemented).
 
 ## ConversationState и Selection context
 

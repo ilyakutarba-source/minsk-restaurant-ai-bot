@@ -71,11 +71,11 @@ Telegram private chat → ConversationService → Spring AI ChatClient
 | MenuService / MenuImportService | Partial menu reading и controlled import | IMPLEMENTED |
 | REST adapter | DTO, HTTP mapping, Swagger | IMPLEMENTED |
 | LLM / ChatClient | Search/menu/details interpretation, supported arguments, выбор одного из трёх tools, причины search explanation | IMPLEMENTED; [limits/contract](AI.md) |
-| ConversationService | Merge criteria, clarification, bounded memory/state, delivery callback, selection lifecycle, `/new` | IMPLEMENTED |
+| ConversationService | Merge criteria, clarification, bounded memory/state, delivery callback, selection lifecycle, `/start`, `/help`, `/new`, controlled DB failures | IMPLEMENTED |
 | SelectionService / SelectionItemRepository | Текущие показанные ID/positions, атомарная замена и version | IMPLEMENTED |
 | ReferenceResolver | Ordinal/last/exact name → restaurantId в текущем чате | IMPLEMENTED; используется обоими follow-up tools |
 | Java renderer | Search factual cards/explanation fallback, own details и PARTIAL menu | IMPLEMENTED |
-| Telegram adapter | Private text check, long polling, plain-text send | IMPLEMENTED для conversation search/menu/details |
+| Telegram adapter | Private text check, one library poller, lossless plain-text split, explicit send failure | IMPLEMENTED |
 | Google adapter | Place Details enrichment известного ресторана | EXCLUDED FROM CURRENT MVP; NOT IMPLEMENTED |
 
 Adapters → application services → repositories/clients. Services поиска/меню/details
@@ -96,6 +96,26 @@ Telegram и AI adapters не получают selection repository. REST recomme
 без перестановки или усечения; этот же список ID передаётся в replace после send.
 При clarification/invalid/no-search selection не меняется. Lifecycle, failure
 behavior и известная граница crash между send и commit: [AI](AI.md#conversationstate-и-selection-context).
+
+### Telegram turn serialization и delivery boundary
+
+Существующие 64 bounded process-local lock stripes в ConversationService защищают
+весь turn одного chatId: load → merge/model/service → send всех частей → memory/selection
+commit, включая `/new`. Чаты разных stripes могут выполняться независимо; hash collision
+может сериализовать разные чаты, не смешивая state. Это механизм одного процесса,
+без distributed guarantees. Один Pengrad poller передаёт batch синхронно в порядке
+library updates; следующий poll начинается после возврата listener. Runtime polling
+поэтому может ждать медленный turn другого чата. Прямой concurrent entry проверен
+на двух updates одного чата и отдельном чате.
+
+`/start`, `/help`, unknown commands и input length rejection — Java-only, до DB/model.
+`/new` использует прежний transactional reset. DB load/read/save/reset failures дают
+controlled temporary response; ошибка сохранения после send сообщает о невозможности
+сохранить разговор, без повторного model/tool call. Send callback exception/null/false
+считаются failed delivery. Lossless split принадлежит Telegram adapter; все части должны
+успешно отправиться до замены selection и записи transcript. Partial send сохраняет
+старую selection/version; часть текста уже может быть видна пользователю.
+Library acknowledgment и crash/restart boundary: [DEPLOYMENT](DEPLOYMENT.md#update--offset-behavior).
 
 ## Правила поиска и рекомендаций
 

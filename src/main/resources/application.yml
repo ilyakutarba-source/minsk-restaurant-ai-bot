@@ -55,3 +55,5 @@ logging:
     org.apache.hc.core5.http: "OFF"
     com.pengrad.telegrambot: "OFF"
     okhttp3: "OFF"
+    # Pengrad's shutdown race can fall back to JUL Logger.getGlobal() without our handler.
+    global: "OFF"

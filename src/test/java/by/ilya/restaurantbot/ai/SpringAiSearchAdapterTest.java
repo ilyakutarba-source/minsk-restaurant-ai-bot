@@ -113,6 +113,33 @@ class SpringAiSearchAdapterTest {
         verifyNoInteractions(service);
     }
 
+    @Test
+    void decodedArgumentsAndStructuredExplanationHaveEnforcedCharacterLimits() {
+        var arguments = FULL + " ".repeat(2000 - FULL.length());
+        var plan = PLAN + " ".repeat(2000 - PLAN.length());
+        when(model.call(any(Prompt.class))).thenReturn(selection(arguments), explanation(plan));
+        var boundary = adapter.search("я".repeat(2000));
+        assertThat(boundary.status()).isEqualTo(OK);
+        assertThat(boundary.explanationFallback()).isFalse();
+        assertThat(boundary.modelCalls()).isEqualTo(2);
+        verify(service).search(any());
+        clearInvocations(service, model);
+        when(model.call(any(Prompt.class))).thenReturn(selection(arguments + " "));
+        var rejected = adapter.search("Запрос");
+        assertThat(rejected.status()).isEqualTo(INVALID_INPUT);
+        assertThat(rejected.toolExecutions()).isZero();
+        assertThat(rejected.modelCalls()).isEqualTo(1);
+        verifyNoInteractions(service);
+        clearInvocations(model);
+        when(model.call(any(Prompt.class))).thenReturn(selection(FULL), explanation(plan + " "));
+        var fallback = adapter.search("Запрос");
+        assertThat(fallback.status()).isEqualTo(OK);
+        assertThat(fallback.explanationFallback()).isTrue();
+        assertThat(fallback.toolExecutions()).isEqualTo(1);
+        assertThat(fallback.modelCalls()).isEqualTo(2);
+        verify(service).search(any());
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {"broken", "", "null", "{}", "{\"items\":[]}",
         "{\"items\":[{\"position\":1,\"reasonCodes\":[\"RATING_MATCH\"],\"phrasing\":\"WARM\"}]}",

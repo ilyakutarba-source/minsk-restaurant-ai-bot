@@ -21,6 +21,9 @@ Minsk Restaurant AI Bot помогает выбрать ресторан из с
 - Текущая успешно показанная подборка по chatId и Java foundation для ordinal/last/exact-name references.
 - Telegram menu/details follow-up: ReferenceResolver → MenuService/RestaurantService,
   supported PASTA/price filter, PARTIAL caveat и свежие собственные facts в Java response.
+- `/start` и `/help` с примерами реального поиска и follow-up; Java-only commands.
+- Controlled unsupported booking/city/currency, ошибки provider/DB/Telegram,
+  input limits и lossless split длинного plain-text ответа.
 
 Чек, расписание и меню имеют отдельные источники и даты проверки. Поиск работает
 при частичном или отсутствующем меню. [Модель и происхождение данных](DATABASE.md).
@@ -40,7 +43,7 @@ Minsk Restaurant AI Bot помогает выбрать ресторан из с
 Полный self-contained запрос и короткие уточнения работают в Telegram. Валидные
 частичные критерии сохраняются; Java спрашивает оставшиеся обязательные или
 неоднозначные поля. Java resolution по последней подборке и menu/details tools реализованы,
-включая шаги 4–5 для собственных данных. `/start` и `/help` остаются PLANNED;
+включая шаги 4–5 для собственных данных. `/start` и `/help` реализованы;
 Google rating исключён из текущего MVP.
 Правила tools/memory/reference resolution: [AI](AI.md).
 
@@ -53,10 +56,10 @@ Google rating исключён из текущего MVP.
 | Поиск | Гости, общий бюджет, дата/время, optional cuisine/tags; до 3 вариантов | IMPLEMENTED |
 | Чек | Проверяемый ориентир на гостя с type/source/date | IMPLEMENTED |
 | Меню | 5–10 позиций на заведение, только PARTIAL | IMPLEMENTED для 3 филиалов |
-| Telegram | Личные чаты, русский язык, long polling | IMPLEMENTED для conversation search/menu/details; finishing PLANNED |
+| Telegram | Личные чаты, русский язык, long polling | IMPLEMENTED: search/menu/details, commands, controlled errors/limits |
 | AI | Один provider/model, Spring AI Tool Calling и Structured Output | IMPLEMENTED: ровно 3 tools, Java factual rendering |
 | Контекст | Ограниченная ChatMemory и последняя показанная подборка по chatId | Memory/criteria/selection и Java ReferenceResolver IMPLEMENTED |
-| Команды | `/start`, `/help`, `/new` | Базовый `/new` IMPLEMENTED; `/start`, `/help` PLANNED |
+| Команды | `/start`, `/help`, `/new` | IMPLEMENTED; без model/tool calls |
 | Проверка backend | Четыре REST endpoints, Swagger, H2 и PostgreSQL tests | IMPLEMENTED |
 | Доставка | Docker Compose, Dokploy/VPS и persistent PostgreSQL | PLANNED |
 
@@ -102,6 +105,16 @@ Java resolver поддерживает exact normalized name; menu/details AI to
 
 Собственное недельное расписание не гарантирует праздничных исключений. Продукт
 не бронирует столики, не принимает оплату и не обещает доступность блюда.
+
+**Команды и ошибки — IMPLEMENTED.** `/start` объясняет возможности, `/help` показывает
+примеры, `/new` очищает memory/criteria/selection и меняет generation. Help не меняет
+текущую подборку. Java scope guards отклоняют явные booking/city/currency requests;
+остальное неподдерживаемое wording требует abstention модели и Java clarification.
+Пользователю предлагаются Минск и общий BYN budget, без скрытой конвертации/поиска.
+Временные provider/DB ошибки не добавляют выдуманные факты. Если хотя бы одна часть
+Telegram reply не отправлена, новый transcript и selection не сохраняются; ранее
+сохранённые valid criteria могут остаться. Guaranteed delivery отсутствует.
+Точные limits и guards: [AI](AI.md#bounded-execution); transport: [DEPLOYMENT](DEPLOYMENT.md#telegram-long-polling--implemented).
 
 ## OUT OF SCOPE первого релиза
 

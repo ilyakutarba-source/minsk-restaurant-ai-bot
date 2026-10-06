@@ -127,7 +127,6 @@ class ConversationIntegrationTest {
     @ParameterizedTest
     @CsvSource(delimiter = '|', value = {
             "Бюджет как обычно|totalBudgetByn", "150|totalBudgetByn", "150 BYN на человека|totalBudgetByn",
-            "Общий бюджет 150 USD|totalBudgetByn", "Общий бюджет 150 евро|totalBudgetByn",
             "Завтра вечером|time", "В семь|time", "В 7|time", "На выходных в 21:00|date", "05/10 в 21:00|date"})
     void ambiguousNewCriteriaClarifyEvenWhenOldStateIsCompleteAndModelGuesses(String text, String field) {
         full(A);
@@ -259,5 +258,126 @@ class ConversationIntegrationTest {
         store.remember(state, "Synthetic user", "Safe assistant");
         assertThat(memory.get(state.conversationId())).hasSize(2);
         memory.clear(state.conversationId());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"/start", "/help", "/start@fixture_bot", "/help примеры", "/unknown"})
+    void helpCommandsAreJavaOnlyAndPreserveTheEntireConversation(String command) {
+        full(A);
+        var before = store.load(A);
+        var transcript = memory.get(before.conversationId());
+        var selected = selections.current(A);
+        clearInvocations(model);
+        var reply = conversation.handle(A, command, sent -> true);
+        assertThat(reply.text()).containsAnyOf("Минск", "Минска", "Неизвестная команда");
+        assertThat(reply.modelCalls()).isZero();
+        assertThat(reply.toolExecutions()).isZero();
+        verifyNoInteractions(model);
+        assertThat(store.load(A)).isEqualTo(before);
+        assertThat(memory.get(before.conversationId())).isEqualTo(transcript);
+        assertThat(selections.current(A)).isEqualTo(selected);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"Забронируй столик", "Забронируй второй", "Сделай бронь", "Ресторан в Москве",
+            "Ресторан в Варшаве", "Ресторан в Гродно", "Ресторан в городе Париж", "Бюджет 150 USD",
+            "Общий бюджет 150 евро", "150 PLN", "100 $"})
+    void unsupportedRequestsCannotExecuteEvenWhenTheModelWouldGuessValidCriteria(String text) {
+        full(A);
+        var before = store.load(A);
+        var selected = selections.current(A);
+        clearInvocations(model);
+        var reply = conversation.handle(A, text, sent -> true);
+        assertThat(reply.status()).isEqualTo(INVALID_INPUT);
+        assertThat(reply.text()).containsAnyOf("Бронирование", "Минск", "BYN");
+        assertThat(reply.text()).doesNotContain("Pizza Tempo", "65.40");
+        assertThat(reply.modelCalls()).isZero();
+        assertThat(reply.toolExecutions()).isZero();
+        verifyNoInteractions(model);
+        assertThat(store.load(A)).isEqualTo(before);
+        assertThat(selections.current(A)).isEqualTo(selected);
+    }
+
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', value = {"Ресторан в Лиссабоне|UNSUPPORTED_CITY|Минск",
+            "Arrange a table for us|UNSUPPORTED_BOOKING|Бронирование", "Бюджет 500 JPY|UNSUPPORTED_CURRENCY|BYN"})
+    void modelScopeAbstentionUsesOnlyAnAllowedCodeAndJavaText(String text, String code, String expected) {
+        full(A);
+        var prior = store.load(A);
+        var selected = selections.current(A);
+        clearInvocations(model);
+        when(model.call(any(Prompt.class))).thenReturn(response(code, "STOP", List.of()));
+        var reply = conversation.handle(A, text, sent -> true);
+        assertThat(reply.status()).isEqualTo(INVALID_INPUT);
+        assertThat(reply.text()).contains(expected).doesNotContain(code);
+        assertThat(reply.modelCalls()).isEqualTo(1);
+        assertThat(reply.toolExecutions()).isZero();
+        assertThat(store.load(A)).isEqualTo(prior);
+        assertThat(selections.current(A)).isEqualTo(selected);
+        verify(model).call(any(Prompt.class));
+    }
+
+    @Test
+    void simultaneousTelegramUpdatesSerializeTheWholeTurnWhileAnotherChatCanProceed() throws Exception {
+        var enteredSend = new java.util.concurrent.CountDownLatch(1);
+        var releaseSend = new java.util.concurrent.CountDownLatch(1);
+        var bot = mock(com.pengrad.telegrambot.TelegramBot.class);
+        var success = mock(com.pengrad.telegrambot.response.SendResponse.class);
+        when(success.isOk()).thenReturn(true);
+        var firstSend = new java.util.concurrent.atomic.AtomicBoolean(true);
+        when(bot.execute(any(com.pengrad.telegrambot.request.SendMessage.class))).thenAnswer(call -> {
+            var request = (com.pengrad.telegrambot.request.SendMessage) call.getArgument(0);
+            if (request.getParameters().get("chat_id").equals(A) && firstSend.getAndSet(false)) {
+                enteredSend.countDown();
+                assertThat(releaseSend.await(5, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+            }
+            return success;
+        });
+        when(model.call(any(Prompt.class))).thenAnswer(call -> {
+            var prompt = (Prompt) call.getArgument(0);
+            return selection(prompt.getUserMessage().getText().equals("А если нас четверо?") ? "{\"guests\":4}" : FULL);
+        });
+        var handler = new by.ilya.restaurantbot.telegram.TelegramUpdateHandler(bot, conversation);
+        long version = store.load(A).selectionVersion();
+        try (var threads = java.util.concurrent.Executors.newFixedThreadPool(3)) {
+            var first = threads.submit(() -> handler.process(List.of(update(A, 1, "Сегодня в 21:00 двое, общий бюджет 150 BYN"))));
+            try {
+                assertThat(enteredSend.await(5, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+                var nextStarted = new java.util.concurrent.CountDownLatch(1);
+                var next = threads.submit(() -> {
+                    nextStarted.countDown();
+                    return handler.process(List.of(update(A, 2, "А если нас четверо?")));
+                });
+                assertThat(nextStarted.await(5, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+                assertThatThrownBy(() -> next.get(200, java.util.concurrent.TimeUnit.MILLISECONDS))
+                        .isInstanceOf(java.util.concurrent.TimeoutException.class);
+                // B completes while A is blocked in transport, with its own empty memory/context.
+                threads.submit(() -> handler.process(List.of(update(B, 3, "Сегодня в 21:00 двое, общий бюджет 150 BYN"))))
+                        .get(5, java.util.concurrent.TimeUnit.SECONDS);
+                assertThat(memory.get(store.load(A).conversationId())).isEmpty();
+                assertThat(memory.get(store.load(B).conversationId())).hasSize(2);
+                releaseSend.countDown();
+                first.get(5, java.util.concurrent.TimeUnit.SECONDS);
+                next.get(5, java.util.concurrent.TimeUnit.SECONDS);
+            } finally { releaseSend.countDown(); }
+        }
+        assertThat(store.load(A).currentCriteria().guests()).isEqualTo(4);
+        assertThat(store.load(B).currentCriteria().guests()).isEqualTo(2);
+        assertThat(store.load(A).selectionVersion()).isEqualTo(version + 2);
+        assertThat(selections.current(A)).extracting(by.ilya.restaurantbot.conversation.SelectionItem::restaurantId)
+                .containsExactly(2L);
+        var transcript = memory.get(store.load(A).conversationId());
+        assertThat(transcript).hasSize(4);
+        assertThat(transcript.get(0).getText()).contains("Сегодня");
+        assertThat(transcript.get(1).getText()).contains("65.40 BYN");
+        assertThat(transcript.get(2).getText()).isEqualTo("А если нас четверо?");
+        assertThat(transcript.get(3).getText()).contains("130.80 BYN");
+        verify(model, times(3)).call(any(Prompt.class));
+    }
+
+    private static com.pengrad.telegrambot.model.Update update(long chat, int id, String text) {
+        return com.pengrad.telegrambot.utility.BotUtils.parseUpdate("""
+                {"update_id":%d,"message":{"message_id":%d,"chat":{"id":%d,"type":"private"},"text":"%s"}}
+                """.formatted(id, id, chat, text));
     }
 }

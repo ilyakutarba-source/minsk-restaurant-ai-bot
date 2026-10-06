@@ -33,7 +33,7 @@ public final class TelegramUpdateHandler implements UpdatesListener {
                 log.warn("Telegram update handling failed");
             }
         }
-        // Standard library acknowledgment; delivery/restart recovery is a later task.
+        // Acknowledge handled/ignored/failed updates; no delivery retry or durable checkpoint.
         return CONFIRMED_UPDATES_ALL;
     }
 
@@ -48,8 +48,22 @@ public final class TelegramUpdateHandler implements UpdatesListener {
 
     private boolean send(long chatId, AiSearchReply reply) {
         // Plain text: model prose is never used and Telegram markup cannot interpret own data.
-        var sent = bot.execute(new SendMessage(chatId, reply.text()));
-        boolean success = sent != null && sent.isOk();
+        boolean success = true;
+        try {
+            for (String part : TelegramMessages.split(reply.text())) {
+                var sent = bot.execute(new SendMessage(chatId, part));
+                if (sent == null || !sent.isOk()) {
+                    success = false;
+                    // Only numeric API status; never description, request URL or payload.
+                    if (sent != null) log.warn("Telegram send failed: code={}, retryAfter={}", sent.errorCode(),
+                            sent.parameters() == null ? null : sent.parameters().retryAfter());
+                    break; // Partial delivery is a failed turn; do not resend an earlier part.
+                }
+            }
+        } catch (RuntimeException transportFailure) {
+            success = false;
+            log.warn("Telegram send transport failed");
+        }
         var candidates = reply.searchResult() == null ? List.of()
                 : reply.searchResult().candidates().stream().map(c -> c.restaurant().id()).toList();
         log.info("Telegram search turn: status={}, modelCalls={}, toolExecutions={}, candidateIds={}, explanationFallback={}, sendMessage={}",
