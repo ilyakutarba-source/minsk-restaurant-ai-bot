@@ -6,8 +6,8 @@ Java services и собственная БД определяют факты и 
 
 ## Features
 
-**IMPLEMENTED:** каталог трёх реальных филиалов, собственные часы и ориентировочные
-чеки, partial menus, controlled JSON import, детерминированный Restaurant Search,
+**IMPLEMENTED:** каталог десяти реальных активных филиалов, собственные часы и ориентировочные
+чеки, 60 menu items (по 6 на филиал, PARTIAL), controlled JSON import, детерминированный Restaurant Search,
 четыре REST endpoints и Swagger, Flyway и тесты на H2/PostgreSQL; stateless Spring AI
 search tool, Structured Output explanation и Java factual renderer/fallback;
 Telegram private chats/long polling, bounded PostgreSQL ChatMemory, criteria continuation,
@@ -99,7 +99,7 @@ Contracts: [AI](docs/AI.md).
 
 ## Database
 
-Flyway V1–V7 создаёт каталог/меню, conversation state, JDBC memory и selection, применяет локальные datasets; Hibernate использует
+Flyway V1–V9 создаёт каталог/меню, conversation state, JDBC memory и selection, применяет локальные datasets; Hibernate использует
 `validate`. У данных сохранены source и verifiedAt. Меню всегда PARTIAL; отсутствие
 позиции в БД не доказывает её отсутствия в полном меню. Поиск не зависит от MenuItem.
 Модель, provenance и import contract: [DATABASE](docs/DATABASE.md).
@@ -165,6 +165,29 @@ Pengrad offset/restart/429 smoke использует только локаль�
 .\mvnw.cmd "-Dtest=AiaiLiveSmokeIT" test
 ```
 
+Итоговый live eval запускается **отдельно и явно** на изолированной PostgreSQL test
+DB с `AIAI_API_KEY` в environment. Telegram token не нужен; transport выключен
+test profile. Набор содержит 12 conversational и 5 adversarial cases; те же inputs,
+contexts и assertions используются offline в `FinalAiOfflineEvalTest`. Не запускать
+на рабочей БД: harness использует синтетические чаты и очищает их после проверки.
+
+```powershell
+.\mvnw.cmd test "-Dtest=AiaiFinalLiveEvalIT" `
+  "-Dspring.datasource.url=$env:DB_URL" `
+  "-Dspring.datasource.username=$env:DB_USER" `
+  "-Dspring.datasource.driver-class-name=org.postgresql.Driver"
+```
+
+Пароль test DB задаётся через `SPRING_DATASOURCE_PASSWORD`, без CLI argument.
+Provider/model/settings и критерии результата: [AI eval](docs/AI.md#ai-eval).
+Обычный `test/verify` не выбирает `*IT` и не обращается к внешним API.
+
+Итоговая проверка 2026-10-06: `clean test` и `clean verify` — по 399 tests;
+PostgreSQL 17.10 — 398 tests (H2-only bootstrap исключён), failures/errors/skipped=0.
+Отдельный live eval на AIAI.BY/gpt-4.1-mini: main **12/12**, adversarial **5/5**,
+critical failures **0**. Фиксированный Clock, контекст cases и границы проверки:
+[AI eval](docs/AI.md#ai-eval). Результат одного run не гарантирует все будущие ответы модели.
+
 H2 не заменяет PostgreSQL acceptance. Команда проверки на отдельной пустой test БД:
 [PostgreSQL acceptance](docs/DATABASE.md#postgresql-acceptance).
 
@@ -175,7 +198,9 @@ Docker Compose → Dokploy → VPS — **PLANNED**; Dockerfile/Compose и гот
 
 ## Current MVP limitations
 
-Каталог содержит три филиала; целевой объём — 10–12. Поддержаны Минск, BYN, 1–6 гостей,
+Каталог ограничен 10 конкретными филиалами трёх сетей; полным каталогом Минска он не является.
+Сетевые филиалы используют проверенное общее меню и одинаковую методику чека.
+Поддержаны Минск, BYN, 1–6 гостей,
 сегодня и следующие шесть дней. REST не разбирает естественный язык.
 DERIVED check — собственная ориентировочная оценка, не официальный средний чек.
 Наличие столика, блюда, праздничные часы и тишина не гарантируются.

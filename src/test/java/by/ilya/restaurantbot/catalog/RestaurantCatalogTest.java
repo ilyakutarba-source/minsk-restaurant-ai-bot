@@ -43,24 +43,24 @@ class RestaurantCatalogTest {
     @Test
     void migrationsValidateAndReapplyWithoutDuplicatingSeed() {
         assertThat(flyway.validateWithResult().validationSuccessful).isTrue();
-        assertThat(flyway.info().applied()).hasSize(7);
+        assertThat(flyway.info().applied()).hasSize(9);
         assertThat(flyway.migrate().migrationsExecuted).isZero();
-        assertThat(repository.count()).isEqualTo(3);
-        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM opening_intervals", Integer.class)).isEqualTo(21);
+        assertThat(repository.count()).isEqualTo(10);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM opening_intervals", Integer.class)).isEqualTo(70);
     }
 
     @Test
     void seedPreservesBranchIdentityAndVerifiedChecksForAllThreeRestaurants() {
         var catalog = service.getCatalog(0, 20);
-        assertThat(catalog.totalElements()).isEqualTo(3);
-        assertThat(catalog.content()).extracting(RestaurantDetails::name)
+        assertThat(catalog.totalElements()).isEqualTo(10);
+        assertThat(catalog.content().subList(0, 3)).extracting(RestaurantDetails::name)
                 .containsExactly("Васильки", "Pizza Tempo", "Хинкальня");
-        assertThat(catalog.content()).extracting(RestaurantDetails::address).containsExactly(
+        assertThat(catalog.content().subList(0, 3)).extracting(RestaurantDetails::address).containsExactly(
                 "Минск, проспект Независимости, 16", "Минск, ул. Карла Маркса, 26",
                 "Минск, проспект Дзержинского, 104");
-        assertThat(catalog.content()).extracting(RestaurantDetails::cuisines).containsExactly(
+        assertThat(catalog.content().subList(0, 3)).extracting(RestaurantDetails::cuisines).containsExactly(
                 Set.of(Cuisine.BELARUSIAN), Set.of(Cuisine.ITALIAN), Set.of(Cuisine.GEORGIAN));
-        for (var restaurant : catalog.content()) {
+        for (var restaurant : catalog.content().subList(0, 3)) {
             assertThat(restaurant.catalogSource()).startsWith("https://");
             assertThat(restaurant.catalogVerifiedAt()).isEqualTo(LocalDate.of(2026, 10, 2));
             assertThat(restaurant.hoursSource()).startsWith("https://");
@@ -112,19 +112,19 @@ class RestaurantCatalogTest {
         assertThat(actual.cuisines()).containsExactlyInAnyOrder(Cuisine.BELARUSIAN, Cuisine.ITALIAN);
         assertThat(actual.openingIntervals()).containsExactly(new RestaurantDetails.Hours(
                 DayOfWeek.FRIDAY, LocalTime.of(20, 0), LocalTime.of(2, 0), true));
-        assertThat(repository.count()).isEqualTo(4);
+        assertThat(repository.count()).isEqualTo(11);
     }
 
     @Test
     void activeCatalogIsPagedAndDetailsAreMappedBeforeTransactionEnds() {
         var first = service.getCatalog(0, 1);
         var second = service.getCatalog(1, 1);
-        assertThat(first.totalElements()).isEqualTo(3);
+        assertThat(first.totalElements()).isEqualTo(10);
         assertThat(first.content()).hasSize(1);
         assertThat(second.content().getFirst().id()).isGreaterThan(first.content().getFirst().id());
         jdbc.update("UPDATE restaurants SET active = FALSE WHERE id = ?", first.content().getFirst().id());
         entityManager.clear();
-        assertThat(service.getCatalog(0, 20).content()).hasSize(2);
+        assertThat(service.getCatalog(0, 20).content()).hasSize(9);
         assertThat(service.getRestaurant(first.content().getFirst().id()).orElseThrow().active()).isFalse();
         assertThat(service.getRestaurant(Long.MAX_VALUE)).isEmpty();
         assertThat(service.getCatalog(100, 20).content()).isEmpty();
@@ -136,7 +136,7 @@ class RestaurantCatalogTest {
         var id = service.getCatalog(0, 20).content().get(2).id();
         mvc.perform(get("/api/v1/restaurants").param("page", "0").param("size", "2"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.content.length()").value(2))
-                .andExpect(jsonPath("$.totalElements").value(3));
+                .andExpect(jsonPath("$.totalElements").value(10));
         mvc.perform(get("/api/v1/restaurants/{id}", id))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.name").value("Хинкальня"))
                 .andExpect(jsonPath("$.estimatedCheckPerGuest").value(44.00))

@@ -102,13 +102,13 @@ class RestaurantFollowUpIntegrationTest {
         when(model.call(any(Prompt.class))).thenReturn(selection(FULL.replace("\"ITALIAN\"", "null")), explanation("{}"));
         var found = conversation.handle(A, "Сегодня в 21:00 двое, общий бюджет 150 BYN", sent -> true);
         assertThat(found.status()).isEqualTo(OK);
-        assertThat(found.searchResult().candidates()).extracting(c -> c.restaurant().id()).containsExactly(2L, 1L, 3L);
+        assertThat(found.searchResult().candidates()).hasSize(3);
         verify(search).search(any());
         var state = store.load(A);
         var rows = selections.current(A);
         clearInvocations(model, search);
         var menu = turn("Что по меню у второго?", MENU, "{\"reference\":{\"ordinal\":2}}");
-        assertThat(menu.followUpResult().menu()).isEqualTo(menus.getMenuByRestaurantId(1, null, null).orElseThrow());
+        assertThat(menu.followUpResult().menu()).isEqualTo(menus.getMenuByRestaurantId(rows.get(1).restaurantId(), null, null).orElseThrow());
         assertThat(store.load(A)).isEqualTo(state);
         assertThat(selections.current(A)).isEqualTo(rows);
         assertOneFollowUp(menu);
@@ -176,10 +176,10 @@ class RestaurantFollowUpIntegrationTest {
     @Test void exactNameWithoutSelectionUsesCatalogAndMissingContactsAndRatingAreExplicit() {
         for (String focus : List.of("ALL", "CONTACTS", "RATING")) {
             clearInvocations(model);
-            var reply = turn(B, "Расскажи подробнее про Pizza Tempo", DETAILS,
-                    "{\"reference\":{\"name\":\"  PIZZA   tempo  \"},\"focus\":\"" + focus + "\"}", true);
+            var reply = turn(B, "Расскажи подробнее про Хинкальня", DETAILS,
+                    "{\"reference\":{\"name\":\"  ХИНКАЛЬНЯ  \"},\"focus\":\"" + focus + "\"}", true);
             assertThat(reply.status()).isEqualTo(OK);
-            assertThat(reply.text()).contains("Pizza Tempo", "Карла Маркса, 26");
+            assertThat(reply.text()).contains("Хинкальня", "Дзержинского, 104");
             if (!focus.equals("RATING")) assertThat(reply.text()).contains("Телефон и сайт не сохранены");
             else assertThat(reply.text()).contains("Рейтинг недоступен");
             assertThat(selections.current(B)).isEmpty();

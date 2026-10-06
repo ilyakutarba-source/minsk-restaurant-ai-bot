@@ -217,7 +217,7 @@ public final class SpringAiSearchAdapter {
             case "guests" -> "число гостей (1–6)";
             case "totalBudgetByn" -> "общий бюджет на всех гостей в BYN";
             case "date" -> "дату посещения";
-            case "time" -> "точное время HH:mm в Минске";
+            case "time" -> "точное время HH:mm в Минске (например, 09:00 или 21:00)";
             default -> throw new IllegalArgumentException("Unsupported criteria field");
         }).toList()) + ".";
     }

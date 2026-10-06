@@ -64,7 +64,7 @@ class PartialMenuTest {
     @Test
     void flywayCreatesAndSeedsMenuAndDoesNotRepeatInsert() {
         assertThat(flyway.validateWithResult().validationSuccessful).isTrue();
-        assertThat(flyway.info().applied()).hasSize(7);
+        assertThat(flyway.info().applied()).hasSize(9);
         long before = items.count();
         assertThat(before).isPositive();
         assertThat(flyway.migrate().migrationsExecuted).isZero();
@@ -72,13 +72,13 @@ class PartialMenuTest {
     }
 
     @Test
-    void allThreeMenusExposeVerifiedPartialMetadataAndRepresentativePositivePrices() {
+    void allFinalMenusExposeVerifiedPartialMetadataAndRepresentativePositivePrices() {
         for (var restaurant : catalog.getCatalog(0, 20).content()) {
             var menu = menu(restaurant.id());
             assertThat(menu.status()).isEqualTo(MenuDetails.Status.AVAILABLE);
             assertThat(menu.coverage()).isEqualTo(MenuCoverage.PARTIAL);
             assertThat(menu.source()).startsWith("https://");
-            assertThat(menu.verifiedAt()).isEqualTo(LocalDate.of(2026, 10, 2));
+            assertThat(menu.verifiedAt()).isEqualTo(restaurant.catalogVerifiedAt());
             assertThat(menu.currency()).isEqualTo("BYN");
             assertThat(menu.items().size()).isBetween(5, 10);
             assertThat(menu.items()).allSatisfy(item -> {
@@ -157,7 +157,7 @@ class PartialMenuTest {
     void catalogRemainsReadableWithAllMenuRowsRemoved() {
         jdbc.update("DELETE FROM menu_items");
         entityManager.clear();
-        assertThat(catalog.getCatalog(0, 20).content()).hasSize(3);
+        assertThat(catalog.getCatalog(0, 20).content()).hasSize(10);
         for (var restaurant : catalog.getCatalog(0, 20).content()) {
             assertThat(catalog.getRestaurant(restaurant.id()).orElseThrow().estimatedCheckPerGuest()).isPositive();
             assertThat(menu(restaurant.id()).status()).isEqualTo(MenuDetails.Status.DATA_UNAVAILABLE);
@@ -206,7 +206,7 @@ class PartialMenuTest {
         entityManager.flush();
         entityManager.clear();
         assertThat(items.findAll().stream().map(MenuItem::getId).sorted().toList()).isEqualTo(before);
-        assertThat(restaurants.count()).isEqualTo(3);
+        assertThat(restaurants.count()).isEqualTo(10);
     }
 
     @Test
@@ -239,7 +239,7 @@ class PartialMenuTest {
         try {
             assertThatThrownBy(() -> importText(invalid)).isInstanceOf(IllegalArgumentException.class);
             assertThat(menu(id("Васильки"))).isEqualTo(before);
-            assertThat(restaurants.count()).isEqualTo(3);
+            assertThat(restaurants.count()).isEqualTo(10);
         } finally {
             importText(seedJson());
         }

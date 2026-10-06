@@ -3,7 +3,7 @@
 ## Текущий запуск — IMPLEMENTED
 
 Требуются JDK 21, Maven Wrapper 3.9.16 и PostgreSQL для default profile.
-Spring Boot получает DB connection из внешней среды, Flyway применяет V1–V7,
+Spring Boot получает DB connection из внешней среды, Flyway применяет V1–V9,
 Hibernate проверяет схему через `ddl-auto=validate`. HTTP bind — `127.0.0.1`.
 Test profile использует H2 без внешних API/ключей и доступен для локального REST demo.
 Команды запуска и проверки: [README](../README.md#running-locally).

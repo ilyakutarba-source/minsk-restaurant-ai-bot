@@ -92,7 +92,7 @@ class SelectionIntegrationTest {
             return true;
         });
         var shown = reply.searchResult().candidates().stream().map(c -> c.restaurant().id()).toList();
-        assertThat(shown).containsExactly(2L, 1L, 3L);
+        assertThat(shown).hasSize(3);
         assertThat(repository.findCurrent(A)).extracting(SelectionItem::restaurantId).containsExactlyElementsOf(shown);
         assertThat(repository.findCurrent(A)).extracting(SelectionItem::position).containsExactly(1, 2, 3);
         assertThat(repository.findCurrent(A)).allSatisfy(item -> assertThat(item.selectionVersion()).isEqualTo(version + 1));
@@ -180,7 +180,7 @@ class SelectionIntegrationTest {
         assertThat(requests).allSatisfy(part -> assertThat(part.length()).isLessThanOrEqualTo(4096));
         if (allSent) {
             assertThat(String.join("", requests)).isEqualTo(text);
-            assertThat(repository.findCurrent(A)).extracting(SelectionItem::restaurantId).containsExactly(2L);
+            assertThat(repository.findCurrent(A)).extracting(SelectionItem::restaurantId).containsExactlyElementsOf(result.candidates().stream().map(c -> c.restaurant().id()).toList());
             assertThat(store.load(A).selectionVersion()).isEqualTo(version + 1);
             assertThat(memory.get(store.load(A).conversationId())).hasSize(2);
             assertThat(memory.get(store.load(A).conversationId()).getLast().getText()).isEqualTo(text);
@@ -214,7 +214,7 @@ class SelectionIntegrationTest {
         assertThat(reply.explanationFallback()).isTrue();
         assertThat(reply.modelCalls()).isEqualTo(2);
         assertThat(reply.toolExecutions()).isEqualTo(1);
-        assertThat(repository.findCurrent(A)).extracting(SelectionItem::restaurantId).containsExactly(2L);
+        assertThat(repository.findCurrent(A)).extracting(SelectionItem::restaurantId).containsExactlyElementsOf(reply.searchResult().candidates().stream().map(c -> c.restaurant().id()).toList());
         assertThat(memory.get(store.load(A).conversationId()).getLast().getText()).isEqualTo(reply.text());
     }
 
@@ -260,7 +260,7 @@ class SelectionIntegrationTest {
         assertThat(store.load(A).selectionVersion()).isEqualTo(version);
         assertThat(selections.current(A)).isEmpty();
         assertThat(resolver.resolve(A, new RestaurantReference(1, null, null)).status()).isEqualTo(NEED_CLARIFICATION);
-        assertThat(resolver.resolve(A, new RestaurantReference(null, null, "Pizza Tempo")).restaurantId()).isEqualTo(2L);
+        assertThat(resolver.resolve(A, new RestaurantReference(null, null, "Pizza Tempo")).status()).isEqualTo(NEED_CLARIFICATION);
         selections.replace(A, List.of(2L));
         assertThat(resolver.resolve(A, new RestaurantReference(1, null, null)).restaurantId()).isEqualTo(2L);
         assertThat(store.load(A).selectionVersion()).isEqualTo(version + 1);

@@ -24,7 +24,7 @@ public final class CriteriaMerge {
                 supplied.date() == null ? "TODAY" : supplied.date(),
                 supplied.time() == null ? "12:00" : supplied.time(), supplied.cuisine(), supplied.preferredTags()), clock);
         var merged = new SearchRequest(
-                supplied.guests() == null ? previous.guests() : normalized.guests(),
+                supplied.guests() == null ? previous.guests() : Integer.valueOf(normalized.guests()),
                 supplied.totalBudgetByn() == null ? previous.totalBudgetByn() : normalized.totalBudgetByn(),
                 supplied.date() == null ? previous.date() : normalized.date().toString(),
                 supplied.time() == null ? previous.time() : normalized.time().toString(),

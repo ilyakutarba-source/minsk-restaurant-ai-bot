@@ -1,7 +1,7 @@
 # Данные и PostgreSQL
 
-**IMPLEMENTED:** каталог, partial menu, Flyway V1–V7, ConversationState, JDBC ChatMemory и SelectionItem.
-**PLANNED:** enrichment mapping.
+**IMPLEMENTED:** 10 конкретных филиалов, 60 menu items, Flyway V1–V9, ConversationState, JDBC ChatMemory и SelectionItem.
+Google enrichment исключён из текущего MVP: [PRODUCT](PRODUCT.md#google-places--excluded-from-current-mvp).
 Search rules: [ARCHITECTURE](ARCHITECTURE.md#правила-поиска-и-рекомендаций).
 Разговорное поведение: [AI](AI.md). Scope: [PRODUCT](PRODUCT.md).
 
@@ -60,6 +60,37 @@ Branch applicability для двух сетевых чеков подтверж�
 
 Catalog/hours source и дата сохранены для всех трёх филиалов. Васильки: Вс–Чт 08:00–23:00, Пт–Сб 08:00–01:00 следующего дня; Pizza Tempo: ежедневно 10:00–23:00; Хинкальня: ежедневно 12:00–00:00 следующего дня. COZY/FRIENDS проставлены только Хинкальне по [описанию филиала](https://www.titanminsk.by/kafe-i-restoranyi/restoran/); это curated tags. У остальных tags пусты.
 
+Итоговый MVP-каталог: **10 активных конкретных филиалов**, три кухни, по шесть
+позиций меню (60 всего). Семь новых филиалов проверены 2026-10-06 по официальным
+спискам адресов/часов [Васильки](https://vasilki.by/#container-places) и
+[Pizza Tempo](https://tempo.by/#container-places); страницы общего меню выше
+визуально проверены повторно в тот же день. Цены и порции совпадают с исходным
+dataset. Новым филиалам не присвоены неподтверждённые tags.
+
+| Fresh DB ID / seedKey | Конкретный филиал | Недельные часы | DERIVED BYN на гостя |
+|---|---|---|---|
+| 4 / pizza-tempo-bobruyskaya-6 | Pizza Tempo — Минск, ул. Бобруйская, 6, ТРЦ «Galileo» | Ежедневно 10:00–00:00 следующего дня | 32.70 |
+| 5 / pizza-tempo-nezavisimosti-18 | Pizza Tempo — Минск, проспект Независимости, 18 | Вс–Чт 09:00–23:00; Пт–Сб 09:00–00:00 следующего дня | 32.70 |
+| 6 / pizza-tempo-nezavisimosti-78 | Pizza Tempo — Минск, проспект Независимости, 78 | Ежедневно 10:00–23:00 | 32.70 |
+| 7 / pizza-tempo-pobediteley-84 | Pizza Tempo — Минск, проспект Победителей, 84, ТРЦ «ARENAcity» | Ежедневно 10:00–22:00 | 32.70 |
+| 8 / vasilki-nezavisimosti-58 | Васильки — Минск, проспект Независимости, 58 | Вс–Чт 08:00–23:00; Пт–Сб 08:00–00:00 следующего дня | 39.80 |
+| 9 / vasilki-nezavisimosti-89 | Васильки — Минск, проспект Независимости, 89 | Ежедневно 08:00–23:00 | 39.80 |
+| 10 / vasilki-yakuba-kolasa-37 | Васильки — Минск, ул. Якуба Коласа, 37, МЦ «Айсберг» | Вс–Чт 11:00–23:00; Пт–Сб 11:00–02:00 следующего дня | 39.80 |
+
+Каждый новый филиал имеет свои catalog/hours/check source и verifiedAt=2026-10-06.
+Методика DERIVED сохранена: одна указанная порция основного блюда + одна порция
+супа, цены зала без напитков, алкоголя, десерта, доставки и чаевых. Для новых
+Васильков это 22.90+16.90, для новых Pizza Tempo — 19.50+13.20 BYN. Состав и URLs
+сохранены в checkSource каждого филиала. Общее меню сети применено по той же
+границе подтверждения, что у исходных записей; отдельные цены филиалов на сайте
+не опубликованы. Чеки одинаковых сетевых филиалов сознательно одинаковы.
+Имена повторяются; address/seedKey/ID различают филиалы. Название сети без
+достаточного контекста требует уточнения. Initial records/metadata сохраняют
+первоначальную дату 2026-10-02; новый timestamp импорта не подменяет verification.
+Указанные IDs относятся к fresh DB. При forward upgrade identity sequence может
+иметь пропуски; новые IDs тогда отличаются. Seed/import/acceptance используют
+stable seedKey и фактически показанные IDs, без предположения о next identity value.
+
 Search использует сохранённый независимый BigDecimal check, без runtime menu basket
 или зависимости от MenuItem. Формула бюджета и ranking принадлежат
 [ARCHITECTURE](ARCHITECTURE.md#правила-поиска-и-рекомендаций).
@@ -110,6 +141,17 @@ Import заменяет сохранённую часть только пере�
 - Регулярно меняющиеся цены/источники не зашиваются в уже применённые schema migrations.
 
 Начальные restaurant SQL и menu JSON datasets входят в application resources. Повторные Flyway migrate и JSON import не создают дубли.
+
+Fresh DB получает итоговые данные автоматически: V2/V4 дают первые 3 филиала
+и 18 позиций; [V8](../src/main/resources/db/migration/V8__expand_final_catalog.sql)
+добавляет 7 филиалов/49 интервалов, затем V9 Java migration применяет
+[partial-menu-v9.json](../src/main/resources/db/seed/partial-menu-v9.json) — 42 позиции.
+V9 использует существующий strict MenuDataset contract и JDBC внутри Flyway,
+хранит нормализованный checksum JSON; HTTP и startup runner отсутствуют.
+Исходные V1–V7 и partial-menu-v4.json неизменны. V8 задаёт порядок новых IDs через
+seedKey ASC для одинакового результата на H2/PostgreSQL. Меню всех филиалов PARTIAL.
+Повторный controlled import нового JSON через существующий MenuImportService
+сохраняет item IDs/keys/counts и не изменяет остальные филиалы.
 
 ## Разговор и последняя подборка
 
@@ -182,7 +224,7 @@ restaurant_id → restaurants.id. В таблице максимум три по
 version всех rows со state обеспечивается transaction замены, без history/FK на version.
 FK без cascading delete. Restaurant будет деактивироваться, а не
 физически удаляться при наличии selection references.
-Planned constraint: googlePlaceId nullable unique с ручным mapping.
+Google mapping/columns отсутствуют в текущем MVP.
 
 Constraints не доказывают актуальность источника и существование места; это проверяется куратором и dataset validation.
 
@@ -210,6 +252,8 @@ Constraints не доказывают актуальность источник�
 | V5 create conversation state | chat_id, generation, current_criteria JSON text, selection_version, updated_at | IMPLEMENTED |
 | V6 create JDBC chat memory | Spring AI 1.1.8 official PostgreSQL/H2 DDL + conversation ID length adaptation | IMPLEMENTED |
 | V7 create selection items | Четыре pointer/context поля; PK, два FK, position/version checks, restaurant index | IMPLEMENTED |
+| V8 expand final catalog | Семь проверенных конкретных филиалов и 49 недельных интервалов | IMPLEMENTED |
+| V9 seed final partial menus (Java) | Immutable JSON, 42 menu items для новых семи филиалов; existing MenuDataset contract/checksum | IMPLEMENTED |
 
 Polling checkpoint storage допускается только при подтверждённой необходимости,
 если библиотека Telegram не покрывает offset. Отдельная domain subsystem не нужна.
@@ -259,9 +303,16 @@ metadata checks; Hibernate validate продолжает проверять су
 Пароль передать через SPRING_DATASOURCE_PASSWORD в environment, без CLI argument.
 Тесты проверяют migrations/reapply, mappings, constraints, REST, import/rollback и
 Java search; изменения тестовых строк откатываются или восстанавливаются.
-Search tests используют фиксированный Clock. Существующий набор проверен на
-PostgreSQL 17.10: Flyway V1–V7 на пустой test БД/reapply и Hibernate validate прошли.
-Полный PostgreSQL suite: 285 tests, 0 failures/errors/skipped, включая application
+Search tests используют фиксированный Clock. Итоговый набор проверен 2026-10-06 на
+PostgreSQL 17.10: Flyway V1–V9 на пустой test БД/reapply и Hibernate validate прошли.
+Полный PostgreSQL suite: 398 tests, 0 failures/errors/skipped, включая application
 context/datasource restart, восстановление criteria/generation/bounded memory/selection и `/new`.
-H2 clean test/verify: 286 tests; H2-specific bootstrap test исключён из PostgreSQL suite.
+После suite сохраняются 10 активных филиалов, 60 menu items и 70 интервалов;
+fixtures, включая REST checks вне transaction, восстанавливают изменённые данные.
+Отдельный V7→V9 upgrade + application reopen suite: 7 tests PASS; исходные
+IDs не изменяются, новые проверяются по seedKey даже при пропуске identity sequence.
+FinalCatalogAcceptanceTest проверяет provenance, воспроизводимый DERIVED состав,
+idempotent import с сохранением IDs, полные search/budget/hours/ranking/soft-vs-hard
+contracts, реальные неоднозначные названия и chat-scoped references.
+H2 clean test/verify: по 399 tests; H2-specific bootstrap test исключён из PostgreSQL suite.
 Обычная сборка использует H2: [README](../README.md#tests).

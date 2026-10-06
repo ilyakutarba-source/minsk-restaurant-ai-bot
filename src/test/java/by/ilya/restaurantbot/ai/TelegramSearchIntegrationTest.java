@@ -74,7 +74,7 @@ class TelegramSearchIntegrationTest {
     @ValueSource(strings = {"valid", "invalid", "failed"})
     void fullTelegramTurnPreservesTrustedFactsAndExplanationFallback(String explanation) throws Exception {
         var plan = """
-                {"items":[{"position":1,"reasonCodes":["CUISINE_MATCH","BUDGET_MATCH"],"phrasing":"NEUTRAL"}]}
+                {"items":[{"position":1,"reasonCodes":["CUISINE_MATCH","BUDGET_MATCH"],"phrasing":"NEUTRAL"},{"position":2,"reasonCodes":["BUDGET_MATCH"],"phrasing":"NEUTRAL"},{"position":3,"reasonCodes":["HOURS_MATCH"],"phrasing":"NEUTRAL"}]}
                 """;
         var response = switch (explanation) {
             case "valid" -> ProviderFixture.explanation(plan);
@@ -96,7 +96,7 @@ class TelegramSearchIntegrationTest {
             assertThat(reply.explanationFallback()).isEqualTo(!explanation.equals("valid"));
             assertThat(text).isEqualTo(reply.text());
             assertThat(selections.current(1)).extracting(by.ilya.restaurantbot.conversation.SelectionItem::restaurantId)
-                    .containsExactly(2L);
+                    .containsExactlyElementsOf(reply.searchResult().candidates().stream().map(c -> c.restaurant().id()).toList());
             assertThat(fixture.requests()).hasSize(2);
             assertThat(fixture.requests().getLast().path("tools").size()).isZero();
             assertThat(fixture.requests().getLast().path("tool_choice").asText()).isEqualTo("none");

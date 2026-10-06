@@ -7,9 +7,9 @@ Minsk Restaurant AI Bot помогает выбрать ресторан из с
 
 ## Реализованные возможности — IMPLEMENTED
 
-- Три конкретных филиала: Васильки, Pizza Tempo и Хинкальня.
+- 10 конкретных активных филиалов: четыре Васильки, пять Pizza Tempo и одна Хинкальня.
 - Собственные адреса, cuisine/tags, часы и ориентировочный чек на одного гостя.
-- По шесть сохранённых menu items на ресторан, с source/date и PARTIAL coverage.
+- По шесть сохранённых menu items на ресторан (60 всего), с source/date и PARTIAL coverage.
 - Java Restaurant Search по полным структурированным критериям посещения.
 - До трёх кандидатов в стабильном порядке с подтверждёнными reason codes.
 - REST catalog/details/menu/recommendations и Swagger.
@@ -51,11 +51,11 @@ Google rating исключён из текущего MVP.
 
 | Возможность | Продуктовая граница | Состояние |
 |---|---|---|
-| Каталог | 10–12 реальных заведений, конкретные филиалы | Реализованы первые 3 |
+| Каталог | 10–12 реальных заведений, конкретные филиалы | IMPLEMENTED: 10 |
 | Посещение | Минск, BYN, 1–6 гостей, сегодня и следующие 6 дней | IMPLEMENTED в Java search и Telegram slice |
 | Поиск | Гости, общий бюджет, дата/время, optional cuisine/tags; до 3 вариантов | IMPLEMENTED |
 | Чек | Проверяемый ориентир на гостя с type/source/date | IMPLEMENTED |
-| Меню | 5–10 позиций на заведение, только PARTIAL | IMPLEMENTED для 3 филиалов |
+| Меню | 5–10 позиций на заведение, только PARTIAL | IMPLEMENTED: по 6 для всех 10 филиалов |
 | Telegram | Личные чаты, русский язык, long polling | IMPLEMENTED: search/menu/details, commands, controlled errors/limits |
 | AI | Один provider/model, Spring AI Tool Calling и Structured Output | IMPLEMENTED: ровно 3 tools, Java factual rendering |
 | Контекст | Ограниченная ChatMemory и последняя показанная подборка по chatId | Memory/criteria/selection и Java ReferenceResolver IMPLEMENTED |

@@ -25,7 +25,7 @@ class AiaiLiveSmokeIT {
         assertThat(reply.searchResult().normalizedCriteria().totalBudgetByn()).isEqualByComparingTo("150");
         assertThat(reply.searchResult().normalizedCriteria().cuisine()).isEqualTo(Cuisine.ITALIAN);
         assertThat(reply.searchResult().normalizedCriteria().time().toString()).isEqualTo("21:00");
-        assertThat(reply.searchResult().candidates()).hasSize(1);
+        assertThat(reply.searchResult().candidates()).hasSize(3);
         assertThat(reply.text()).contains("Pizza Tempo", "65.40 BYN");
         System.out.println("AIAI production smoke PASS: gpt-4.1-mini; 2 model calls; 1 tool; native explanation valid.");
     }

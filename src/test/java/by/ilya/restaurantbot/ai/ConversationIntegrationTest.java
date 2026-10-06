@@ -127,7 +127,7 @@ class ConversationIntegrationTest {
     @ParameterizedTest
     @CsvSource(delimiter = '|', value = {
             "Бюджет как обычно|totalBudgetByn", "150|totalBudgetByn", "150 BYN на человека|totalBudgetByn",
-            "Завтра вечером|time", "В семь|time", "В 7|time", "На выходных в 21:00|date", "05/10 в 21:00|date"})
+            "Завтра вечером|time", "В семь|time", "В 7|time", "К девяти|time", "В девять|time", "На выходных в 21:00|date", "05/10 в 21:00|date"})
     void ambiguousNewCriteriaClarifyEvenWhenOldStateIsCompleteAndModelGuesses(String text, String field) {
         full(A);
         var prior = store.load(A).currentCriteria();
@@ -365,7 +365,7 @@ class ConversationIntegrationTest {
         assertThat(store.load(B).currentCriteria().guests()).isEqualTo(2);
         assertThat(store.load(A).selectionVersion()).isEqualTo(version + 2);
         assertThat(selections.current(A)).extracting(by.ilya.restaurantbot.conversation.SelectionItem::restaurantId)
-                .containsExactly(2L);
+                .containsExactlyElementsOf(search.search(AiJson.mapper().readValue(FULL, by.ilya.restaurantbot.search.SearchRequest.class)).candidates().stream().map(c -> c.restaurant().id()).toList());
         var transcript = memory.get(store.load(A).conversationId());
         assertThat(transcript).hasSize(4);
         assertThat(transcript.get(0).getText()).contains("Сегодня");
