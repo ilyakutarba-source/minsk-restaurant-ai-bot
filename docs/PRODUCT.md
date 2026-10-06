@@ -24,6 +24,8 @@ Minsk Restaurant AI Bot помогает выбрать ресторан из с
 - `/start` и `/help` с примерами реального поиска и follow-up; Java-only commands.
 - Controlled unsupported booking/city/currency, ошибки provider/DB/Telegram,
   input limits и lossless split длинного plain-text ответа.
+- Docker Compose app/postgres, Dokploy/VPS, private HTTP/DB, persistent volume
+  и проверенные restart/redeploy; [deployment acceptance](DEPLOYMENT.md#проверка-task-13--2026-10-06).
 
 Чек, расписание и меню имеют отдельные источники и даты проверки. Поиск работает
 при частичном или отсутствующем меню. [Модель и происхождение данных](DATABASE.md).
@@ -132,6 +134,61 @@ Telegram reply не отправлена, новый transcript и selection н�
 После MVP: CI, ограниченные callbacks, retention cleanup, праздничные часы,
 backup restore drill и Google reviews при проверенных условиях отображения.
 Это будущие возможности, не часть текущей реализации.
+
+## Definition of Done
+
+Критерии первоначальной спецификации восстановлены в текущем документе без
+расширения scope. Технические пункты подтверждены TASK-12/13; отдельный финальный
+gate — репетиция и объяснение студентом. Отметки не означают гарантию будущих
+ответов модели или production reliability.
+
+- [x] Clean checkout собирается; совместимые версии pinned по результату TASK-00.
+- [x] PostgreSQL запускается; Flyway создаёт схему; Hibernate validate проходит.
+- [x] Есть 10–12 реальных заведений с проверяемыми собственными источниками.
+- [x] У ориентировочного чека есть смысл «на одного», source и verifiedAt.
+- [x] Частичные меню содержат 5–10 полезных позиций, source и verifiedAt.
+- [x] Поиск работает независимо от полноты меню; ranking детерминирован.
+- [x] Telegram long polling работает в личных чатах.
+- [x] Spring AI реально выбирает и вызывает три tools через application services.
+- [x] AI не имеет SQL/JPA-доступа; factual cards формирует Java.
+- [x] Контролируемое AI-объяснение работает; его отказ оставляет фактическую выдачу.
+- [x] Chat memory изолирована по chatId и переживает restart.
+- [x] /new очищает memory/state/selection; «меню второго» работает по показанному порядку.
+- [x] Google enrichment проверен live либо официально исключён после failed gate:
+  EXCLUDED FROM CURRENT MVP, live gate NOT PASSED; [решение](#google-places--excluded-from-current-mvp).
+- Google failure не ломает поиск; Google content не сохраняется в memory/каталоге
+  произвольно — **N/A / EXCLUDED**: adapter, calls и content отсутствуют.
+- [x] Четыре REST endpoints и Swagger доступны в непубличной конфигурации.
+- [x] Основные unit/integration tests и PostgreSQL acceptance проходят.
+- [x] Eval соответствует простым критериям [AI.md](AI.md#ai-eval).
+- [x] Docker Compose работает; Dokploy deployment на VPS воспроизводим.
+- [x] Persistent PostgreSQL volume переживает restart/redeploy; приложение поднимается после restart.
+- [x] Документирован способ backup; restore drill не является обязательным gate.
+- [x] Секретов нет в Git, образах и обычных логах по выполненному audit.
+- [x] README позволяет повторить настройку, запуск и демонстрацию.
+- [ ] Проведена репетиция защиты; студент объясняет границы AI/Java/DB.
+
+Evidence: данные/migrations/PostgreSQL — [DATABASE](DATABASE.md#postgresql-acceptance);
+automated checks — [README](../README.md#tests); model/tool/eval — [AI](AI.md#ai-eval);
+deployment/persistence/secrets/backup — [DEPLOYMENT](DEPLOYMENT.md#проверка-task-13--2026-10-06).
+TTL, CI/CD, callbacks и production delivery guarantees не являются условиями DoD.
+
+## Diploma demo — 8–10 минут
+
+| Время | Что показать и объяснить |
+|---|---|
+| 0:00–0:45 | Проблема и ограниченный собственный каталог |
+| 0:45–2:00 | Telegram → ConversationService → Spring AI/tools → Java services → PostgreSQL |
+| 2:00–6:30 | Полный поиск; «Меню второго»; изменение гостей; часы последнего |
+| 6:30–8:00 | Persistence, tests/eval, deployment и поведение при external failures |
+| 8:00–9:30 | PARTIAL/DERIVED, Google exclusion и реальные ограничения MVP |
+
+Перед демонстрацией `/new` очищает старый контекст без AI. Дата/время поиска должны
+попадать в поддержанный диапазон и собственное расписание. Показать все три tools
+и роль Java validation/renderer; не читать длинные карточки целиком.
+При недоступном live provider/Telegram явно перейти к **fallback evidence**:
+сохранённым acceptance results, code/tests и последнему подтверждённому E2E.
+Сохранённые ответы и offline fixtures не выдаются за live response.
 
 Текущие инструкции запуска/тестов: [README](../README.md).
 Требования deployment и secrets: [DEPLOYMENT](DEPLOYMENT.md).

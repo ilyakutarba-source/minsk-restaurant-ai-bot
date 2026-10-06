@@ -14,17 +14,17 @@ flowchart TD
     MEMORY --> PG
     CONVERSATION --> AI
     REST[REST controllers / Swagger] --> SERVICES[RestaurantService / MenuService / RestaurantSearchService]
-    AI[Spring AI ChatClient / bounded adapter] --> TOOL[Exactly one of 3 validated product tools]
+    AI[Spring AI ChatClient / bounded adapter] --> TOOL[At most one execution / 3 validated product tools]
     TOOL --> SERVICES
     TOOL --> REFERENCE
-    SERVICES --> CARDS[Java factual renderer / validated ExplanationPlan or fallback]
+    SERVICES --> DTO[Own DTO / ordered search candidates]
+    DTO --> CARDS[Java factual renderer / validated ExplanationPlan or fallback]
     CARDS --> SEND[Telegram sendMessage / plain text]
     SEND --> DELIVERED[Successful send / ConversationService]
     DELIVERED --> SELECTION[Delivered search only / atomic current selection replacement]
     SELECTION --> PG
     REFERENCE[ReferenceResolver / ordinal, last, exact name] --> SELECTION
     REFERENCE --> SERVICES
-    SERVICES --> DTO[Own DTO / ordered search candidates]
     SERVICES --> JPA[JPA repositories]
     JPA --> PG[(PostgreSQL)]
     FLYWAY[Flyway V1–V9] --> PG

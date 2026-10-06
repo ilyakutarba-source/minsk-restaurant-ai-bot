@@ -24,8 +24,7 @@ Dockerfile и `compose.yaml` реализованы в TASK-13. Candidate опу
 реальный Telegram/AIAI search, app restart и Dokploy recreate обоих services.
 Telegram ordinal follow-up после redeploy подтверждён пользователем: «Меню второго»
 вернуло сохранённое PARTIAL-меню Pizza Tempo, ID 4, из прежней selection.
-CI configuration отсутствует.
-Наличие deployment files не означает завершённую remote приёмку.
+CI configuration отсутствует. Remote acceptance подтверждена результатами ниже.
 
 ### Проверка TASK-13 — 2026-10-06
 
@@ -54,7 +53,7 @@ Local container smoke использовал disabled AI, empty external keys/to
 mutable rows, без paid/provider/Telegram calls. После проверки удалены только
 его disposable containers/network/volume/image и temporary credential file. Remote Telegram ordinal follow-up и actual
 Dokploy redeploy обязательны для завершённой deployment acceptance. Все local и remote
-Acceptance Criteria TASK-13 проверены; TASK-14 не начиналась.
+Acceptance Criteria TASK-13 проверены.
 Public docs содержат только sanitized summary.
 Повторный LOCAL DEPLOYMENT этап завершён по запросу пользователя: `clean verify`
 399 PASS, новый fresh PostgreSQL volume, actual image build/startup/health/HTTP/security

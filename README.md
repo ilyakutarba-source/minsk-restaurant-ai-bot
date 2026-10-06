@@ -45,18 +45,20 @@ Update/offset и restart boundaries: [DEPLOYMENT](docs/DEPLOYMENT.md#update--off
 ## Tech stack
 
 - Java 21, один Maven module, Maven Wrapper 3.9.16.
-- Spring Boot 3.5.16, Spring Data JPA/Hibernate, PostgreSQL, Flyway.
+- Spring Boot 3.5.16, Spring Data JPA/Hibernate, PostgreSQL 17.10, Flyway.
 - REST и springdoc 2.9.1; H2 для части tests, JUnit 5/Mockito.
 - Spring AI 1.1.8 закреплён BOM; OpenAI provider starter и ChatClient подключены.
 - Для AI выбран OpenAI-compatible AIAI.BY и модель `gpt-4.1-mini`.
+- Telegram transport — Pengrad Telegram Bot API 10.1.0, private chats/long polling.
 
 Точные зависимости: [pom.xml](pom.xml). Конфигурация AI: [AI](docs/AI.md).
 
 ## Architecture overview
 
 Один Spring Boot application — modular monolith. REST controllers вызывают
-application services; services читают JPA repositories. Telegram adapter использует
-ConversationService и тот же Java search напрямую. У LLM нет SQL/JPA-доступа.
+application services; services читают JPA repositories. Telegram adapter вызывает
+ConversationService, который через bounded AI adapter и tools обращается к Java services.
+У LLM нет SQL/JPA-доступа.
 Границы компонентов: [ARCHITECTURE](docs/ARCHITECTURE.md).
 
 ## Restaurant Search overview
@@ -104,6 +106,11 @@ Flyway V1–V9 создаёт каталог/меню, conversation state, JDBC 
 `validate`. У данных сохранены source и verifiedAt. Меню всегда PARTIAL; отсутствие
 позиции в БД не доказывает её отсутствия в полном меню. Поиск не зависит от MenuItem.
 Модель, provenance и import contract: [DATABASE](docs/DATABASE.md).
+
+DERIVED check — ручной ориентир из опубликованных цен выбранного основного блюда
+и супа на гостя; runtime не рассчитывает корзину по меню. `verifiedAt` означает
+дату проверки источника, а не дату импорта. Конкретные источники и граница применения
+общего сетевого меню к филиалам приведены в DATABASE.
 
 ## REST API / Swagger
 
@@ -246,3 +253,7 @@ Google Places enrichment исключён из текущего MVP; Google key 
 не сохранены; details явно сообщает об отсутствии этих полей.
 Memory ограничена 20 user/assistant messages на чат.
 Booking, публичный admin/chat API, геопоиск и RAG/vector search вне MVP.
+
+Критерии завершения диплома: [Definition of Done](docs/PRODUCT.md#definition-of-done).
+Демонстрация рассчитана на 8–10 минут: архитектура → поиск → меню по позиции →
+изменение гостей → собственные часы → evidence проверок и ограничения.
