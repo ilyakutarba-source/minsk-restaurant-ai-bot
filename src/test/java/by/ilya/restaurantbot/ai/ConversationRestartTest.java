@@ -52,6 +52,7 @@ class ConversationRestartTest {
             var partial = new SearchRequest(2, new BigDecimal("150.00"), "TODAY", "21:00", Cuisine.ITALIAN, Set.of(RestaurantTag.QUIET));
             var criteria = CriteriaMerge.merge(CriteriaMerge.empty(), partial, first.getBean(Clock.class));
             store.saveCriteria(store.load(chat), criteria);
+            first.getBean(by.ilya.restaurantbot.conversation.SelectionService.class).replace(chat, java.util.List.of(3L, 1L, 2L));
             saved = store.load(chat);
             for (int i = 0; i < 12; i++) store.remember(saved, "User turn " + i, "Safe reply " + i);
             assertThat(first.getBean(ChatMemory.class).get(saved.conversationId())).hasSize(20);
@@ -66,7 +67,11 @@ class ConversationRestartTest {
             var restored = store.load(chat);
             assertThat(restored.currentCriteria()).isEqualTo(saved.currentCriteria());
             assertThat(restored.generation()).isEqualTo(saved.generation()).isGreaterThanOrEqualTo(2);
-            assertThat(restored.selectionVersion()).isZero();
+            assertThat(restored.selectionVersion()).isEqualTo(saved.selectionVersion()).isPositive();
+            assertThat(second.getBean(by.ilya.restaurantbot.conversation.SelectionService.class).current(chat))
+                    .extracting(by.ilya.restaurantbot.conversation.SelectionItem::restaurantId).containsExactly(3L, 1L, 2L);
+            assertThat(second.getBean(by.ilya.restaurantbot.conversation.ReferenceResolver.class).resolve(chat,
+                    new by.ilya.restaurantbot.conversation.RestaurantReference(2, null, null)).restaurantId()).isEqualTo(1L);
             assertThat(restored.conversationId()).isEqualTo(saved.conversationId());
             var memory = second.getBean(ChatMemory.class);
             assertThat(memory.get(restored.conversationId())).hasSize(20);
@@ -76,7 +81,7 @@ class ConversationRestartTest {
             when(model.call(any(Prompt.class))).thenReturn(selection("{\"guests\":4}"));
             var clock = second.getBean(Clock.class);
             var adapter = new SpringAiSearchAdapter(model, second.getBean(RestaurantSearchService.class), clock, false);
-            var conversation = new ConversationService(store, memory, adapter, clock);
+            var conversation = new ConversationService(store, memory, adapter, clock, second.getBean(by.ilya.restaurantbot.conversation.SelectionService.class));
             var reply = conversation.handle(chat, "А если нас четверо?", sent -> true);
             assertThat(reply.status()).isEqualTo(OK);
             assertThat(reply.text()).contains("130.80 BYN");
@@ -85,6 +90,7 @@ class ConversationRestartTest {
             assertThat(memory.get(restored.conversationId())).isEmpty();
             assertThat(store.load(chat).generation()).isEqualTo(saved.generation() + 1);
             assertThat(store.load(chat).currentCriteria()).isEqualTo(CriteriaMerge.empty());
+            assertThat(second.getBean(by.ilya.restaurantbot.conversation.SelectionService.class).current(chat)).isEmpty();
         }
     }
 

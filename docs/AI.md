@@ -8,9 +8,11 @@ SearchResult DTO, optional native Structured Output ExplanationPlan и Java fact
 renderer/fallback. Полный natural-language запрос не требует предыдущих сообщений.
 REST search продолжает работать самостоятельно. Telegram ConversationService,
 bounded PostgreSQL ChatMemory, currentCriteria/merge/clarification и базовый `/new` реализованы.
+Текущая delivered selection и deterministic Java ReferenceResolver реализованы
+как foundation для будущих menu/details tools.
 
-**PLANNED:** getRestaurantDetails/getRestaurantMenu как AI tools, selection и reference
-resolution, `/start`, `/help` и final Telegram finishing. Stateless application entry
+**PLANNED:** getRestaurantDetails/getRestaurantMenu как AI tools и end-to-end
+reference follow-up, `/start`, `/help` и final Telegram finishing. Stateless application entry
 `SpringAiSearchAdapter.search(text)` сохранён; Telegram использует conversation entry.
 Scope: [PRODUCT](PRODUCT.md); service boundaries: [ARCHITECTURE](ARCHITECTURE.md);
 persistence: [DATABASE](DATABASE.md#разговор-и-последняя-подборка).
@@ -91,6 +93,7 @@ user + bounded safe memory (до 8000 context characters)
 → Java: validate explanation, build factual cards
 → save valid criteria; Telegram sendMessage вне DB transaction
 → on successful send: one manual user + safe assistant memory write
+  and atomic replacement of the current selection by shown search IDs
 ```
 
 Модель возвращает **ExplanationPlan**, не свободную factual paragraph:
@@ -153,7 +156,8 @@ second call. Повторы внутри удалённого provider/upstream 
 
 ## Общие tool contracts
 
-Search и criteria continuation реализованы; menu/details/reference contracts ниже — PLANNED.
+Search, criteria continuation и Java reference input/resolution реализованы;
+menu/details tools ниже — PLANNED.
 
 Result: status OK / NO_RESULTS / NEED_CLARIFICATION / NOT_FOUND / DATA_UNAVAILABLE /
 INVALID_INPUT / TEMPORARILY_UNAVAILABLE; bounded own data, warnings, missingFields
@@ -162,7 +166,8 @@ raw provider payload, HTML, stack traces, secrets и чужие данные н�
 
 ConversationService формирует server context из chatId, generation и currentCriteria.
 Per-turn Java callback объединяет SearchRequest до service call; эти значения не
-model arguments. ChatId/conversationId не передаются модели. Selection context PLANNED.
+model arguments. ChatId/conversationId не передаются модели. Selection context
+хранится в Java/PostgreSQL и не восстанавливается из текстовой memory.
 
 ### searchRestaurants
 
@@ -210,11 +215,25 @@ guards, не самостоятельный NLP parser. Missing/ambiguous fields
 
 ### Reference input для menu/details
 
+**IMPLEMENTED Java foundation; подключение menu/details tools — PLANNED.**
+
 Ровно один selector: ordinal=1/2/3, last=true либо name. restaurantId не является
 произвольным argument модели. Java ReferenceResolver использует текущую selection;
 при её отсутствии имя может разрешаться внутри own catalog.
 Normalized exact name matching, без fuzziness. Несколько филиалов с одним именем
 требуют уточнения. Сложные сравнения прошлых подборок не поддерживаются.
+
+RestaurantReference содержит Integer ordinal, Boolean last, String name. Ровно одно
+non-null поле; last=false, ordinal вне 1–3, blank name и name длиннее 200 characters
+дают INVALID_INPUT без чтения данных. Нормализация имени: strip, collapse Unicode
+whitespace до одного пробела, lower-case Locale.ROOT. При непустой selection поиск
+имени ограничен её restaurant IDs; fallback в каталог в этом случае отсутствует.
+При пустой selection используется собственный каталог через RestaurantService.
+Resolution: OK с одним Java-resolved ID, NEED_CLARIFICATION без ID для отсутствующей
+позиции/selection или нескольких совпавших имён, NOT_FOUND без ID для неизвестного
+имени, INVALID_INPUT без ID для нарушенного selector contract. Resolver не вызывает
+AI, Telegram, restaurant search и не парсит ChatMemory. Сам разбор natural-language
+menu/details реплик пока не подключён.
 
 ### getRestaurantDetails
 
@@ -253,8 +272,8 @@ ID формирует сервер; chatId — 64-bit. Личные чаты и�
 Factual follow-up перечитывает БД, даже если похожий ответ есть в памяти.
 
 `/new` обрабатывается Java без AI/tool: в одной короткой transaction очистить old memory,
-criteria и увеличить generation. Confirmation не записывается в новый пустой transcript.
-Selection reset будет добавлен после реализации selection. Обычный restart сохраняет state/memory.
+criteria и текущие SelectionItem, увеличить generation. Confirmation не записывается
+в новый пустой transcript. Обычный restart сохраняет state/memory/selection.
 TTL/selection expiry не являются обязательными; окно ограничивает длину разговора,
 но не общее число чатов. Схема storage: [DATABASE](DATABASE.md#разговор-и-последняя-подборка).
 
@@ -267,7 +286,7 @@ ConversationService владеет единственным manual write path; a
 DB/HTTP не объединяются в distributed transaction; crash recovery/exactly-once не обещаются.
 Bounded process-local locks сериализуют turn и `/new`; сервер работает одним instance.
 
-**PLANNED selection:** SelectionVersion и SelectionItem хранят только текущие position/restaurantId;
+**IMPLEMENTED selection:** SelectionVersion и SelectionItem хранят только текущие position/restaurantId;
 цены/cuisine/tags/Google snapshots не сохраняются.
 
 | Reference | Resolution |
@@ -280,10 +299,26 @@ Bounded process-local locks сериализуют turn и `/new`; сервер 
 
 Один чат обрабатывается последовательно. Selection заменяется в короткой DB transaction
 после успешного sendMessage, только показанными ID. Empty successful search очищает
-старую selection; menu/details её не заменяют. Явный failed send не активирует новую.
+старую selection. Оба успешно доставленных search results увеличивают version на 1,
+включая пустой. Все новые rows получают одну version, совпадающую с ConversationState;
+positions соответствуют порядку trusted candidates, который полностью показывает
+текущий Java renderer. Explanation failure/fallback не меняет эти ID/порядок.
+Clarification, invalid input, provider failure и отсутствие search не меняют selection.
+REST search не является Telegram delivery и не сохраняет selection. Будущие
+menu/details её не заменяют. Явный failed send не меняет rows или version.
+`/new` удаляет rows в той же transaction, что memory/criteria reset и increment
+generation; selectionVersion сохраняется как монотонный счётчик, новая подборка
+получит следующую version. History, snapshots и expiry отсутствуют.
 Crash между отправкой и DB commit возможен; exactly-once/outbox не проектируются.
-При failed selection save сомнительный контекст в этом процессе очищается и
-пользователю предлагается назвать ресторан. Если callbacks появятся, проверяются
+При failed selection save DB transaction полностью откатывается, прежние rows/version
+сохраняются. SelectionService помечает чат в process-local set: resolver не использует
+его прежние positions и разрешает имя через каталог. ConversationService предлагает
+назвать ресторан Java clarification без новых model/tool calls; успешно доставленная
+search card сохраняется единственной memory парой согласно прежнему write contract.
+Successful replacement или `/new` снимает process-local guard. Guard не переживает
+restart: восстановление после send/commit failure и crash остаётся без гарантий;
+это не delivery state machine или durable recovery mechanism.
+Если callbacks появятся, проверяются
 chatId + generation + selectionVersion.
 
 ## AI eval
@@ -304,8 +339,11 @@ Production smoke 2026-10-05 PASS: полный запрос через AIAI.BY/g
 Java search, два model calls, valid native ExplanationPlan и Java factual card.
 Offline conversation checks покрывают partial/short replies, replace/clear tags,
 ambiguity, isolation, restart, `/new`, safe transcript и window. Live multi-turn
-quality и остальные reference/adversarial cases ниже — PLANNED; offline fixtures
+quality и end-to-end menu/details/adversarial cases ниже — PLANNED; offline fixtures
 не доказывают natural-language качество реального provider.
+Offline resolver/selection tests покрывают 1/2/3 позиции, last, exact normalized names,
+ambiguity, chat isolation, replacement/empty/reset, Telegram send failure и DB rollback;
+тот же suite выполнен на PostgreSQL с application restart.
 
 | Case | Expected behavior |
 |---|---|

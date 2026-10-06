@@ -18,16 +18,21 @@ flowchart TD
     TOOL --> SERVICES
     SERVICES --> CARDS[Java factual renderer / validated ExplanationPlan or fallback]
     CARDS --> SEND[Telegram sendMessage / plain text]
+    SEND --> DELIVERED[Successful send / ConversationService]
+    DELIVERED --> SELECTION[SelectionService / atomic current selection replacement]
+    SELECTION --> PG
+    REFERENCE[ReferenceResolver / ordinal, last, exact name] --> SELECTION
+    REFERENCE --> SERVICES
     SERVICES --> DTO[Own DTO / ordered search candidates]
     SERVICES --> JPA[JPA repositories]
     JPA --> PG[(PostgreSQL)]
-    FLYWAY[Flyway V1–V6] --> PG
+    FLYWAY[Flyway V1–V7] --> PG
 ```
 
 Пакет `catalog` содержит Restaurant, menu, persistence и services; `search` — criteria,
 filters/ranking и Clock configuration; `api` — тонкие REST controllers; `ai` —
 bounded ChatClient adapter, search tool, plan validation и Java renderer;
-`conversation` — ConversationService, typed criteria merge, JDBC state и memory configuration;
+`conversation` — ConversationService, typed criteria merge, JDBC state/selection, ReferenceResolver и memory configuration;
 `telegram` — private text filtering, library polling lifecycle и plain-text sendMessage.
 Controllers не выполняют поиск и не возвращают JPA entities. Own DTO создаются внутри
 read-only transactions, `open-in-view=false`. Денежные значения — BigDecimal.
@@ -39,7 +44,8 @@ trusted SearchResult → optional explanation + existing Java renderer → sendM
 Handler не добавляет model calls, search или retries и не читает repository.
 ConversationService сохраняет валидные критерии в короткой transaction, отправляет
 Java reply через transport callback вне transaction и при успешной отправке один раз
-сохраняет user text + safe assistant projection. `/new` очищает память/criteria и
+сохраняет user text + safe assistant projection и через SelectionService атомарно
+заменяет текущую подборку реально показанными ID. `/new` очищает память/criteria/selection и
 увеличивает generation без AI. Runtime: [DEPLOYMENT](DEPLOYMENT.md#telegram-long-polling--implemented).
 
 ## Компоненты и продолжение архитектуры
@@ -48,7 +54,7 @@ Java reply через transport callback вне transaction и при успеш
 Telegram private chat → ConversationService → Spring AI ChatClient
 → validated single tool request → existing application service → trusted DTO
 → optional Structured Output explanation → Java factual renderer → sendMessage
-→ save safe memory after successful send; selection remains PLANNED
+→ after successful send: atomic selection replacement and one safe memory write
 ```
 
 | Компонент | Ответственность | Состояние |
@@ -58,8 +64,9 @@ Telegram private chat → ConversationService → Spring AI ChatClient
 | MenuService / MenuImportService | Partial menu reading и controlled import | IMPLEMENTED |
 | REST adapter | DTO, HTTP mapping, Swagger | IMPLEMENTED |
 | LLM / ChatClient | Stateless search interpretation, supported criteria, tool choice, причины объяснения | IMPLEMENTED; [limits/contract](AI.md) |
-| ConversationService | Merge criteria, clarification, bounded memory/state, delivery callback, `/new` | IMPLEMENTED; selection PLANNED |
-| ReferenceResolver | Ordinal/name → restaurantId в текущем чате | PLANNED |
+| ConversationService | Merge criteria, clarification, bounded memory/state, delivery callback, selection lifecycle, `/new` | IMPLEMENTED |
+| SelectionService / SelectionItemRepository | Текущие показанные ID/positions, атомарная замена и version | IMPLEMENTED |
+| ReferenceResolver | Ordinal/last/exact name → restaurantId в текущем чате | IMPLEMENTED foundation; menu/details AI adapters PLANNED |
 | Java renderer | Search factual cards и validated explanation/fallback | IMPLEMENTED для search |
 | Telegram adapter | Private text check, long polling, plain-text send | IMPLEMENTED для conversation search |
 | Google adapter | Conditional Place Details enrichment известного ресторана | PLANNED, DEFERRED |
@@ -69,6 +76,14 @@ Adapters → application services → repositories/clients. Services поиск�
 ConversationService, который использует существующий SpringAiSearchAdapter, без HTTP к своему приложению.
 LLM не получает repositories, EntityManager, SQL или доступ к БД.
 HTTP/LLM calls выполняются вне DB transactions. Memory и reference contracts: [AI](AI.md).
+
+ReferenceResolver читает текущие SelectionItem через SelectionService; имена
+перечитывает через RestaurantService, без прямого RestaurantRepository/LLM/search.
+Telegram и AI adapters не получают selection repository. REST recommendations
+не обновляет selection. Renderer показывает все candidates в trusted SearchResult
+без перестановки или усечения; этот же список ID передаётся в replace после send.
+При clarification/invalid/no-search selection не меняется. Lifecycle, failure
+behavior и известная граница crash между send и commit: [AI](AI.md#conversationstate-и-selection-context).
 
 ## Правила поиска и рекомендаций
 

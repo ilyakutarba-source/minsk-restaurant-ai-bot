@@ -1,6 +1,7 @@
 package by.ilya.restaurantbot.catalog;
 
 import java.util.Optional;
+import java.util.List;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -27,5 +28,13 @@ public class RestaurantService {
 
     public Optional<RestaurantDetails> getRestaurant(long id) {
         return repository.findById(id).map(RestaurantDetails::from);
+    }
+
+    public record RestaurantName(long id, String name) {
+    }
+
+    public List<RestaurantName> getRestaurantNames() {
+        return repository.findAllByOrderByIdAsc().stream()
+                .map(restaurant -> new RestaurantName(restaurant.getId(), restaurant.getName())).toList();
     }
 }

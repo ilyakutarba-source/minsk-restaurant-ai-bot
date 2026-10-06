@@ -36,6 +36,7 @@ class TelegramSearchIntegrationTest {
     @Autowired RestaurantSearchService service;
     @Autowired Clock clock;
     @Autowired ConversationStore store;
+    @Autowired by.ilya.restaurantbot.conversation.SelectionService selections;
     @Autowired ChatMemory memory;
     private TelegramBot bot;
 
@@ -50,7 +51,7 @@ class TelegramSearchIntegrationTest {
 
     private AiSearchReply deliver(SpringAiSearchAdapter adapter, String text) {
         var observed = new AiSearchReply[1];
-        var conversation = spy(new ConversationService(store, memory, adapter, clock));
+        var conversation = spy(new ConversationService(store, memory, adapter, clock, selections));
         doAnswer(call -> {
             observed[0] = (AiSearchReply) call.callRealMethod();
             return observed[0];
@@ -94,6 +95,8 @@ class TelegramSearchIntegrationTest {
             assertThat(reply.toolExecutions()).isEqualTo(1);
             assertThat(reply.explanationFallback()).isEqualTo(!explanation.equals("valid"));
             assertThat(text).isEqualTo(reply.text());
+            assertThat(selections.current(1)).extracting(by.ilya.restaurantbot.conversation.SelectionItem::restaurantId)
+                    .containsExactly(2L);
             assertThat(fixture.requests()).hasSize(2);
             assertThat(fixture.requests().getLast().path("tools").size()).isZero();
             assertThat(fixture.requests().getLast().path("tool_choice").asText()).isEqualTo("none");
@@ -122,6 +125,8 @@ class TelegramSearchIntegrationTest {
                 assertThat(text).contains(candidate.estimatedTotalByn().toPlainString() + " BYN");
             }
             assertThat(text).doesNotContain("4. ");
+            assertThat(selections.current(1)).extracting(by.ilya.restaurantbot.conversation.SelectionItem::restaurantId)
+                    .containsExactlyElementsOf(expected.candidates().stream().map(c -> c.restaurant().id()).toList());
             // Existing three-record dataset must fit a single plain-text Telegram message.
             assertThat(text.length()).isLessThanOrEqualTo(4096);
             assertThat(fixture.requests()).hasSize(1);

@@ -37,6 +37,7 @@ class ConversationIntegrationTest {
     static final long A = 9000000001L;
     static final long B = 9000000002L;
     @Autowired ConversationStore store;
+    @Autowired by.ilya.restaurantbot.conversation.SelectionService selections;
     @Autowired ChatMemory memory;
     @Autowired RestaurantSearchService search;
     @Autowired Clock clock;
@@ -48,7 +49,7 @@ class ConversationIntegrationTest {
         store.reset(store.load(A));
         store.reset(store.load(B));
         model = mock(ChatModel.class);
-        conversation = new ConversationService(store, memory, new SpringAiSearchAdapter(model, search, clock, false), clock);
+        conversation = new ConversationService(store, memory, new SpringAiSearchAdapter(model, search, clock, false), clock, selections);
     }
 
     AiSearchReply turn(long chat, String text, String args) {
@@ -210,7 +211,7 @@ class ConversationIntegrationTest {
     @Test
     void invalidExplanationPersistsExactlyTheJavaFallbackSentToUserAndSecondCallHasNoTools() {
         var adapter = new SpringAiSearchAdapter(model, search, clock, true);
-        conversation = new ConversationService(store, memory, adapter, clock);
+        conversation = new ConversationService(store, memory, adapter, clock, selections);
         when(model.call(any(Prompt.class))).thenReturn(selection(FULL), explanation("{\"items\":[]}"));
         var reply = conversation.handle(A, "Общий бюджет 150 BYN, двое, сегодня в 21:00", sent -> true);
         assertThat(reply.explanationFallback()).isTrue();

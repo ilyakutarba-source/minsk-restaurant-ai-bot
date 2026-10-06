@@ -21,13 +21,16 @@ public class ConversationStore {
     private final ChatMemory memory;
     private final Clock clock;
     private final TransactionTemplate transactions;
+    private final SelectionItemRepository selections;
     private final JsonMapper mapper = JsonMapper.builder().build();
 
-    public ConversationStore(JdbcTemplate jdbc, ChatMemory memory, Clock clock, PlatformTransactionManager manager) {
+    public ConversationStore(JdbcTemplate jdbc, ChatMemory memory, Clock clock, PlatformTransactionManager manager,
+                             SelectionItemRepository selections) {
         this.jdbc = jdbc;
         this.memory = memory;
         this.clock = clock;
         this.transactions = new TransactionTemplate(manager);
+        this.selections = selections;
     }
 
     public ConversationState load(long chatId) {
@@ -51,6 +54,7 @@ public class ConversationStore {
     public void reset(ConversationState state) {
         transactions.executeWithoutResult(tx -> {
             memory.clear(state.conversationId());
+            selections.delete(state.chatId());
             save(new ConversationState(state.chatId(), Math.incrementExact(state.generation()),
                     CriteriaMerge.empty(), state.selectionVersion(), clock.instant()));
         });

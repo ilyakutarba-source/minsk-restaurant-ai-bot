@@ -18,13 +18,16 @@ public class ConversationService {
     private final ChatMemory memory;
     private final SpringAiSearchAdapter adapter;
     private final Clock clock;
+    private final SelectionService selections;
     private final Object[] locks = java.util.stream.IntStream.range(0, 64).mapToObj(i -> new Object()).toArray();
 
-    public ConversationService(ConversationStore store, ChatMemory memory, SpringAiSearchAdapter adapter, Clock clock) {
+    public ConversationService(ConversationStore store, ChatMemory memory, SpringAiSearchAdapter adapter, Clock clock,
+                               SelectionService selections) {
         this.store = store;
         this.memory = memory;
         this.adapter = adapter;
         this.clock = clock;
+        this.selections = selections;
     }
 
     public AiSearchReply handle(long chatId, String text, Function<AiSearchReply, Boolean> send) {
@@ -33,6 +36,7 @@ public class ConversationService {
             var state = store.load(chatId);
             if (text != null && "/new".equals(text.trim())) {
                 store.reset(state);
+                selections.afterReset(chatId);
                 var reply = new AiSearchReply(AiSearchReply.Status.OK, null, "Начат новый разговор. Укажите критерии посещения.",
                         0, 0, false, List.of());
                 send.apply(reply);
@@ -54,8 +58,23 @@ public class ConversationService {
                     || reply.status() == AiSearchReply.Status.NEED_CLARIFICATION) {
                 store.saveCriteria(state, criteria[0]);
             }
-            if (Boolean.TRUE.equals(send.apply(reply)) && text != null && !text.isBlank() && text.length() <= 2000) {
-                store.remember(state, text, reply.text());
+            if (Boolean.TRUE.equals(send.apply(reply))) {
+                String deliveredText = reply.text();
+                if (reply.searchResult() != null && (reply.status() == AiSearchReply.Status.OK
+                        || reply.status() == AiSearchReply.Status.NO_RESULTS)) {
+                    // The factual renderer sends every candidate in exactly this order, including fallback.
+                    var shownIds = reply.searchResult().candidates().stream().map(c -> c.restaurant().id()).toList();
+                    try {
+                        selections.replace(chatId, shownIds);
+                    } catch (RuntimeException failure) {
+                        var clarification = new AiSearchReply(AiSearchReply.Status.NEED_CLARIFICATION, null,
+                                "Не удалось сохранить подборку. Для следующего вопроса укажите название ресторана.",
+                                reply.modelCalls(), reply.toolExecutions(), false, List.of());
+                        send.apply(clarification);
+                        reply = clarification;
+                    }
+                }
+                if (text != null && !text.isBlank() && text.length() <= 2000) store.remember(state, text, deliveredText);
             }
             return reply;
         }

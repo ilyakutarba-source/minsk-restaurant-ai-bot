@@ -64,7 +64,7 @@ class PartialMenuTest {
     @Test
     void flywayCreatesAndSeedsMenuAndDoesNotRepeatInsert() {
         assertThat(flyway.validateWithResult().validationSuccessful).isTrue();
-        assertThat(flyway.info().applied()).hasSize(6);
+        assertThat(flyway.info().applied()).hasSize(7);
         long before = items.count();
         assertThat(before).isPositive();
         assertThat(flyway.migrate().migrationsExecuted).isZero();

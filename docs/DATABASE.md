@@ -1,7 +1,7 @@
 # Данные и PostgreSQL
 
-**IMPLEMENTED:** каталог, partial menu, Flyway V1–V6, ConversationState и JDBC ChatMemory.
-**PLANNED:** SelectionItem и enrichment mapping.
+**IMPLEMENTED:** каталог, partial menu, Flyway V1–V7, ConversationState, JDBC ChatMemory и SelectionItem.
+**PLANNED:** enrichment mapping.
 Search rules: [ARCHITECTURE](ARCHITECTURE.md#правила-поиска-и-рекомендаций).
 Разговорное поведение: [AI](AI.md). Scope: [PRODUCT](PRODUCT.md).
 
@@ -17,8 +17,8 @@ Search rules: [ARCHITECTURE](ARCHITECTURE.md#правила-поиска-и-ре
 | Cuisine / RestaurantTag | Set<Enum> на Restaurant; строки в collection tables | Поисковые признаки, не свободные runtime tags |
 | MenuItem | id, restaurantId, seedKey, name, category, dishType optional, priceByn, portion/description/source optional, active | Собственные 5–10 полезных позиций; stable key для import |
 
-Таблица выше описывает существующую модель. Optional website/phone/googlePlaceId и
-SelectionItem ещё не реализован. Conversation state описан в разделе
+Таблица выше описывает существующую модель. Optional website/phone/googlePlaceId
+ещё не реализованы. Conversation/selection state описан в разделе
 [Разговор и последняя подборка](#разговор-и-последняя-подборка).
 
 Отдельные TelegramUser, UserProfile, Favorite, RecommendationHistory, delivery status/checkpoint entities отсутствуют. Также нет Google rating/review таблиц, MenuVersion и универсального datasource registry.
@@ -113,7 +113,7 @@ Import заменяет сохранённую часть только пере�
 
 ## Разговор и последняя подборка
 
-ConversationState/JDBC memory — **IMPLEMENTED**; SelectionItem — **PLANNED**.
+ConversationState/JDBC memory/SelectionItem — **IMPLEMENTED**.
 
 ### ConversationState
 
@@ -122,7 +122,7 @@ ConversationState/JDBC memory — **IMPLEMENTED**; SelectionItem — **PLANNED**
 | chatId | BIGINT, PK; Telegram private chat, авторитетный scope |
 | generation | Неотрицательный счётчик reset, часть derived conversationId |
 | currentCriteria | Компактная структура normalized guests/budget/date/time/cuisine/tags |
-| selectionVersion | Неотрицательное reserved поле; до selection остаётся 0 |
+| selectionVersion | Неотрицательный счётчик delivered search results; первоначально 0 |
 | updatedAt | Время последнего изменения; troubleshooting, будущий cleanup |
 
 Одна строка conversation_state на чат; нет истории generations. conversationId
@@ -136,7 +136,10 @@ budget BigDecimal, normalized ISO date/HH:mm strings, optional cuisine/tags enum
 
 ### SelectionItem
 
-**PLANNED:** таблица и persistence отсутствуют.
+**IMPLEMENTED:** JDBC SelectionItemRepository и SelectionService; Flyway
+`V7__create_selection_items.sql`. SelectionItem — immutable Java record, без JPA
+entity/snapshot. Таблица `selection_items` содержит ровно четыре NOT NULL поля:
+chat_id BIGINT, position INTEGER, selection_version BIGINT, restaurant_id BIGINT.
 
 chatId обязателен в дополнение к предложенным selectionVersion/position/restaurantId: version и position не уникальны между чатами. Он служит FK на ConversationState и предотвращает смешение selection разных пользователей.
 
@@ -154,9 +157,10 @@ erDiagram
     RESTAURANT ||--o{ OPENING_INTERVAL : has
     RESTAURANT ||--o{ RESTAURANT_CUISINE : classified
     RESTAURANT ||--o{ RESTAURANT_TAG : tagged
+    CONVERSATION_STATE ||--o{ SELECTION_ITEM : owns
+    RESTAURANT ||--o{ SELECTION_ITEM : referenced
 ```
 
-Planned relations: ConversationState → SelectionItem и Restaurant → SelectionItem.
 Spring AI memory связана логически по derived conversationId; framework schema
 не получает искусственную FK/duplicating entity. Lifecycle принадлежит [AI](AI.md).
 
@@ -172,10 +176,13 @@ Spring AI memory связана логически по derived conversationId; 
 - FK MenuItem/OpeningInterval/enum collections → Restaurant.
 
 ConversationState.chatId PK, generation/selectionVersion ≥0 — IMPLEMENTED.
-Planned constraints: googlePlaceId nullable unique с ручным mapping;
-SelectionItem PK (chat_id, position), position 1–3, selectionVersion >0,
-FK на ConversationState и Restaurant. Restaurant будет деактивироваться, а не
+SelectionItem — IMPLEMENTED: PK (chat_id, position), CHECK position BETWEEN 1 AND 3,
+CHECK selection_version >0; FK chat_id → conversation_state.chat_id и
+restaurant_id → restaurants.id. В таблице максимум три позиции на chatId; согласованность
+version всех rows со state обеспечивается transaction замены, без history/FK на version.
+FK без cascading delete. Restaurant будет деактивироваться, а не
 физически удаляться при наличии selection references.
+Planned constraint: googlePlaceId nullable unique с ручным mapping.
 
 Constraints не доказывают актуальность источника и существование места; это проверяется куратором и dataset validation.
 
@@ -185,7 +192,7 @@ Constraints не доказывают актуальность источник�
   OpeningInterval — PK (restaurant_id, weekday, opens_at).
 - Collection tables покрываются составными PK (restaurant_id, enum_value).
 - ConversationState по chatId — PK; JDBC memory index (conversation_id, timestamp) из официальной схемы.
-- Planned SelectionItem по chatId/position — составной PK, FK access index по restaurantId.
+- SelectionItem по chatId/position — составной PK; `idx_selection_restaurant` по restaurant_id.
 - Нет expiresAt index, history index и ranking tuning для десятка заведений.
 - BIGINT/Long для Telegram IDs, NUMERIC/BigDecimal для BYN.
 - Не сохранять JPA entities в tool/API responses.
@@ -202,7 +209,7 @@ Constraints не доказывают актуальность источник�
 | V4 seed partial menu (Java) | Локальный immutable JSON: 18 items для существующих 3 ресторанов | IMPLEMENTED |
 | V5 create conversation state | chat_id, generation, current_criteria JSON text, selection_version, updated_at | IMPLEMENTED |
 | V6 create JDBC chat memory | Spring AI 1.1.8 official PostgreSQL/H2 DDL + conversation ID length adaptation | IMPLEMENTED |
-| Последующие migrations | SelectionItem | PLANNED |
+| V7 create selection items | Четыре pointer/context поля; PK, два FK, position/version checks, restaurant index | IMPLEMENTED |
 
 Polling checkpoint storage допускается только при подтверждённой необходимости,
 если библиотека Telegram не покрывает offset. Отдельная domain subsystem не нужна.
@@ -234,7 +241,11 @@ safe manual writes, `/new` и application restart. ConversationRestartTest за�
 полный Spring context/datasource, затем создаёт новые против той же БД; проверяет
 generation/currentCriteria/memory и follow-up после восстановления. Физический restart
 PostgreSQL server не требуется для этого application-restart contract.
-Selection persistence/send lifecycle остаются PLANNED.
+Selection checks: shown order/version, replace/clear/reset, exact/ambiguous names,
+chat isolation, rejected/null/throwing Telegram sends и atomic rollback после первой
+вставленной позиции при invalid FK следующей. Application restart восстанавливает
+selectionVersion и IDs/order. JDBC selection schema проверяется прямыми inserts и
+metadata checks; Hibernate validate продолжает проверять существующие JPA mappings.
 
 Тесты каталога используют тот же Flyway SQL и Hibernate validate на H2 без compatibility mode. Для повторения PostgreSQL проверки нужна отдельная пустая development/test БД. Подключение передаётся извне (не использовать рабочую БД):
 
@@ -249,8 +260,8 @@ Selection persistence/send lifecycle остаются PLANNED.
 Тесты проверяют migrations/reapply, mappings, constraints, REST, import/rollback и
 Java search; изменения тестовых строк откатываются или восстанавливаются.
 Search tests используют фиксированный Clock. Существующий набор проверен на
-PostgreSQL 17.10: Flyway V1–V6 на пустой test БД/reapply и Hibernate validate прошли.
-Полный PostgreSQL suite: 228 tests, 0 failures/errors/skipped, включая application
-context/datasource restart, восстановление criteria/generation/bounded memory и `/new`.
-H2 clean test/verify: 229 tests; H2-specific bootstrap test исключён из PostgreSQL suite.
+PostgreSQL 17.10: Flyway V1–V7 на пустой test БД/reapply и Hibernate validate прошли.
+Полный PostgreSQL suite: 285 tests, 0 failures/errors/skipped, включая application
+context/datasource restart, восстановление criteria/generation/bounded memory/selection и `/new`.
+H2 clean test/verify: 286 tests; H2-specific bootstrap test исключён из PostgreSQL suite.
 Обычная сборка использует H2: [README](../README.md#tests).
