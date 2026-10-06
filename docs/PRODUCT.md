@@ -25,22 +25,23 @@ Minsk Restaurant AI Bot помогает выбрать ресторан из с
 Чек, расписание и меню имеют отдельные источники и даты проверки. Поиск работает
 при частичном или отсутствующем меню. [Модель и происхождение данных](DATABASE.md).
 
-## Core user journey — IMPLEMENTED; Google enrichment PLANNED
+## Core user journey — IMPLEMENTED
 
 1. Пользователь: «Сегодня в 21:00 нас двое, до 150 BYN, итальянская кухня, хочется спокойно».
 2. AI извлекает критерии; при недостающих или неоднозначных данных задаётся уточнение.
 3. Java search возвращает подходящие рестораны; пользователь видит короткое
    объяснение, фактические карточки и ориентировочную сумму на указанное число гостей.
 4. «Что по меню у второго?» обращается к конкретному ресторану из показанной подборки.
-5. «До скольки первый?» перечитывает собственные часы; рейтинг запрашивается только
-   при доступной условной Google-интеграции.
+5. «До скольки первый?» перечитывает собственные часы; запрос рейтинга получает
+   сообщение о его недоступности.
 6. «А если нас четверо?» меняет гостей, сохраняя остальные критерии.
 7. `/new` очищает разговор, критерии и последнюю подборку.
 
 Полный self-contained запрос и короткие уточнения работают в Telegram. Валидные
 частичные критерии сохраняются; Java спрашивает оставшиеся обязательные или
 неоднозначные поля. Java resolution по последней подборке и menu/details tools реализованы,
-включая шаги 4–5 для собственных данных. Google rating, `/start` и `/help` остаются PLANNED.
+включая шаги 4–5 для собственных данных. `/start` и `/help` остаются PLANNED;
+Google rating исключён из текущего MVP.
 Правила tools/memory/reference resolution: [AI](AI.md).
 
 ## MVP — MUST
@@ -56,12 +57,21 @@ Minsk Restaurant AI Bot помогает выбрать ресторан из с
 | AI | Один provider/model, Spring AI Tool Calling и Structured Output | IMPLEMENTED: ровно 3 tools, Java factual rendering |
 | Контекст | Ограниченная ChatMemory и последняя показанная подборка по chatId | Memory/criteria/selection и Java ReferenceResolver IMPLEMENTED |
 | Команды | `/start`, `/help`, `/new` | Базовый `/new` IMPLEMENTED; `/start`, `/help` PLANNED |
-| Google | Enrichment известного ресторана; только после проверки доступности/условий | PLANNED, DEFERRED |
 | Проверка backend | Четыре REST endpoints, Swagger, H2 и PostgreSQL tests | IMPLEMENTED |
 | Доставка | Docker Compose, Dokploy/VPS и persistent PostgreSQL | PLANNED |
 
 Техническая архитектура и детерминированные правила: [ARCHITECTURE](ARCHITECTURE.md).
 Provider/модель и доверенные tool contracts: [AI](AI.md).
+
+## Google Places — EXCLUDED FROM CURRENT MVP
+
+2026-10-06 пользователь явно исключил Google Places enrichment из текущего MVP.
+Google implementation — NOT IMPLEMENTED; live Google gate — NOT PASSED.
+Billing prerequisite недоступен в текущем setup; [техническая причина](DEPLOYMENT.md#google-places--excluded-from-current-mvp).
+
+Core MVP не зависит от Google: собственные catalog/search/menu/details продолжают
+работать. Google rating и live hours не входят в текущий scope. Возможность можно
+пересмотреть позже при доступном billing/API access и новом явном решении о scope.
 
 ## Пользовательское поведение и ограничения
 
@@ -85,8 +95,8 @@ Telegram возвращает честный NO_RESULTS и предлагает 
 Java resolver поддерживает exact normalized name; menu/details AI tools используют
 его в Telegram follow-up, без нового поиска и замены текущей подборки.
 
-**Ошибки AI — IMPLEMENTED для search/menu/details; Google — PLANNED.** REST Java search работает
-независимо от этих внешних сервисов. При failed explanation остаётся Java factual card;
+**Ошибки AI — IMPLEMENTED для search/menu/details.** REST Java search работает
+независимо от AI. При failed explanation остаётся Java factual card;
 недоступный рейтинг
 не придумывается и не восстанавливается из разговорной памяти.
 
@@ -95,6 +105,7 @@ Java resolver поддерживает exact normalized name; menu/details AI to
 
 ## OUT OF SCOPE первого релиза
 
+- Google Places enrichment: rating, live hours и Google Maps сведения.
 - Полный каталог Минска, полное меню, scraping и автоматическая синхронизация.
 - Favorites, профиль, постоянные preferences и история рекомендаций.
 - Геолокация/distance, другие города, несколько AI providers.

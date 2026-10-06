@@ -13,8 +13,10 @@ search tool, Structured Output explanation и Java factual renderer/fallback;
 Telegram private chats/long polling, bounded PostgreSQL ChatMemory, criteria continuation,
 current selection/references, menu/details follow-up и базовый `/new`.
 
-**PLANNED:** `/start`, `/help`,
-условное Google Places enrichment, Docker Compose и Dokploy/VPS.
+**PLANNED:** `/start`, `/help`, Docker Compose и Dokploy/VPS.
+
+**EXCLUDED FROM CURRENT MVP:** Google Places enrichment. Рейтинг и live часы Google
+не входят в текущий scope; [продуктовое решение](docs/PRODUCT.md#google-places--excluded-from-current-mvp).
 
 ## Example user scenario
 
@@ -165,7 +167,8 @@ Docker Compose → Dokploy → VPS — **PLANNED**; Dockerfile/Compose и гот
 сегодня и следующие шесть дней. REST не разбирает естественный язык.
 DERIVED check — собственная ориентировочная оценка, не официальный средний чек.
 Наличие столика, блюда, праздничные часы и тишина не гарантируются.
-Google ещё не интегрирован и не участвует в ranking. Собственные телефон/website
+Google Places enrichment исключён из текущего MVP; Google key для запуска не требуется.
+Поиск и details используют собственные данные. Собственные телефон/website
 не сохранены; details явно сообщает об отсутствии этих полей.
 Memory ограничена 20 user/assistant messages на чат.
 Booking, публичный admin/chat API, геопоиск и RAG/vector search вне MVP.

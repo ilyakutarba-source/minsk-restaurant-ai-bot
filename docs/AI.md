@@ -12,7 +12,10 @@ bounded PostgreSQL ChatMemory, currentCriteria/merge/clarification и базов
 Текущая delivered selection и deterministic Java ReferenceResolver используются
 menu/details tools для свежего чтения через MenuService/RestaurantService и Java rendering.
 
-**PLANNED:** Google enrichment, `/start`, `/help` и final Telegram finishing. Stateless application entry
+**EXCLUDED FROM CURRENT MVP:** Google enrichment; [продуктовое решение](PRODUCT.md#google-places--excluded-from-current-mvp).
+Google adapter не существует и не является AI tool. Product tools остаются ровно три.
+
+**PLANNED:** `/start`, `/help` и final Telegram finishing. Stateless application entry
 `SpringAiSearchAdapter.search(text)` сохранён; Telegram использует conversation entry.
 Scope: [PRODUCT](PRODUCT.md); service boundaries: [ARCHITECTURE](ARCHITECTURE.md);
 persistence: [DATABASE](DATABASE.md#разговор-и-последняя-подборка).
@@ -132,8 +135,9 @@ Java формирует короткие фразы из фиксированн�
 fallback; готовый search result сохраняется без нового поиска и перестановки ID.
 
 Factual renderer читает только trusted service DTO. Чек подписывается как
-ориентировочный; menu показывает PARTIAL/source/date. Будущие Google сведения
-отображаются отдельно с attribution/link/live checkedAt и не пересказываются LLM.
+ориентировочный; menu показывает PARTIAL/source/date. Google renderer integration
+исключена из текущего MVP. При будущем пересмотре scope Google сведения допустимы
+только отдельно в Java renderer с attribution/link/live checkedAt, без передачи LLM.
 
 ## Bounded execution
 
@@ -256,7 +260,7 @@ AI, Telegram, restaurant search и не парсит ChatMemory. Natural-languag
 
 ### getRestaurantDetails
 
-**IMPLEMENTED для собственных данных; Google enrichment — PLANNED.**
+**IMPLEMENTED для собственных данных; Google enrichment — EXCLUDED FROM CURRENT MVP.**
 
 Input: reference, optional focus ALL / HOURS / CONTACTS / RATING.
 Execution: resolve → RestaurantService.getRestaurant → свежий RestaurantDetails DTO
@@ -269,8 +273,8 @@ RATING возвращает own name/address и сообщение о недос
 В callback/model context возвращается только status; DTO остаётся у Java renderer.
 Ordinal/last без selection или ambiguous reference → NEED_CLARIFICATION;
 unknown name/ID → NOT_FOUND; exact name без selection разрешается по own catalog;
-service failure → TEMPORARILY_UNAVAILABLE. Conditional Google для ALL/RATING/HOURS,
-отдельные live googleData/attribution/warnings/checkedAt и failure fallback — PLANNED.
+service failure → TEMPORARILY_UNAVAILABLE. Google adapter, live projection и renderer
+integration не реализованы и не входят в текущий MVP.
 
 ### getRestaurantMenu
 
@@ -397,7 +401,7 @@ live проверкой качества выбора tool реальной мо
 | «До скольки последний?» | Details HOURS последней позиции |
 | Имя / несколько одноимённых филиалов | Correct ID / clarification |
 | `/new`, затем «Меню второго» | Нет старой selection |
-| Rating при Google timeout | Own details + unavailable |
+| Запрос рейтинга без Google | Own details + unavailable, без Google call и выдуманного рейтинга |
 | Impossible budget | NO_RESULTS без relaxed search |
 | Explanation по tags | Только allowed reasons/positions, без новых facts |
 

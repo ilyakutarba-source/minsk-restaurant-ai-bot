@@ -15,7 +15,7 @@ Telegram private-text long polling подключён к тому же search ad
 TELEGRAM_BOT_TOKEN и enabled AI. ConversationState и bounded JDBC ChatMemory
 используют ту же persistent PostgreSQL; restart приложения восстанавливает критерии и memory.
 Схема: [DATABASE](DATABASE.md#разговор-и-последняя-подборка). Новых env variables нет.
-Google пока не подключён.
+Google Places enrichment исключён из текущего MVP; Google key для deployment не требуется.
 Dockerfile, Compose и CI configuration пока отсутствуют. Ниже описан **PLANNED**
 deployment contract, а не инструкция уже готового контейнерного запуска.
 
@@ -56,8 +56,6 @@ Planned integration/container variables; они ещё не связаны с п
 | Переменная | Назначение |
 |---|---|
 | TELEGRAM_ALLOWED_CHAT_IDS | Optional allowlist private chats для demo |
-| GOOGLE_PLACES_ENABLED | Conditional enrichment flag после проверки доступности/условий |
-| GOOGLE_MAPS_API_KEY | Credential только при enabled Google integration |
 | POSTGRES_DB / POSTGRES_USER / POSTGRES_PASSWORD | Инициализация PostgreSQL container |
 | APP_TIMEZONE | Planned явная runtime setting; текущий Search Clock уже использует Europe/Minsk |
 
@@ -136,31 +134,21 @@ Memory/criteria и process-local turn serialization реализованы; sele
 необходимости допустим один technical lastProcessedUpdateId на bot instance.
 Exactly-once delivery и delivery state machine не обещаются; crash может дать повтор.
 
-## Google Places — PLANNED, DEFERRED
+## Google Places — EXCLUDED FROM CURRENT MVP
 
-Core catalog/search/menu работают без Google key и API. Enrichment допускается только
-для details известного конкретного филиала, после проверки billing, доступа, mapping
-place ID, доступных полей и требований attribution/Terms/Privacy для реального UI.
-При disabled integration ключ не требуется. Live access пока не подтверждён;
-DEFERRED не означает доступную или реализованную функцию.
+Текущий MVP deployment не требует Google key, billing project или Google API calls.
+Google adapter, known place mapping и renderer integration — NOT IMPLEMENTED;
+live Google gate — NOT PASSED. [Решение о scope](PRODUCT.md#google-places--excluded-from-current-mvp).
 
-Выбран Place Details API (New), не Google catalog/menu import. Planned field mask:
-`id,rating,userRatingCount,currentOpeningHours,googleMapsUri,attributions`; wildcard
-не используется. Mask содержит Enterprise fields, поэтому требуется соответствующий
-billing/quota budget; тариф и account limits проверяются перед включением.
-[Place Details](https://developers.google.com/maps/documentation/places/web-service/place-details),
-[pricing](https://developers.google.com/maps/billing-and-pricing/pricing).
+[Places API (New) требует Google Cloud project с enabled billing](https://developers.google.com/maps/documentation/places/web-service/get-api-key).
+При попытке self-service billing setup пользователь обнаружил, что Belarus отсутствует
+среди доступных billing countries. Пользователь отказался использовать фиктивные
+billing country/address; billing prerequisite недоступен в текущем setup.
 
-Google rating не участвует в ranking; currentOpeningHours не подменяет own weekly
-schedule. Поля могут отсутствовать. Google timeout/403/429 дают own details + warning,
-без выдуманного рейтинга и скрытой смены search result.
-
-Project contract: persist только проверенный place ID; live content не сохраняется
-в own DB, memory, model context или log snapshots. Google Maps attribution и
-применимые third-party credits показываются отдельно; ссылка не заменяет attribution.
-Требования фактического Telegram UI должны быть проверены до включения enrichment.
-[Policies](https://developers.google.com/maps/documentation/places/web-service/policies),
-[service terms](https://cloud.google.com/maps-platform/terms/maps-service-terms).
+`GOOGLE_PLACES_ENABLED` и `GOOGLE_MAPS_API_KEY` относятся только к исключённой
+возможности, не связаны с текущим приложением и не требуются для запуска.
+Будущий пересмотр потребует отдельного scope decision и проверки billing/API access,
+quota/budget, mapping конкретного филиала и attribution/Terms/Privacy реального UI.
 
 ## Dokploy runbook — PLANNED
 

@@ -76,7 +76,7 @@ Telegram private chat → ConversationService → Spring AI ChatClient
 | ReferenceResolver | Ordinal/last/exact name → restaurantId в текущем чате | IMPLEMENTED; используется обоими follow-up tools |
 | Java renderer | Search factual cards/explanation fallback, own details и PARTIAL menu | IMPLEMENTED |
 | Telegram adapter | Private text check, long polling, plain-text send | IMPLEMENTED для conversation search/menu/details |
-| Google adapter | Conditional Place Details enrichment известного ресторана | PLANNED, DEFERRED |
+| Google adapter | Place Details enrichment известного ресторана | EXCLUDED FROM CURRENT MVP; NOT IMPLEMENTED |
 
 Adapters → application services → repositories/clients. Services поиска/меню/details
 не зависят от Telegram, ConversationService или Spring AI SDK. Telegram вызывает
@@ -181,7 +181,7 @@ HTTP доступ ограничен loopback. Сетевые требовани
 | GET /api/v1/restaurants/{id}/menu | Optional dishType/maxItemPriceByn; own partial menu | 200, 400, 404 |
 | POST /api/v1/recommendations | Полные criteria, до 3 кандидатов и причины | 200, 400, 503 |
 
-GET catalog пока не принимает cuisine filter. Details пока не вызывает Google.
+GET catalog пока не принимает cuisine filter. Details читает только собственные данные.
 Search missing/invalid criteria → 400; отсутствие совпадений → 200 с пустым candidates;
 DB/transaction failure → 503 без fallback facts. Entities/provider DTO наружу не выходят.
 Menu status: AVAILABLE / NO_RESULTS / DATA_UNAVAILABLE. PARTIAL/source/date сохраняются
@@ -196,11 +196,12 @@ AI search — IMPLEMENTED: модель выбирает один searchRestaura
 Telegram conversation transport/memory и getRestaurantMenu/getRestaurantDetails —
 IMPLEMENTED для собственных данных; всего tools ровно три.
 Call limits/configuration: [AI](AI.md).
-Google enrichment допускается только в details известного филиала, по вручную
-проверенному place ID; не формирует каталог/меню и не вызывается для search candidates.
-Live payload не сохраняется в own DB/memory и не передаётся LLM. При Google failure
-остаются own details; противоречивые часы показываются с источниками, без скрытой
-смены search result. Google scope/availability/attribution: [DEPLOYMENT](DEPLOYMENT.md#google-places--planned-deferred).
+Google enrichment — EXCLUDED FROM CURRENT MVP; adapter и place mapping не реализованы.
+Google не входит в текущий runtime path. Search/ranking независимы от Google;
+own details остаются source of truth. [Продуктовое решение](PRODUCT.md#google-places--excluded-from-current-mvp).
+При будущем пересмотре scope Google допустим только как enrichment details известного
+собственного филиала по проверенному place ID, без участия в search/ranking,
+передачи live payload модели или его сохранения в own DB/memory.
 
 ## Ключевые архитектурные решения
 
@@ -214,7 +215,7 @@ Live payload не сохраняется в own DB/memory и не передаё
 | Три read-only tools, Java facts | Ограниченная поверхность AI и проверяемый результат |
 | Memory отдельно от selection | Текст не является источником ID/порядка/фактов |
 | Selection после успешного send | Reference относится к реально показанным вариантам |
-| Google только enrichment | Core search независим от внешних ratings |
+| Google исключён из текущего MVP | Core search/details используют собственные данные; возможный будущий Google — только enrichment |
 | Long polling, один instance | Без публичного webhook и распределённой доставки |
 
 Система не требует интерфейса для каждого класса, event bus, универсального framework
