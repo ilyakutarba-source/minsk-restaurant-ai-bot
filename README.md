@@ -124,7 +124,7 @@ Test profile использует H2 и не требует внешних кл�
 AI search включается отдельно: `AI_ENABLED=true` и `AIAI_API_KEY` в environment.
 По умолчанию AI отключён. Для private Telegram long polling задайте также
 `TELEGRAM_BOT_TOKEN` в environment запускаемого процесса. Memory использует ту же DB.
-Секреты хранятся вне Git. Текущие и запланированные переменные: [DEPLOYMENT](docs/DEPLOYMENT.md#environment-configuration).
+Секреты хранятся вне Git. Runtime/Compose mapping: [DEPLOYMENT](docs/DEPLOYMENT.md#environment-configuration).
 
 ## Running locally
 
@@ -193,8 +193,42 @@ H2 не заменяет PostgreSQL acceptance. Команда проверки 
 
 ## Deployment
 
-Docker Compose → Dokploy → VPS — **PLANNED**; Dockerfile/Compose и готового deployment
-пока нет. Требования к runtime, сети, persistence и backup: [DEPLOYMENT](docs/DEPLOYMENT.md).
+Dockerfile и `compose.yaml` реализованы: Maven Wrapper multi-stage build → Java 21
+JRE/non-root runtime; app + PostgreSQL 17.10, healthchecks и стабильный named volume.
+Remote Dokploy/VPS acceptance ещё не завершён. Telegram long polling требует один
+активный app/poller, `AI_ENABLED=true`, runtime AIAI_API_KEY и TELEGRAM_BOT_TOKEN.
+Google key не требуется.
+
+### Docker Compose local start
+
+Нужен запущенный Docker Engine/Compose. В отдельном local env file вне repository
+(или ignored `.env`) задать POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD,
+POSTGRES_VOLUME_NAME (уникальное стабильное имя volume), APP_HOST_PORT (свободный port).
+Для local container smoke установить `AI_ENABLED=false`, AIAI_API_KEY и
+TELEGRAM_BOT_TOKEN оставить пустыми. Значения реальных secrets не помещать в Git.
+
+```sh
+docker compose --env-file <LOCAL_ENV_FILE> config --quiet
+docker compose --env-file <LOCAL_ENV_FILE> build
+docker compose --env-file <LOCAL_ENV_FILE> up -d --wait --wait-timeout 240
+docker compose --env-file <LOCAL_ENV_FILE> ps
+```
+
+REST: `http://127.0.0.1:<APP_HOST_PORT>/api/v1/restaurants`, Swagger:
+`http://127.0.0.1:<APP_HOST_PORT>/swagger-ui/index.html`. PostgreSQL host port отсутствует.
+При обычном stop/start/redeploy сохранять POSTGRES_VOLUME_NAME и не удалять volume.
+Shell env имеет приоритет над env file: при smoke не использовать production AI/token.
+Перед публикацией deployment candidate выполнить `mvnw clean verify` отдельно.
+
+### Dokploy/VPS
+
+Source: этот repository, branch `main`, Compose file `compose.yaml`, режим Docker
+Compose; отдельный проект, без Domains/Traefik route/scaling. Env из Dokploy UI явно
+mapped в Compose; POSTGRES_PASSWORD также передаётся как app DB_PASSWORD.
+REST/Swagger доступны через host loopback и SSH tunnel, DB — внутри Compose network.
+VPS resources, реальный Telegram E2E и mutable-state restart/redeploy требуют отдельной
+приёмки. Runbook, status, private access и backup:
+[DEPLOYMENT](docs/DEPLOYMENT.md).
 
 ## Current MVP limitations
 

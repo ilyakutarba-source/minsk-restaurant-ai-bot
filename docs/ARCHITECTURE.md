@@ -27,7 +27,7 @@ flowchart TD
     SERVICES --> DTO[Own DTO / ordered search candidates]
     SERVICES --> JPA[JPA repositories]
     JPA --> PG[(PostgreSQL)]
-    FLYWAY[Flyway V1–V7] --> PG
+    FLYWAY[Flyway V1–V9] --> PG
 ```
 
 Пакет `catalog` содержит Restaurant, menu, persistence и services; `search` — criteria,

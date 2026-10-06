@@ -61,7 +61,7 @@ Google rating исключён из текущего MVP.
 | Контекст | Ограниченная ChatMemory и последняя показанная подборка по chatId | Memory/criteria/selection и Java ReferenceResolver IMPLEMENTED |
 | Команды | `/start`, `/help`, `/new` | IMPLEMENTED; без model/tool calls |
 | Проверка backend | Четыре REST endpoints, Swagger, H2 и PostgreSQL tests | IMPLEMENTED |
-| Доставка | Docker Compose, Dokploy/VPS и persistent PostgreSQL | PLANNED |
+| Доставка | Docker Compose, Dokploy/VPS и persistent PostgreSQL | Compose IMPLEMENTED; remote Dokploy/VPS acceptance PENDING — [status/runbook](DEPLOYMENT.md) |
 
 Техническая архитектура и детерминированные правила: [ARCHITECTURE](ARCHITECTURE.md).
 Provider/модель и доверенные tool contracts: [AI](AI.md).

@@ -5,6 +5,10 @@ Google enrichment исключён из текущего MVP: [PRODUCT](PRODUCT.
 Search rules: [ARCHITECTURE](ARCHITECTURE.md#правила-поиска-и-рекомендаций).
 Разговорное поведение: [AI](AI.md). Scope: [PRODUCT](PRODUCT.md).
 
+Container storage использует стабильный named volume PostgreSQL, отдельный от
+checkout/app filesystem. Его identity, deployment acceptance и backup с приватными
+conversation data принадлежат [DEPLOYMENT](DEPLOYMENT.md); схема и migrations не меняются.
+
 ## Минимальная domain model
 
 | Объект | Основные поля | Обоснование |
