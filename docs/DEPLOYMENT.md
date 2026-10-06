@@ -18,9 +18,12 @@ TELEGRAM_BOT_TOKEN и enabled AI. ConversationState и bounded JDBC ChatMemory
 используют ту же persistent PostgreSQL; restart приложения восстанавливает критерии и memory.
 Схема: [DATABASE](DATABASE.md#разговор-и-последняя-подборка). Новых env variables нет.
 Google Places enrichment исключён из текущего MVP; Google key для deployment не требуется.
-Dockerfile и `compose.yaml` реализованы в TASK-13. Remote Dokploy/VPS acceptance
-ещё не выполнен. Noninteractive SSH key-based доступ и read-only VPS audit подтверждены
-2026-10-06; deployment candidate publication и remote smoke остаются pending.
+Dockerfile и `compose.yaml` реализованы в TASK-13. Candidate опубликован в `origin/main`
+обычным push: `5c9b6bb`, затем `3d235a2`; VPS checkout использует `3d235a2`.
+2026-10-06 выполнены Dokploy build/deploy, PostgreSQL/HTTP/security acceptance,
+реальный Telegram/AIAI search, app restart и Dokploy recreate обоих services.
+Telegram ordinal follow-up после redeploy подтверждён пользователем: «Меню второго»
+вернуло сохранённое PARTIAL-меню Pizza Tempo, ID 4, из прежней selection.
 CI configuration отсутствует.
 Наличие deployment files не означает завершённую remote приёмку.
 
@@ -37,15 +40,22 @@ CI configuration отсутствует.
 | Local network/mapping | PASS: Docker port mapping и Windows host listener 127.0.0.1:18080 → app:8080; postgres без host ports; explicit credential mapping |
 | Local restart/recreate | PASS: оба services healthy; тот же volume, synthetic mutable criteria/selection/memory preserved |
 | Candidate security audit | PASS: известные secret values не найдены в tracked files/image metadata/history/build/app/postgres logs; build args и baked runtime credentials отсутствуют |
-| VPS access/audit | PASS: noninteractive SSH, Docker CLI/daemon, Compose, healthy Dokploy; resource verdict PARTIAL — подробнее ниже |
-| Remote deployment/Telegram/AIAI | NOT RUN; существующей доступной browser session Dokploy нет |
-| Remote exposure/persistence/backup smoke | NOT RUN; local results их не заменяют |
+| VPS access/resources | PASS для измеренного build/runtime smoke: noninteractive SSH, Docker/Compose/Dokploy; sampled RAM/disk ниже |
+| Dokploy deployment | PASS: dedicated Docker Compose project, Git main/compose.yaml, checkout 3d235a2; initial deploy и redeploy UI Done |
+| Remote schema/runtime | PASS: PostgreSQL 17.10, 9 successful migrations/current V9, Hibernate validate/JPA startup, 10 active restaurants, 60 menu items, оба healthchecks |
+| Remote Telegram/AIAI | PASS: пользователь получил подборку; sanitized log status=OK, modelCalls=2, toolExecutions=1, candidateIds=[2,4,5], sendMessage=PASS |
+| Remote private exposure | PASS: catalog/OpenAPI/Swagger HTTP 200 через host loopback; app bind 127.0.0.1:18080, postgres bindings empty; external TCP 18080/8080/5432 не установил соединение |
+| Remote one poller | PASS: один app container, local bot process count=0, webhook отсутствует, polling failures=0 в smoke |
+| Remote restart/persistence | PASS: criteria/selection/memory hashes и volume совпали; пользователь получил «Меню второго» для ID 4 после app restart |
+| Remote redeploy/persistence | PASS: оба container IDs изменились через Dokploy --force-recreate; тот же volume и все mutable hashes; пользователь подтвердил меню ID 4 после redeploy |
+| Remote secrets/backup | PASS: known values absent Git tracked files/image metadata/history/build/app/postgres logs; dump nonempty, pg_restore --list PASS, directory/file modes 700/600 |
 
 Local container smoke использовал disabled AI, empty external keys/token и synthetic
 mutable rows, без paid/provider/Telegram calls. После проверки удалены только
 его disposable containers/network/volume/image и temporary credential file. Remote Telegram ordinal follow-up и actual
-Dokploy redeploy обязательны для завершённой deployment acceptance. TASK-13 PARTIAL,
-remote deployment PENDING; TASK-14 не начиналась. Public docs содержат только sanitized summary.
+Dokploy redeploy обязательны для завершённой deployment acceptance. Все local и remote
+Acceptance Criteria TASK-13 проверены; TASK-14 не начиналась.
+Public docs содержат только sanitized summary.
 Повторный LOCAL DEPLOYMENT этап завершён по запросу пользователя: `clean verify`
 399 PASS, новый fresh PostgreSQL volume, actual image build/startup/health/HTTP/security
 и targeted cleanup PASS. AI/Telegram были отключены, реальные provider calls не выполнялись.
@@ -53,9 +63,10 @@ Runtime contract перепроверен по application.yml и Java configura
 address 127.0.0.1, default port 8080; Compose override address 0.0.0.0 внутри app.
 Allowlist не поддерживается, healthcheck использует existing catalog GET с чтением БД.
 Source/pom/старые Flyway migrations и AI contract не изменены относительно TASK-12;
-tools ровно три, Google config не добавлен. Remote deployment в этом этапе не запускался.
+tools ровно три, Google config не добавлен. Remote deployment не запускался в local этапе;
+результаты remote этапа приведены в таблице отдельно.
 
-## Target — remote acceptance PENDING
+## Deployment topology — IMPLEMENTED
 
 ```text
 GitHub repository → Dokploy Compose project → VPS
@@ -65,8 +76,8 @@ GitHub repository → Dokploy Compose project → VPS
 
 Runtime — Java 21. Выбран remote AIAI API, локальная модель/GPU не требуется.
 CPU/RAM/disk учитывают application, PostgreSQL, image build, Dokploy overhead и backup
-storage. Фактический read-only audit приведён ниже; resource verdict PARTIAL до проверки
-image build peak и работы этого приложения в общей VPS среде.
+storage. Фактический read-only audit и последующий измеренный build/runtime smoke
+приведены ниже. Resource verdict PASS относится к проверенной нагрузке этого MVP.
 Один bot token — один активный poller. Microservices, replicas и публичный webhook
 не входят в MVP. Scope: [PRODUCT](PRODUCT.md).
 
@@ -90,10 +101,10 @@ image build peak и работы этого приложения в общей V
 | App port candidate | 18080 свободен на момент `ss -lnt`; повторно проверить перед deploy, host bind только loopback |
 | Backup permissions | User-owned home filesystem доступен для записи и имеет тот же запас места; `/var/backups` напрямую недоступен; noninteractive sudo недоступен |
 
-**Resource verdict: PARTIAL.** Доступ/CPU/disk/Docker/Compose/Dokploy подтверждены.
+**Resource verdict после read-only audit: PARTIAL.** Доступ/CPU/disk/Docker/Compose/Dokploy подтверждены.
 Запас RAM выглядит достаточным для одного runtime app + PostgreSQL с учётом local
 smoke measurements, но build peak, совместная нагрузка с существующим проектом и
-remote runtime ещё не измерены. Отсутствие swap и container memory limits учитывается
+remote runtime тогда ещё не были измерены. Отсутствие swap и container memory limits учитывается
 перед build/deploy; факт healthy Dokploy не закрывает эти acceptance gates.
 
 Listeners: TCP 22/80/443/3000/2377/7946 на all interfaces, DNS 53 на loopback.
@@ -102,10 +113,17 @@ Swarm. Публичная достижимость через host/provider fire
 PostgreSQL 5432 и application 8080/18080 host listeners отсутствуют. Новый проект
 использует Compose mode и отдельную bridge network; существующий Swarm не меняется.
 
+**Текущий resource verdict: PASS для TASK-13 smoke.** Последующие actual Dokploy build,
+startup, Telegram/AIAI turns, app restart и recreate двух services прошли без OOM/failure.
+В 120 samples с интервалом 5s minimum MemAvailable около 1.34 GiB, maximum load1 1.59,
+minimum disk available около 64.17 GiB. Runtime sample: app около 350 MiB,
+PostgreSQL около 93 MiB. Это sampled headroom, а не измерение мгновенного peak.
+Пять существующих unrelated container IDs и uptime сохранены.
+
 Audit не создавал/останавливал/удалял containers, volumes или networks, не менял
 firewall/SSH/Dokploy configuration и не выводил secrets/environment values. Private operational
-details и inventory evidence остаются local-only. SSH blocker устранён; ранее
-отклонённый push candidate всё ещё требует прямого подтверждения точного repository.
+details и inventory evidence остаются local-only. SSH доступ подтверждён;
+candidate опубликован после прямого разрешения пользователя на точный repository.
 
 ## Environment configuration
 
@@ -149,7 +167,8 @@ Search Clock уже использует Europe/Minsk. Google variables не н�
 AiConfiguration создаёт production model явно: key из `restaurant-bot.ai.api-key`
 через AIAI_API_KEY, base-url `https://api.aiai.by`, completions-path
 `/v1/chat/completions`, model `gpt-4.1-mini`. Provider auto-models и memory auto-config
-отключены. `restaurant-bot.ai.explanation-enabled=false` отключает optional second call.
+отключены. В текущем application.yml `restaurant-bot.ai.explanation-enabled=true`;
+remote search использовал два model calls. Значение false отключает optional second call.
 Origin base и versioned path не должны дублировать `/v1`. Retry/transport timeouts и
 исполнение в пределах turn budget принадлежат [AI](AI.md#bounded-execution).
 
@@ -187,8 +206,8 @@ PostgreSQL автоматически. Последующие изменения
   менять имя при redeploy. Два PostgreSQL containers не должны открывать его одновременно.
 - Flyway V1–V9 управляет fresh schema/datasets без внешних calls; Hibernate validate.
 
-Local container smoke подтверждён; отдельно требуются remote Dokploy smoke, restart и
-redeploy. Remote persistence нельзя выводить только из повторного появления seed data.
+Local и remote container smoke подтверждены. Remote restart/redeploy сравнивают
+реальные mutable criteria/selection/memory hashes, а не только повторное появление seed data.
 [Compose startup order](https://docs.docker.com/compose/how-tos/startup-order/),
 [port publishing](https://docs.docker.com/engine/network/port-publishing/),
 [Temurin image source](https://github.com/adoptium/containers),
@@ -294,7 +313,7 @@ billing country/address; billing prerequisite недоступен в текущ
 Будущий пересмотр потребует отдельного scope decision и проверки billing/API access,
 quota/budget, mapping конкретного филиала и attribution/Terms/Privacy реального UI.
 
-## Dokploy runbook — documented; remote execution PENDING
+## Dokploy runbook — IMPLEMENTED
 
 1. Через уже настроенный SSH key-based доступ выполнить read-only audit:
    `uname -a`, `nproc`, `free -h`, `df -h`, `docker version`, `docker compose version`,
@@ -313,6 +332,10 @@ quota/budget, mapping конкретного филиала и attribution/Terms
    auto-deploy/scaling, Domains, Traefik labels или shared proxy network. Проверить
    rendered topology без interpolated secrets; isolated deployment не должен менять
    loopback bind, fixed volume identity или добавлять публичный route.
+   Для Dokploy v0.30.6 в Advanced → Networks включить **Detach dokploy-network**
+   у app и postgres; дополнительные networks не выбирать. Deprecated isolated
+   deployment toggle оставить выключенным. В TASK-13 runtime inspection подтвердил
+   только project-scoped backend network у обоих services.
 4. Dokploy Environment: задать POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD,
    POSTGRES_VOLUME_NAME, APP_HOST_PORT, `AI_ENABLED=true`, AIAI_API_KEY и
    TELEGRAM_BOT_TOKEN. Secret values вводятся через UI/runtime, вне Git/build args.
@@ -328,6 +351,9 @@ quota/budget, mapping конкретного филиала и attribution/Terms
    `/v3/api-docs` и Swagger. Не выводить `docker compose config` или `docker inspect`
    целиком: они содержат runtime credentials. Для syntax audit: `config --quiet`;
    env audit проверяет только names/presence, logs audit не публикует matches.
+   После deploy/redeploy проверить permissions generated `.env`: в TASK-13 установлен
+   mode 600 с владельцем root. `config --quiet` выполнен от владельца файла в Dokploy
+   container; обычный SSH account не получает read access к этому файлу.
 8. Пользователь отправляет реальный запрос в Telegram: «Сегодня в 21:00 нас двое,
    бюджет 150 BYN, хочется итальянскую кухню». PASS требует реально полученного
    ответа и sanitized counters/tools, подтверждающих VPS → AIAI → Java → PostgreSQL.
@@ -350,12 +376,20 @@ ssh -N -L 127.0.0.1:18080:127.0.0.1:<APP_HOST_PORT> <VPS_ALIAS>
 `http://127.0.0.1:18080/api/v1/restaurants`. Local port 18080 — пример; сначала
 проверить, что он свободен. Реальные IP/login/admin URL не помещаются в public docs.
 
-## Restart, redeploy и persistence acceptance — remote PENDING
+## Restart, redeploy и persistence acceptance — PASS
 
 В Dokploy используется обычный Compose recreate с одной app instance; downtime
 допустим. Не включать rolling/blue-green/дублирование poller. `restart app` выполняется
 в контексте фактического проекта, затем обычный Dokploy Redeploy. Не применять `down -v`,
 volume remove, пересоздание БД или изменение POSTGRES_VOLUME_NAME.
+Чтобы unchanged image всё равно прошёл реальный recreate, в Advanced → Command
+сохранён полный command (Dokploy добавляет начальное `docker`):
+
+```sh
+compose -p <actual-compose-project> --env-file .env -f compose.yaml up -d --build --remove-orphans --force-recreate
+```
+
+Это ordinary Compose replacement двух services; app scale остаётся 1.
 
 После успешного remote search зафиксировать только агрегаты/boolean evidence:
 currentCriteria существует, selection содержит показанный порядок ID, memory непуста.
@@ -363,29 +397,42 @@ currentCriteria существует, selection содержит показан�
 После restart и отдельно после redeploy проверить те же state/volume, healthchecks,
 Flyway validate, один poller; пользователь отправляет «Меню второго» и получает меню
 правильного ранее показанного restaurantId. Наличие только 10 seed restaurants не
-доказывает persistence. Remote restart/redeploy/follow-up ещё не наблюдались.
+доказывает persistence. TASK-13 real baseline после search: 1 criteria row,
+3 selection rows, 2 memory rows; второй selection restaurantId=4. После app restart
+все hashes совпали; пользователь получил меню ID 4. После этого memory rows=4.
+Dokploy redeploy пересоздал оба containers; volume, schema V9 и все hashes снова
+совпали с обновлённым baseline. После redeploy пользователь в том же чате получил
+корректное сохранённое PARTIAL-меню ID 4 на «Меню второго». Sanitized log:
+status=OK, modelCalls=1, toolExecutions=1, sendMessage=PASS. После этого turn
+memory rows=6, criteria и selection hashes прежние. Это подтверждает mutable state
+persistence для проверенного сценария; не является crash/recovery или full restore test.
 Откат image не откатывает Flyway migrations автоматически. Runtime secrets в уже
 инициализированном PostgreSQL volume не меняют DB credentials автоматически.
 
-## PostgreSQL backup — documented; remote smoke PENDING
+## PostgreSQL backup — remote smoke PASS
 
 Логический custom-format dump включает conversation state/memory/selection и является
 приватными данными. Хранить вне app container/checkout/Git, например в выделенном
 `$HOME/backups/minsk-restaurant-ai-bot`; directory 700, files 600, доступ только у
-operational owner. Выполнять из фактического Dokploy Compose directory с его `.env`
-и stable project name. У owner должны быть права создать этот каталог; не менять
+operational owner. Container определяется по фактическому Compose project name и
+service label; читать root-owned `.env` для backup не требуется. У owner должны быть
+Docker access и права создать этот каталог; не менять
 права чужих backup directories. Шаблон для Linux VPS:
 
 ```sh
 umask 077
 compose_project='replace-with-actual-dokploy-project-name'
+pg_container=$(docker ps -q \
+  --filter "label=com.docker.compose.project=$compose_project" \
+  --filter 'label=com.docker.compose.service=postgres')
+test -n "$pg_container" && test "$(printf '%s\n' "$pg_container" | wc -l)" -eq 1 || exit 1
 backup_dir="$HOME/backups/minsk-restaurant-ai-bot"
 install -d -m 700 "$backup_dir"
 dump="$backup_dir/restaurantbot-$(date -u +%Y%m%dT%H%M%SZ).dump"
-docker compose -p "$compose_project" -f compose.yaml exec -T postgres \
+docker exec "$pg_container" \
   sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' > "$dump.partial" &&
 test -s "$dump.partial" &&
-docker compose -p "$compose_project" -f compose.yaml exec -T postgres \
+docker exec -i "$pg_container" \
   pg_restore --list < "$dump.partial" > /dev/null &&
 mv "$dump.partial" "$dump"
 ```
@@ -396,8 +443,11 @@ backup. Проверить итоговые size/permissions; dump/list contents
 создавать public download URL. Archive validation не доказывает полный restore.
 Здесь имя файла датировано; рядом приватно записать schema version V9 и deployment
 revision без credentials. Read-only audit подтвердил writable user-owned home filesystem
-и запас 65.77 GiB. Выделенный backup directory ещё не создан, его permissions и
-actual dump/list smoke остаются pending; `/var/backups` недоступен без elevation.
+и запас 65.77 GiB до build. В remote smoke создан private user-owned directory mode 700,
+custom-format dump размером 24990 bytes mode 600; `pg_restore --list` PASS.
+Рядом приватно записаны schema V9 и deployment revision 3d235a2.
+Dump содержит реальные conversation data; contents не выводились и не публиковались.
+Full restore не выполнялся; `/var/backups` не использовался.
 
 Retention и внешняя копия требуют отдельного operational решения: один dump на том же
 VPS не защищает от потери диска, место контролируется перед каждой копией. Автоматический

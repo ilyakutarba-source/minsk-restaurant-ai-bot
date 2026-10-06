@@ -14,7 +14,8 @@ Telegram private chats/long polling, bounded PostgreSQL ChatMemory, criteria con
 current selection/references, menu/details follow-up, `/start`, `/help`, `/new`,
 controlled errors/unsupported requests и input/output limits.
 
-**PLANNED:** Docker Compose и Dokploy/VPS.
+**IMPLEMENTED:** Docker Compose app/postgres и отдельный Dokploy/VPS deployment.
+Текущая deployment acceptance: [DEPLOYMENT](docs/DEPLOYMENT.md).
 
 **EXCLUDED FROM CURRENT MVP:** Google Places enrichment. Рейтинг и live часы Google
 не входят в текущий scope; [продуктовое решение](docs/PRODUCT.md#google-places--excluded-from-current-mvp).
@@ -195,7 +196,9 @@ H2 не заменяет PostgreSQL acceptance. Команда проверки 
 
 Dockerfile и `compose.yaml` реализованы: Maven Wrapper multi-stage build → Java 21
 JRE/non-root runtime; app + PostgreSQL 17.10, healthchecks и стабильный named volume.
-Remote Dokploy/VPS acceptance ещё не завершён. Telegram long polling требует один
+Local и remote deployment acceptance PASS: build/health/private HTTP/DB, Telegram/AIAI
+search, restart, Dokploy recreate, mutable state и ordinal follow-up после обоих запусков.
+Telegram long polling требует один
 активный app/poller, `AI_ENABLED=true`, runtime AIAI_API_KEY и TELEGRAM_BOT_TOKEN.
 Google key не требуется.
 
@@ -226,8 +229,8 @@ Source: этот repository, branch `main`, Compose file `compose.yaml`, реж�
 Compose; отдельный проект, без Domains/Traefik route/scaling. Env из Dokploy UI явно
 mapped в Compose; POSTGRES_PASSWORD также передаётся как app DB_PASSWORD.
 REST/Swagger доступны через host loopback и SSH tunnel, DB — внутри Compose network.
-VPS resources, реальный Telegram E2E и mutable-state restart/redeploy требуют отдельной
-приёмки. Runbook, status, private access и backup:
+VPS resources, Telegram/AIAI E2E, mutable-state restart/redeploy и backup smoke
+зафиксированы отдельно от local tests. Runbook, status, private access и backup:
 [DEPLOYMENT](docs/DEPLOYMENT.md).
 
 ## Current MVP limitations
