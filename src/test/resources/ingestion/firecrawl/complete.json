@@ -1,0 +1,17 @@
+{
+  "success": true,
+  "data": {
+    "json": {
+      "name": "  Fixture Bistro  ",
+      "address": "Минск,  ул. Тестовая, 1",
+      "cuisines": [" Italian ", "European"],
+      "openingHours": "Пн–Чт 12:00–23:00; Пт–Сб 12:00–02:00; Вс 12:00–22:00",
+      "menuUrl": "/menu.pdf",
+      "menuItems": [
+        {"name": " Паста  с грибами ", "priceByn": 25.50, "currency": "BYN"},
+        {"name": "Суп", "priceByn": 12, "currency": "BYN"}
+      ]
+    },
+    "metadata": {"statusCode": 200, "sourceURL": "https://fixture.example/"}
+  }
+}

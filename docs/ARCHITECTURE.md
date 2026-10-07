@@ -225,6 +225,12 @@ own details остаются source of truth. [Продуктовое решен
 
 ## Ключевые архитектурные решения
 
+V2 experimental catalog ingestion: developer-only Firecrawl PoC находится в отдельном
+пакете `ingestion.firecrawl`, без Spring beans, repositories и runtime callers.
+Только unapproved candidate JSON; fetchedAt не является verifiedAt. Production search,
+Telegram и три AI tools не используют Firecrawl. Контракт, ограничения и ручной запуск:
+[controlled PoC](FIRECRAWL-POC.md). Это эксперимент feature branch, не production capability.
+
 | Решение | Причина |
 |---|---|
 | Один modular monolith | Простые границы через пакеты, одна сборка и доставка |

@@ -1,0 +1,25 @@
+{
+  "type": "object",
+  "properties": {
+    "name": {"type": ["string", "null"]},
+    "address": {"type": ["string", "null"], "description": "ONE concrete venue address in Minsk; no combined branches or head office"},
+    "cuisines": {"type": "array", "items": {"type": "string"}, "maxItems": 10},
+    "openingHours": {"type": ["string", "null"], "description": "Published hours verbatim, without interpretation"},
+    "menuUrl": {"type": ["string", "null"]},
+    "menuItems": {
+      "type": "array", "maxItems": 10,
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {"type": "string"},
+          "priceByn": {"type": "number"},
+          "currency": {"type": "string", "enum": ["BYN"]}
+        },
+        "required": ["name", "priceByn", "currency"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["name", "address", "cuisines", "openingHours", "menuUrl", "menuItems"],
+  "additionalProperties": false
+}

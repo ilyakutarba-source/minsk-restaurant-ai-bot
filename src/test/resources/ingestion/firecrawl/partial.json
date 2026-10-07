@@ -1,0 +1,14 @@
+{
+  "success": true,
+  "data": {
+    "json": {
+      "name": "Fixture Cafe",
+      "address": "Минск, ул. Примерная, 2",
+      "cuisines": [],
+      "openingHours": null,
+      "menuUrl": null,
+      "menuItems": []
+    },
+    "metadata": {"statusCode": 200}
+  }
+}
