@@ -37,7 +37,8 @@ class SearchFactualRendererTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"BELARUSIAN,белорусская кухня", "ITALIAN,итальянская кухня", "GEORGIAN,грузинская кухня"})
+    @CsvSource({"BELARUSIAN,белорусская кухня", "ITALIAN,итальянская кухня", "GEORGIAN,грузинская кухня",
+            "EUROPEAN,европейская кухня", "ASIAN,азиатская кухня"})
     void cuisineReasonUsesRequestedValidatedCuisine(Cuisine cuisine, String label) {
         var original = result();
         var c = original.normalizedCriteria();

@@ -220,7 +220,7 @@ model arguments. ChatId/conversationId не передаются модели. S
 | totalBudgetByn | Положительный общий BYN budget на всех гостей |
 | date | ISO date или TODAY/TOMORROW; нормализация через Java Clock |
 | time | Однозначное местное HH:mm |
-| cuisine | Optional supported enum; если задан — hard filter |
+| cuisine | Optional BELARUSIAN / ITALIAN / GEORGIAN / EUROPEAN / ASIAN; если задан — hard filter |
 | preferredTags | Optional supported enum set |
 
 Фильтры и ranking принадлежат [ARCHITECTURE](ARCHITECTURE.md#правила-поиска-и-рекомендаций).

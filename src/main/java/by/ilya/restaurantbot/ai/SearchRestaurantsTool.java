@@ -28,7 +28,7 @@ final class SearchRestaurantsTool implements ToolCallback {
                       "totalBudgetByn":{"type":["number","null"],"exclusiveMinimum":0,"multipleOf":0.01},
                       "date":{"type":["string","null"],"description":"TODAY, TOMORROW or ISO date within next six days in Minsk"},
                       "time":{"type":["string","null"],"pattern":"^[0-9]{2}:[0-9]{2}$","description":"Unambiguous local HH:mm"},
-                      "cuisine":{"type":["string","null"],"enum":["BELARUSIAN","ITALIAN","GEORGIAN",null]},
+                      "cuisine":{"type":["string","null"],"enum":["BELARUSIAN","ITALIAN","GEORGIAN","EUROPEAN","ASIAN",null]},
                       "preferredTags":{"type":["array","null"],"items":{"type":"string",
                        "enum":["COZY","QUIET","ROMANTIC","CASUAL","FRIENDS","PREMIUM"]},"maxItems":6}},
                      "required":[]}

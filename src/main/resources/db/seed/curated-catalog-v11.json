@@ -1,0 +1,1728 @@
+{
+  "venues": [
+    {
+      "seedKey": "kuhmistr-karla-marksa-40",
+      "name": "Кухмистр",
+      "address": "Минск, ул. Карла Маркса, 40",
+      "active": true,
+      "reviewStatus": "MANUALLY_VERIFIED",
+      "cuisines": [
+        "BELARUSIAN"
+      ],
+      "catalogSource": "https://www.kuhmistr.by/",
+      "catalogVerifiedAt": "2026-10-07",
+      "check": {
+        "amount": 76.00,
+        "type": "DERIVED",
+        "source": "https://www.kuhmistr.by/osnovnoe-menu/",
+        "verifiedAt": "2026-10-07",
+        "explanation": "Дранбургер с говяжьей котлетой 50.00 + борщ виленский с пампушками 26.00 = 76.00 BYN; основное меню зала. Один гость, только еда; напитки, чаевые и дополнительные услуги не включены. Расчёт куратора, не официальный средний чек."
+      },
+      "hoursSource": "https://www.kuhmistr.by/kontakty/",
+      "hoursVerifiedAt": "2026-10-07",
+      "openingIntervals": [
+        {
+          "weekday": "MONDAY",
+          "opensAt": "12:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "TUESDAY",
+          "opensAt": "12:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "WEDNESDAY",
+          "opensAt": "12:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "THURSDAY",
+          "opensAt": "12:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "FRIDAY",
+          "opensAt": "12:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "SATURDAY",
+          "opensAt": "12:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "SUNDAY",
+          "opensAt": "12:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        }
+      ],
+      "menu": {
+        "restaurantSeedKey": "kuhmistr-karla-marksa-40",
+        "coverage": "PARTIAL",
+        "source": "https://www.kuhmistr.by/osnovnoe-menu/",
+        "verifiedAt": "2026-10-07",
+        "items": [
+          {
+            "seedKey": "dranburger",
+            "name": "Дранбургер с говяжьей котлетой",
+            "category": "MAIN",
+            "dishType": null,
+            "priceByn": 50.00,
+            "portion": null,
+            "description": null,
+            "source": "https://www.kuhmistr.by/osnovnoe-menu/",
+            "active": true
+          },
+          {
+            "seedKey": "borsch",
+            "name": "Борщ виленский с пампушками",
+            "category": "SOUP",
+            "dishType": null,
+            "priceByn": 26.00,
+            "portion": null,
+            "description": null,
+            "source": "https://www.kuhmistr.by/osnovnoe-menu/",
+            "active": true
+          }
+        ]
+      }
+    },
+    {
+      "seedKey": "chumaczki-myasnikova-34",
+      "name": "Чумацький Шлях",
+      "address": "Минск, ул. Мясникова, 34",
+      "active": true,
+      "reviewStatus": "MANUALLY_VERIFIED",
+      "cuisines": [
+        "BELARUSIAN"
+      ],
+      "catalogSource": "https://chumaczki.by/",
+      "catalogVerifiedAt": "2026-10-07",
+      "check": {
+        "amount": 50.00,
+        "type": "DERIVED",
+        "source": "https://chumaczki.by/",
+        "verifiedAt": "2026-10-07",
+        "explanation": "Деруны с колбасками и домашним грибным соусом 29.00 + борщ украинский с пампушками 21.00 = 50.00 BYN; меню ресторана, доставка вынесена на отдельный сайт. Один гость, только еда; напитки, чаевые и дополнительные услуги не включены. Расчёт куратора, не официальный средний чек."
+      },
+      "hoursSource": "https://chumaczki.by/",
+      "hoursVerifiedAt": "2026-10-07",
+      "openingIntervals": [
+        {
+          "weekday": "MONDAY",
+          "opensAt": "12:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "TUESDAY",
+          "opensAt": "12:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "WEDNESDAY",
+          "opensAt": "12:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "THURSDAY",
+          "opensAt": "12:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "FRIDAY",
+          "opensAt": "12:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "SATURDAY",
+          "opensAt": "12:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "SUNDAY",
+          "opensAt": "12:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        }
+      ],
+      "menu": {
+        "restaurantSeedKey": "chumaczki-myasnikova-34",
+        "coverage": "PARTIAL",
+        "source": "https://chumaczki.by/",
+        "verifiedAt": "2026-10-07",
+        "items": [
+          {
+            "seedKey": "deruny",
+            "name": "Деруны с колбасками и домашним грибным соусом",
+            "category": "MAIN",
+            "dishType": null,
+            "priceByn": 29.00,
+            "portion": "443 г",
+            "description": null,
+            "source": "https://chumaczki.by/",
+            "active": true
+          },
+          {
+            "seedKey": "borsch",
+            "name": "Борщ украинский с пампушками",
+            "category": "SOUP",
+            "dishType": null,
+            "priceByn": 21.00,
+            "portion": "446 г",
+            "description": null,
+            "source": "https://chumaczki.by/",
+            "active": true
+          }
+        ]
+      }
+    },
+    {
+      "seedKey": "berezka-nezavisimosti-40",
+      "name": "Берёзка",
+      "address": "Минск, проспект Независимости, 40",
+      "active": true,
+      "reviewStatus": "MANUALLY_VERIFIED",
+      "cuisines": [
+        "BELARUSIAN",
+        "EUROPEAN"
+      ],
+      "catalogSource": "https://berezkacafe.by/",
+      "catalogVerifiedAt": "2026-10-07",
+      "check": {
+        "amount": 60.00,
+        "type": "DERIVED",
+        "source": "https://berezkacafe.by/menu",
+        "verifiedAt": "2026-10-07",
+        "explanation": "Томленая говяжья щека с картофельным пюре и луком фри 39.00 + борщ с говядиной и ржаной булочкой 21.00 = 60.00 BYN; основное меню зала. Один гость, только еда; напитки, чаевые и дополнительные услуги не включены. Расчёт куратора, не официальный средний чек."
+      },
+      "hoursSource": "https://berezkacafe.by/",
+      "hoursVerifiedAt": "2026-10-07",
+      "openingIntervals": [
+        {
+          "weekday": "MONDAY",
+          "opensAt": "12:00",
+          "closesAt": "00:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "TUESDAY",
+          "opensAt": "12:00",
+          "closesAt": "00:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "WEDNESDAY",
+          "opensAt": "12:00",
+          "closesAt": "00:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "THURSDAY",
+          "opensAt": "12:00",
+          "closesAt": "00:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "FRIDAY",
+          "opensAt": "12:00",
+          "closesAt": "02:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "SATURDAY",
+          "opensAt": "10:00",
+          "closesAt": "02:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "SUNDAY",
+          "opensAt": "10:00",
+          "closesAt": "00:00",
+          "closesNextDay": true
+        }
+      ],
+      "menu": {
+        "restaurantSeedKey": "berezka-nezavisimosti-40",
+        "coverage": "PARTIAL",
+        "source": "https://berezkacafe.by/menu",
+        "verifiedAt": "2026-10-07",
+        "items": [
+          {
+            "seedKey": "beef-cheek",
+            "name": "Томленая говяжья щека с картофельным пюре и луком фри",
+            "category": "MAIN",
+            "dishType": null,
+            "priceByn": 39.00,
+            "portion": "280 г",
+            "description": null,
+            "source": "https://berezkacafe.by/menu",
+            "active": true
+          },
+          {
+            "seedKey": "borsch",
+            "name": "Борщ с говядиной и ржаной булочкой",
+            "category": "SOUP",
+            "dishType": null,
+            "priceByn": 21.00,
+            "portion": "300/40/50 г",
+            "description": null,
+            "source": "https://berezkacafe.by/menu",
+            "active": true
+          }
+        ]
+      }
+    },
+    {
+      "seedKey": "druzya-kulman-40",
+      "name": "Друзья",
+      "address": "Минск, ул. Кульман, 40",
+      "active": true,
+      "reviewStatus": "MANUALLY_VERIFIED",
+      "cuisines": [
+        "BELARUSIAN"
+      ],
+      "catalogSource": "https://druzya.by/about",
+      "catalogVerifiedAt": "2026-10-07",
+      "check": {
+        "amount": 60.00,
+        "type": "DERIVED",
+        "source": "https://druzya.by/menu",
+        "verifiedAt": "2026-10-07",
+        "explanation": "Драники с мачанкой 36.00 + солянка с мясными копченостями 24.00 = 60.00 BYN; основное меню ресторана-пивоварни. Один гость, только еда; напитки, чаевые и дополнительные услуги не включены. Расчёт куратора, не официальный средний чек."
+      },
+      "hoursSource": "https://druzya.by/contacts",
+      "hoursVerifiedAt": "2026-10-07",
+      "openingIntervals": [
+        {
+          "weekday": "MONDAY",
+          "opensAt": "12:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "TUESDAY",
+          "opensAt": "12:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "WEDNESDAY",
+          "opensAt": "12:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "THURSDAY",
+          "opensAt": "12:00",
+          "closesAt": "02:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "FRIDAY",
+          "opensAt": "12:00",
+          "closesAt": "03:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "SATURDAY",
+          "opensAt": "12:00",
+          "closesAt": "03:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "SUNDAY",
+          "opensAt": "12:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        }
+      ],
+      "menu": {
+        "restaurantSeedKey": "druzya-kulman-40",
+        "coverage": "PARTIAL",
+        "source": "https://druzya.by/menu",
+        "verifiedAt": "2026-10-07",
+        "items": [
+          {
+            "seedKey": "draniki",
+            "name": "Драники с мачанкой",
+            "category": "MAIN",
+            "dishType": null,
+            "priceByn": 36.00,
+            "portion": "250/150/30 г",
+            "description": null,
+            "source": "https://druzya.by/menu",
+            "active": true
+          },
+          {
+            "seedKey": "solyanka",
+            "name": "Солянка с мясными копченостями",
+            "category": "SOUP",
+            "dishType": null,
+            "priceByn": 24.00,
+            "portion": "350/50/10 г",
+            "description": null,
+            "source": "https://druzya.by/menu",
+            "active": true
+          }
+        ]
+      }
+    },
+    {
+      "seedKey": "ganbei-pritytskogo-156",
+      "name": "Gan Bei",
+      "address": "Минск, ул. Притыцкого, 156, 1 этаж",
+      "active": true,
+      "reviewStatus": "MANUALLY_VERIFIED",
+      "cuisines": [
+        "ASIAN"
+      ],
+      "catalogSource": "https://ganbei.by/",
+      "catalogVerifiedAt": "2026-10-07",
+      "check": {
+        "amount": 46.60,
+        "type": "DERIVED",
+        "source": "https://ganbei.by/mainmenu",
+        "verifiedAt": "2026-10-07",
+        "explanation": "Полная порция Филадельфии, 8 шт., 185 г: 24.70 + Цезарь с куриным филе, 240 г: 21.90 = 46.60 BYN. Общая страница основного меню сети для перечисленных на официальном сайте ресторанов; takeaway имеет отдельный сайт. Проверены страницы 5 и 13 меню; половина ролла в расчёт не входит. Один гость, только еда; напитки, чаевые и дополнительные услуги не включены. Расчёт куратора, не официальный средний чек."
+      },
+      "hoursSource": "https://ganbei.by/",
+      "hoursVerifiedAt": "2026-10-07",
+      "openingIntervals": [
+        {
+          "weekday": "MONDAY",
+          "opensAt": "11:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "TUESDAY",
+          "opensAt": "11:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "WEDNESDAY",
+          "opensAt": "11:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "THURSDAY",
+          "opensAt": "11:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "FRIDAY",
+          "opensAt": "11:00",
+          "closesAt": "00:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "SATURDAY",
+          "opensAt": "11:00",
+          "closesAt": "00:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "SUNDAY",
+          "opensAt": "11:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        }
+      ],
+      "menu": {
+        "restaurantSeedKey": "ganbei-pritytskogo-156",
+        "coverage": "PARTIAL",
+        "source": "https://ganbei.by/mainmenu",
+        "verifiedAt": "2026-10-07",
+        "items": [
+          {
+            "seedKey": "philadelphia",
+            "name": "Филадельфия",
+            "category": "MAIN",
+            "dishType": null,
+            "priceByn": 24.70,
+            "portion": "185 г / 8 шт.",
+            "description": null,
+            "source": "https://ganbei.by/mainmenu",
+            "active": true
+          },
+          {
+            "seedKey": "philadelphia-classic",
+            "name": "Филадельфия Классик",
+            "category": "MAIN",
+            "dishType": null,
+            "priceByn": 27.90,
+            "portion": "220 г / 8 шт.",
+            "description": null,
+            "source": "https://ganbei.by/mainmenu",
+            "active": true
+          }
+        ]
+      }
+    },
+    {
+      "seedKey": "ganbei-mstislavtsa-11",
+      "name": "Gan Bei",
+      "address": "Минск, ул. Петра Мстиславца, 11, 3 этаж",
+      "active": true,
+      "reviewStatus": "MANUALLY_VERIFIED",
+      "cuisines": [
+        "ASIAN"
+      ],
+      "catalogSource": "https://ganbei.by/",
+      "catalogVerifiedAt": "2026-10-07",
+      "check": {
+        "amount": 46.60,
+        "type": "DERIVED",
+        "source": "https://ganbei.by/mainmenu",
+        "verifiedAt": "2026-10-07",
+        "explanation": "Полная порция Филадельфии, 8 шт., 185 г: 24.70 + Цезарь с куриным филе, 240 г: 21.90 = 46.60 BYN. Общая страница основного меню сети для перечисленных на официальном сайте ресторанов; takeaway имеет отдельный сайт. Проверены страницы 5 и 13 меню; половина ролла в расчёт не входит. Один гость, только еда; напитки, чаевые и дополнительные услуги не включены. Расчёт куратора, не официальный средний чек."
+      },
+      "hoursSource": "https://ganbei.by/",
+      "hoursVerifiedAt": "2026-10-07",
+      "openingIntervals": [
+        {
+          "weekday": "MONDAY",
+          "opensAt": "10:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "TUESDAY",
+          "opensAt": "10:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "WEDNESDAY",
+          "opensAt": "10:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "THURSDAY",
+          "opensAt": "10:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "FRIDAY",
+          "opensAt": "10:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "SATURDAY",
+          "opensAt": "10:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "SUNDAY",
+          "opensAt": "10:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        }
+      ],
+      "menu": {
+        "restaurantSeedKey": "ganbei-mstislavtsa-11",
+        "coverage": "PARTIAL",
+        "source": "https://ganbei.by/mainmenu",
+        "verifiedAt": "2026-10-07",
+        "items": [
+          {
+            "seedKey": "philadelphia",
+            "name": "Филадельфия",
+            "category": "MAIN",
+            "dishType": null,
+            "priceByn": 24.70,
+            "portion": "185 г / 8 шт.",
+            "description": null,
+            "source": "https://ganbei.by/mainmenu",
+            "active": true
+          },
+          {
+            "seedKey": "philadelphia-classic",
+            "name": "Филадельфия Классик",
+            "category": "MAIN",
+            "dishType": null,
+            "priceByn": 27.90,
+            "portion": "220 г / 8 шт.",
+            "description": null,
+            "source": "https://ganbei.by/mainmenu",
+            "active": true
+          }
+        ]
+      }
+    },
+    {
+      "seedKey": "ganbei-timiryazeva-74a",
+      "name": "Gan Bei",
+      "address": "Минск, ул. Тимирязева, 74А, 1 этаж",
+      "active": true,
+      "reviewStatus": "MANUALLY_VERIFIED",
+      "cuisines": [
+        "ASIAN"
+      ],
+      "catalogSource": "https://ganbei.by/",
+      "catalogVerifiedAt": "2026-10-07",
+      "check": {
+        "amount": 46.60,
+        "type": "DERIVED",
+        "source": "https://ganbei.by/mainmenu",
+        "verifiedAt": "2026-10-07",
+        "explanation": "Полная порция Филадельфии, 8 шт., 185 г: 24.70 + Цезарь с куриным филе, 240 г: 21.90 = 46.60 BYN. Общая страница основного меню сети для перечисленных на официальном сайте ресторанов; takeaway имеет отдельный сайт. Проверены страницы 5 и 13 меню; половина ролла в расчёт не входит. Один гость, только еда; напитки, чаевые и дополнительные услуги не включены. Расчёт куратора, не официальный средний чек."
+      },
+      "hoursSource": "https://ganbei.by/",
+      "hoursVerifiedAt": "2026-10-07",
+      "openingIntervals": [
+        {
+          "weekday": "MONDAY",
+          "opensAt": "10:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "TUESDAY",
+          "opensAt": "10:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "WEDNESDAY",
+          "opensAt": "10:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "THURSDAY",
+          "opensAt": "10:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "FRIDAY",
+          "opensAt": "10:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "SATURDAY",
+          "opensAt": "10:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "SUNDAY",
+          "opensAt": "10:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        }
+      ],
+      "menu": {
+        "restaurantSeedKey": "ganbei-timiryazeva-74a",
+        "coverage": "PARTIAL",
+        "source": "https://ganbei.by/mainmenu",
+        "verifiedAt": "2026-10-07",
+        "items": [
+          {
+            "seedKey": "philadelphia",
+            "name": "Филадельфия",
+            "category": "MAIN",
+            "dishType": null,
+            "priceByn": 24.70,
+            "portion": "185 г / 8 шт.",
+            "description": null,
+            "source": "https://ganbei.by/mainmenu",
+            "active": true
+          },
+          {
+            "seedKey": "philadelphia-classic",
+            "name": "Филадельфия Классик",
+            "category": "MAIN",
+            "dishType": null,
+            "priceByn": 27.90,
+            "portion": "220 г / 8 шт.",
+            "description": null,
+            "source": "https://ganbei.by/mainmenu",
+            "active": true
+          }
+        ]
+      }
+    },
+    {
+      "seedKey": "embassy-karla-marksa-6",
+      "name": "Coffee Embassy",
+      "address": "Минск, ул. Карла Маркса, 6",
+      "active": true,
+      "reviewStatus": "MANUALLY_VERIFIED",
+      "cuisines": [
+        "EUROPEAN"
+      ],
+      "catalogSource": "https://embassy.by/nashi-kafe",
+      "catalogVerifiedAt": "2026-10-07",
+      "check": {
+        "amount": 35.00,
+        "type": "PUBLISHED",
+        "source": "https://embassy.by/nashi-kafe",
+        "verifiedAt": "2026-10-07",
+        "explanation": "PUBLISHED: верхняя граница опубликованного для этого филиала сценария «завтрак + кофе до 35.00 BYN». Завтраки подаются весь день. Это сценарий кафе, не обещание стоимости произвольного ужина. Кухня вручную классифицирована как европейская по собственному меню филиала (английский завтрак, бенедикт, фетучини, ризотто)."
+      },
+      "hoursSource": "https://embassy.by/nashi-kafe",
+      "hoursVerifiedAt": "2026-10-07",
+      "openingIntervals": [
+        {
+          "weekday": "MONDAY",
+          "opensAt": "08:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "TUESDAY",
+          "opensAt": "08:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "WEDNESDAY",
+          "opensAt": "08:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "THURSDAY",
+          "opensAt": "08:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "FRIDAY",
+          "opensAt": "08:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "SATURDAY",
+          "opensAt": "08:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "SUNDAY",
+          "opensAt": "08:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        }
+      ],
+      "menu": null
+    },
+    {
+      "seedKey": "embassy-mira-1",
+      "name": "Coffee Embassy",
+      "address": "Минск, проспект Мира, 1",
+      "active": true,
+      "reviewStatus": "MANUALLY_VERIFIED",
+      "cuisines": [
+        "EUROPEAN"
+      ],
+      "catalogSource": "https://embassy.by/nashi-kafe",
+      "catalogVerifiedAt": "2026-10-07",
+      "check": {
+        "amount": 30.00,
+        "type": "PUBLISHED",
+        "source": "https://embassy.by/nashi-kafe",
+        "verifiedAt": "2026-10-07",
+        "explanation": "PUBLISHED: верхняя граница опубликованного для этого филиала сценария «завтрак + кофе до 30.00 BYN». Завтраки подаются весь день. Это сценарий кафе, не обещание стоимости произвольного ужина. Кухня вручную классифицирована как европейская по собственному меню филиала (английский завтрак, бенедикт, фетучини, ризотто)."
+      },
+      "hoursSource": "https://embassy.by/nashi-kafe",
+      "hoursVerifiedAt": "2026-10-07",
+      "openingIntervals": [
+        {
+          "weekday": "MONDAY",
+          "opensAt": "08:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "TUESDAY",
+          "opensAt": "08:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "WEDNESDAY",
+          "opensAt": "08:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "THURSDAY",
+          "opensAt": "08:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "FRIDAY",
+          "opensAt": "08:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "SATURDAY",
+          "opensAt": "08:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "SUNDAY",
+          "opensAt": "08:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        }
+      ],
+      "menu": null
+    },
+    {
+      "seedKey": "embassy-pobediteley-115",
+      "name": "Coffee Embassy",
+      "address": "Минск, проспект Победителей, 115",
+      "active": true,
+      "reviewStatus": "MANUALLY_VERIFIED",
+      "cuisines": [
+        "EUROPEAN"
+      ],
+      "catalogSource": "https://embassy.by/nashi-kafe",
+      "catalogVerifiedAt": "2026-10-07",
+      "check": {
+        "amount": 35.00,
+        "type": "PUBLISHED",
+        "source": "https://embassy.by/nashi-kafe",
+        "verifiedAt": "2026-10-07",
+        "explanation": "PUBLISHED: верхняя граница опубликованного для этого филиала сценария «завтрак + кофе до 35.00 BYN». Завтраки подаются весь день. Это сценарий кафе, не обещание стоимости произвольного ужина. Кухня вручную классифицирована как европейская по собственному меню филиала (английский завтрак, бенедикт, фетучини, ризотто)."
+      },
+      "hoursSource": "https://embassy.by/nashi-kafe",
+      "hoursVerifiedAt": "2026-10-07",
+      "openingIntervals": [
+        {
+          "weekday": "MONDAY",
+          "opensAt": "08:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "TUESDAY",
+          "opensAt": "08:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "WEDNESDAY",
+          "opensAt": "08:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "THURSDAY",
+          "opensAt": "08:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "FRIDAY",
+          "opensAt": "08:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "SATURDAY",
+          "opensAt": "08:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "SUNDAY",
+          "opensAt": "08:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        }
+      ],
+      "menu": null
+    },
+    {
+      "seedKey": "litviny-revolyutsionnaya-26",
+      "name": "Літвіны",
+      "address": "Минск, ул. Революционная, 26",
+      "active": true,
+      "reviewStatus": "MANUALLY_VERIFIED",
+      "cuisines": [
+        "BELARUSIAN"
+      ],
+      "catalogSource": "https://litviny.by/",
+      "catalogVerifiedAt": "2026-10-07",
+      "check": {
+        "amount": 54.00,
+        "type": "DERIVED",
+        "source": "https://litviny.by/product/golenka-s-hrustyashhej-korochkoj-i-bystrym-bigosom/",
+        "verifiedAt": "2026-10-07",
+        "explanation": "Одна полноценная порция «Голенка на кости томленая в квасе», 730/100 г, 54.00 BYN. Карточка прямо перечисляет этот филиал среди мест подачи и указывает: блюдо не распространяется на доставку и самовывоз. Консервативный сценарий одного основного блюда с гарниром; суп не добавлен. Один гость, только еда; напитки, чаевые и дополнительные услуги не включены. Расчёт куратора, не официальный средний чек."
+      },
+      "hoursSource": "https://litviny.by/",
+      "hoursVerifiedAt": "2026-10-07",
+      "openingIntervals": [
+        {
+          "weekday": "MONDAY",
+          "opensAt": "10:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "TUESDAY",
+          "opensAt": "10:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "WEDNESDAY",
+          "opensAt": "10:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "THURSDAY",
+          "opensAt": "10:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "FRIDAY",
+          "opensAt": "10:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "SATURDAY",
+          "opensAt": "10:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "SUNDAY",
+          "opensAt": "10:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        }
+      ],
+      "menu": {
+        "restaurantSeedKey": "litviny-revolyutsionnaya-26",
+        "coverage": "PARTIAL",
+        "source": "https://litviny.by/product/golenka-s-hrustyashhej-korochkoj-i-bystrym-bigosom/",
+        "verifiedAt": "2026-10-07",
+        "items": [
+          {
+            "seedKey": "golenka",
+            "name": "Голенка на кости томленая в квасе",
+            "category": "MAIN",
+            "dishType": null,
+            "priceByn": 54.00,
+            "portion": "730/100 г",
+            "description": null,
+            "source": "https://litviny.by/product/golenka-s-hrustyashhej-korochkoj-i-bystrym-bigosom/",
+            "active": true
+          }
+        ]
+      }
+    },
+    {
+      "seedKey": "litviny-pritytskogo-156-1",
+      "name": "Літвіны",
+      "address": "Минск, ул. Притыцкого, 156/1",
+      "active": true,
+      "reviewStatus": "MANUALLY_VERIFIED",
+      "cuisines": [
+        "BELARUSIAN"
+      ],
+      "catalogSource": "https://litviny.by/",
+      "catalogVerifiedAt": "2026-10-07",
+      "check": {
+        "amount": 54.00,
+        "type": "DERIVED",
+        "source": "https://litviny.by/product/golenka-s-hrustyashhej-korochkoj-i-bystrym-bigosom/",
+        "verifiedAt": "2026-10-07",
+        "explanation": "Одна полноценная порция «Голенка на кости томленая в квасе», 730/100 г, 54.00 BYN. Карточка прямо перечисляет этот филиал среди мест подачи и указывает: блюдо не распространяется на доставку и самовывоз. Консервативный сценарий одного основного блюда с гарниром; суп не добавлен. Один гость, только еда; напитки, чаевые и дополнительные услуги не включены. Расчёт куратора, не официальный средний чек."
+      },
+      "hoursSource": "https://litviny.by/",
+      "hoursVerifiedAt": "2026-10-07",
+      "openingIntervals": [
+        {
+          "weekday": "MONDAY",
+          "opensAt": "11:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "TUESDAY",
+          "opensAt": "11:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "WEDNESDAY",
+          "opensAt": "11:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "THURSDAY",
+          "opensAt": "11:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "FRIDAY",
+          "opensAt": "11:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "SATURDAY",
+          "opensAt": "11:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "SUNDAY",
+          "opensAt": "11:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        }
+      ],
+      "menu": {
+        "restaurantSeedKey": "litviny-pritytskogo-156-1",
+        "coverage": "PARTIAL",
+        "source": "https://litviny.by/product/golenka-s-hrustyashhej-korochkoj-i-bystrym-bigosom/",
+        "verifiedAt": "2026-10-07",
+        "items": [
+          {
+            "seedKey": "golenka",
+            "name": "Голенка на кости томленая в квасе",
+            "category": "MAIN",
+            "dishType": null,
+            "priceByn": 54.00,
+            "portion": "730/100 г",
+            "description": null,
+            "source": "https://litviny.by/product/golenka-s-hrustyashhej-korochkoj-i-bystrym-bigosom/",
+            "active": true
+          }
+        ]
+      }
+    },
+    {
+      "seedKey": "litviny-pobediteley-119",
+      "name": "Літвіны",
+      "address": "Минск, проспект Победителей, 119",
+      "active": true,
+      "reviewStatus": "MANUALLY_VERIFIED",
+      "cuisines": [
+        "BELARUSIAN"
+      ],
+      "catalogSource": "https://litviny.by/",
+      "catalogVerifiedAt": "2026-10-07",
+      "check": {
+        "amount": 54.00,
+        "type": "DERIVED",
+        "source": "https://litviny.by/product/golenka-s-hrustyashhej-korochkoj-i-bystrym-bigosom/",
+        "verifiedAt": "2026-10-07",
+        "explanation": "Одна полноценная порция «Голенка на кости томленая в квасе», 730/100 г, 54.00 BYN. Карточка прямо перечисляет этот филиал среди мест подачи и указывает: блюдо не распространяется на доставку и самовывоз. Консервативный сценарий одного основного блюда с гарниром; суп не добавлен. Один гость, только еда; напитки, чаевые и дополнительные услуги не включены. Расчёт куратора, не официальный средний чек."
+      },
+      "hoursSource": "https://litviny.by/",
+      "hoursVerifiedAt": "2026-10-07",
+      "openingIntervals": [
+        {
+          "weekday": "MONDAY",
+          "opensAt": "11:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "TUESDAY",
+          "opensAt": "11:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "WEDNESDAY",
+          "opensAt": "11:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "THURSDAY",
+          "opensAt": "11:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "FRIDAY",
+          "opensAt": "11:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "SATURDAY",
+          "opensAt": "11:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "SUNDAY",
+          "opensAt": "11:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        }
+      ],
+      "menu": {
+        "restaurantSeedKey": "litviny-pobediteley-119",
+        "coverage": "PARTIAL",
+        "source": "https://litviny.by/product/golenka-s-hrustyashhej-korochkoj-i-bystrym-bigosom/",
+        "verifiedAt": "2026-10-07",
+        "items": [
+          {
+            "seedKey": "golenka",
+            "name": "Голенка на кости томленая в квасе",
+            "category": "MAIN",
+            "dishType": null,
+            "priceByn": 54.00,
+            "portion": "730/100 г",
+            "description": null,
+            "source": "https://litviny.by/product/golenka-s-hrustyashhej-korochkoj-i-bystrym-bigosom/",
+            "active": true
+          }
+        ]
+      }
+    },
+    {
+      "seedKey": "beans-leaves-pobediteley-9",
+      "name": "Beans & Leaves",
+      "address": "Минск, проспект Победителей, 9, 1 этаж",
+      "active": true,
+      "reviewStatus": "MANUALLY_VERIFIED",
+      "cuisines": [
+        "EUROPEAN"
+      ],
+      "catalogSource": "https://beansleaves.by/",
+      "catalogVerifiedAt": "2026-10-07",
+      "check": {
+        "amount": 50.00,
+        "type": "DERIVED",
+        "source": "https://beansleaves.by/menu/",
+        "verifiedAt": "2026-10-07",
+        "explanation": "Карбонара 26.00 + борщ с говядиной 24.00 = 50.00 BYN; основное меню кафе. Один гость, только еда; напитки, чаевые и дополнительные услуги не включены. Расчёт куратора, не официальный средний чек."
+      },
+      "hoursSource": "https://beansleaves.by/",
+      "hoursVerifiedAt": "2026-10-07",
+      "openingIntervals": [
+        {
+          "weekday": "MONDAY",
+          "opensAt": "09:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "TUESDAY",
+          "opensAt": "09:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "WEDNESDAY",
+          "opensAt": "09:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "THURSDAY",
+          "opensAt": "09:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "FRIDAY",
+          "opensAt": "09:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "SATURDAY",
+          "opensAt": "09:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "SUNDAY",
+          "opensAt": "09:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        }
+      ],
+      "menu": {
+        "restaurantSeedKey": "beans-leaves-pobediteley-9",
+        "coverage": "PARTIAL",
+        "source": "https://beansleaves.by/menu/",
+        "verifiedAt": "2026-10-07",
+        "items": [
+          {
+            "seedKey": "carbonara",
+            "name": "Карбонара",
+            "category": "PASTA",
+            "dishType": "PASTA",
+            "priceByn": 26.00,
+            "portion": "300 г",
+            "description": null,
+            "source": "https://beansleaves.by/menu/",
+            "active": true
+          },
+          {
+            "seedKey": "borsch",
+            "name": "Борщ с говядиной",
+            "category": "SOUP",
+            "dishType": null,
+            "priceByn": 24.00,
+            "portion": "300 г",
+            "description": null,
+            "source": "https://beansleaves.by/menu/",
+            "active": true
+          }
+        ]
+      }
+    },
+    {
+      "seedKey": "bardot-pobediteley-9",
+      "name": "BAR:DOT XX1",
+      "address": "Минск, проспект Победителей, 9, 21 этаж",
+      "active": true,
+      "reviewStatus": "MANUALLY_VERIFIED",
+      "cuisines": [
+        "ASIAN"
+      ],
+      "catalogSource": "https://bardot.by/",
+      "catalogVerifiedAt": "2026-10-07",
+      "check": {
+        "amount": 88.00,
+        "type": "DERIVED",
+        "source": "https://bardot.by/menyu/",
+        "verifiedAt": "2026-10-07",
+        "explanation": "Пад тай с креветкой и кальмаром, 400 г: 48.00 + салат с креветками, авокадо и юдзу: 40.00 = 88.00 BYN. Цены на страницах 1–2 основного меню зала (Menu_June-images); BYN с НДС. Один гость, только еда; напитки, чаевые и дополнительные услуги не включены. Расчёт куратора, не официальный средний чек."
+      },
+      "hoursSource": "https://bardot.by/",
+      "hoursVerifiedAt": "2026-10-07",
+      "openingIntervals": [
+        {
+          "weekday": "TUESDAY",
+          "opensAt": "18:00",
+          "closesAt": "00:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "WEDNESDAY",
+          "opensAt": "18:00",
+          "closesAt": "00:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "THURSDAY",
+          "opensAt": "18:00",
+          "closesAt": "00:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "FRIDAY",
+          "opensAt": "18:00",
+          "closesAt": "02:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "SATURDAY",
+          "opensAt": "18:00",
+          "closesAt": "02:00",
+          "closesNextDay": true
+        }
+      ],
+      "menu": {
+        "restaurantSeedKey": "bardot-pobediteley-9",
+        "coverage": "PARTIAL",
+        "source": "https://bardot.by/menyu/",
+        "verifiedAt": "2026-10-07",
+        "items": [
+          {
+            "seedKey": "pad-thai",
+            "name": "Пад тай с креветкой и кальмаром",
+            "category": "MAIN",
+            "dishType": null,
+            "priceByn": 48.00,
+            "portion": "400 г",
+            "description": null,
+            "source": "https://bardot.by/menyu/",
+            "active": true
+          },
+          {
+            "seedKey": "philadelphia",
+            "name": "Ролл Филадельфия",
+            "category": "MAIN",
+            "dishType": null,
+            "priceByn": 55.00,
+            "portion": "280/80 г",
+            "description": null,
+            "source": "https://bardot.by/menyu/",
+            "active": true
+          }
+        ]
+      }
+    },
+    {
+      "seedKey": "tashkent-lenina-3",
+      "name": "Ташкент",
+      "address": "Минск, ул. Ленина, 3",
+      "active": true,
+      "reviewStatus": "MANUALLY_VERIFIED",
+      "cuisines": [
+        "ASIAN"
+      ],
+      "catalogSource": "https://tashkentminsk.com/",
+      "catalogVerifiedAt": "2026-10-07",
+      "check": {
+        "amount": 70.00,
+        "type": "DERIVED",
+        "source": "https://tashkentminsk.com/wp-content/uploads/2026/09/Меню-рус-основное.pdf",
+        "verifiedAt": "2026-10-07",
+        "explanation": "Казан кебаб 42.00 + мастава 28.00 = 70.00 BYN. Отдельный PDF «Кухня» для зала с указанием обращения к официанту; не цены интернет-магазина. Узбекская кухня отнесена к широкой ASIAN. Один гость, только еда; напитки, чаевые и дополнительные услуги не включены. Расчёт куратора, не официальный средний чек."
+      },
+      "hoursSource": "https://tashkentminsk.com/contact/",
+      "hoursVerifiedAt": "2026-10-07",
+      "openingIntervals": [
+        {
+          "weekday": "MONDAY",
+          "opensAt": "11:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "TUESDAY",
+          "opensAt": "11:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "WEDNESDAY",
+          "opensAt": "11:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "THURSDAY",
+          "opensAt": "11:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "FRIDAY",
+          "opensAt": "11:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "SATURDAY",
+          "opensAt": "11:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "SUNDAY",
+          "opensAt": "11:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        }
+      ],
+      "menu": {
+        "restaurantSeedKey": "tashkent-lenina-3",
+        "coverage": "PARTIAL",
+        "source": "https://tashkentminsk.com/wp-content/uploads/2026/09/Меню-рус-основное.pdf",
+        "verifiedAt": "2026-10-07",
+        "items": [
+          {
+            "seedKey": "kazan-kebab",
+            "name": "Казан кебаб",
+            "category": "MAIN",
+            "dishType": null,
+            "priceByn": 42.00,
+            "portion": "350 г",
+            "description": null,
+            "source": "https://tashkentminsk.com/wp-content/uploads/2026/09/Меню-рус-основное.pdf",
+            "active": true
+          },
+          {
+            "seedKey": "mastava",
+            "name": "Мастава",
+            "category": "SOUP",
+            "dishType": null,
+            "priceByn": 28.00,
+            "portion": "300 г",
+            "description": null,
+            "source": "https://tashkentminsk.com/wp-content/uploads/2026/09/Меню-рус-основное.pdf",
+            "active": true
+          }
+        ]
+      }
+    },
+    {
+      "seedKey": "ember-pobediteley-9",
+      "name": "Ember",
+      "address": "Минск, проспект Победителей, 9, 7 этаж",
+      "active": true,
+      "reviewStatus": "MANUALLY_VERIFIED",
+      "cuisines": [
+        "EUROPEAN"
+      ],
+      "catalogSource": "https://ember.by/",
+      "catalogVerifiedAt": "2026-10-07",
+      "check": {
+        "amount": 61.00,
+        "type": "DERIVED",
+        "source": "https://ember.by/wp-content/uploads/2026/10/menyu_285h408_ru_p.pdf",
+        "verifiedAt": "2026-10-07",
+        "explanation": "Казаречче с цыплёнком 40.00 + куриный суп 21.00 = 61.00 BYN; страница 1 актуального печатного меню зала, цены в BYN с НДС. Европейская классификация вручную подтверждена набором блюд меню (паста, луковый суп, греческий салат). Один гость, только еда; напитки, чаевые и дополнительные услуги не включены. Расчёт куратора, не официальный средний чек."
+      },
+      "hoursSource": "https://ember.by/",
+      "hoursVerifiedAt": "2026-10-07",
+      "openingIntervals": [
+        {
+          "weekday": "MONDAY",
+          "opensAt": "07:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "TUESDAY",
+          "opensAt": "07:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "WEDNESDAY",
+          "opensAt": "07:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "THURSDAY",
+          "opensAt": "07:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "FRIDAY",
+          "opensAt": "07:00",
+          "closesAt": "00:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "SATURDAY",
+          "opensAt": "07:00",
+          "closesAt": "00:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "SUNDAY",
+          "opensAt": "07:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        }
+      ],
+      "menu": {
+        "restaurantSeedKey": "ember-pobediteley-9",
+        "coverage": "PARTIAL",
+        "source": "https://ember.by/wp-content/uploads/2026/10/menyu_285h408_ru_p.pdf",
+        "verifiedAt": "2026-10-07",
+        "items": [
+          {
+            "seedKey": "casarecce",
+            "name": "Казаречче с цыплёнком",
+            "category": "PASTA",
+            "dishType": "PASTA",
+            "priceByn": 40.00,
+            "portion": null,
+            "description": null,
+            "source": "https://ember.by/wp-content/uploads/2026/10/menyu_285h408_ru_p.pdf",
+            "active": true
+          },
+          {
+            "seedKey": "chicken-soup",
+            "name": "Куриный суп",
+            "category": "SOUP",
+            "dishType": null,
+            "priceByn": 21.00,
+            "portion": null,
+            "description": null,
+            "source": "https://ember.by/wp-content/uploads/2026/10/menyu_285h408_ru_p.pdf",
+            "active": true
+          }
+        ]
+      }
+    },
+    {
+      "seedKey": "mlyn-ruzh-kalvariyskaya-1",
+      "name": "Млын Руж",
+      "address": "Минск, ул. Кальварийская, 1",
+      "active": true,
+      "reviewStatus": "MANUALLY_VERIFIED",
+      "cuisines": [
+        "BELARUSIAN",
+        "EUROPEAN"
+      ],
+      "catalogSource": "https://mlynruzh.by/",
+      "catalogVerifiedAt": "2026-10-07",
+      "check": {
+        "amount": 58.00,
+        "type": "DERIVED",
+        "source": "https://mlynruzh.by/menyu/osnovnoe-menyu/",
+        "verifiedAt": "2026-10-07",
+        "explanation": "Паста «Курица и грибы» 33.00 + солянка 25.00 = 58.00 BYN; основное меню зала. Ресторан-кабаре; оценка еды не включает шоу или иные дополнительные услуги, условия конкретного события следует уточнять у заведения. Один гость, только еда; напитки, чаевые и дополнительные услуги не включены. Расчёт куратора, не официальный средний чек."
+      },
+      "hoursSource": "https://mlynruzh.by/faq/",
+      "hoursVerifiedAt": "2026-10-07",
+      "openingIntervals": [
+        {
+          "weekday": "THURSDAY",
+          "opensAt": "19:00",
+          "closesAt": "05:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "FRIDAY",
+          "opensAt": "19:00",
+          "closesAt": "05:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "SATURDAY",
+          "opensAt": "19:00",
+          "closesAt": "05:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "SUNDAY",
+          "opensAt": "19:00",
+          "closesAt": "05:00",
+          "closesNextDay": true
+        }
+      ],
+      "menu": {
+        "restaurantSeedKey": "mlyn-ruzh-kalvariyskaya-1",
+        "coverage": "PARTIAL",
+        "source": "https://mlynruzh.by/menyu/osnovnoe-menyu/",
+        "verifiedAt": "2026-10-07",
+        "items": [
+          {
+            "seedKey": "chicken-pasta",
+            "name": "Паста «Курица и грибы»",
+            "category": "PASTA",
+            "dishType": "PASTA",
+            "priceByn": 33.00,
+            "portion": "300 г",
+            "description": null,
+            "source": "https://mlynruzh.by/menyu/osnovnoe-menyu/",
+            "active": true
+          },
+          {
+            "seedKey": "solyanka",
+            "name": "Солянка",
+            "category": "SOUP",
+            "dishType": null,
+            "priceByn": 25.00,
+            "portion": "250/30/2 г",
+            "description": null,
+            "source": "https://mlynruzh.by/menyu/osnovnoe-menyu/",
+            "active": true
+          }
+        ]
+      }
+    },
+    {
+      "seedKey": "chaika-dzerzhinskogo-104",
+      "name": "Чайка",
+      "address": "Минск, проспект Дзержинского, 104",
+      "active": true,
+      "reviewStatus": "MANUALLY_VERIFIED",
+      "cuisines": [
+        "BELARUSIAN"
+      ],
+      "catalogSource": "https://www.titanminsk.by/kafe-i-restoranyi/chajka/",
+      "catalogVerifiedAt": "2026-10-07",
+      "check": {
+        "amount": 40.00,
+        "type": "DERIVED",
+        "source": "https://www.titanminsk.by/kafe-i-restoranyi/chajka/menyu-odessyi-mamyi/",
+        "verifiedAt": "2026-10-07",
+        "explanation": "Котлета Папараць-кветка с картофельным пюре 20.00 + красный борщ с пампушками 20.00 = 40.00 BYN. Проверено новое меню с 02.10.2026: все эти блюда по 20 BYN; рулька 45 BYN является исключением и в расчёт не входит. Скидка на обеды не применена. Старое название в URL не используется как название заведения. Один гость, только еда; напитки, чаевые и дополнительные услуги не включены. Расчёт куратора, не официальный средний чек."
+      },
+      "hoursSource": "https://www.titanminsk.by/kafe-i-restoranyi/chajka/",
+      "hoursVerifiedAt": "2026-10-07",
+      "openingIntervals": [
+        {
+          "weekday": "MONDAY",
+          "opensAt": "12:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "TUESDAY",
+          "opensAt": "12:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "WEDNESDAY",
+          "opensAt": "12:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "THURSDAY",
+          "opensAt": "12:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "FRIDAY",
+          "opensAt": "12:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "SATURDAY",
+          "opensAt": "12:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "SUNDAY",
+          "opensAt": "12:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        }
+      ],
+      "menu": {
+        "restaurantSeedKey": "chaika-dzerzhinskogo-104",
+        "coverage": "PARTIAL",
+        "source": "https://www.titanminsk.by/kafe-i-restoranyi/chajka/menyu-odessyi-mamyi/",
+        "verifiedAt": "2026-10-07",
+        "items": [
+          {
+            "seedKey": "paparats",
+            "name": "Котлета Папараць-кветка с картофельным пюре",
+            "category": "MAIN",
+            "dishType": null,
+            "priceByn": 20.00,
+            "portion": "200/150/25/24 г",
+            "description": null,
+            "source": "https://www.titanminsk.by/kafe-i-restoranyi/chajka/menyu-odessyi-mamyi/",
+            "active": true
+          },
+          {
+            "seedKey": "borsch",
+            "name": "Красный борщ с пампушками",
+            "category": "SOUP",
+            "dishType": null,
+            "priceByn": 20.00,
+            "portion": "300/50/60 г",
+            "description": null,
+            "source": "https://www.titanminsk.by/kafe-i-restoranyi/chajka/menyu-odessyi-mamyi/",
+            "active": true
+          }
+        ]
+      }
+    },
+    {
+      "seedKey": "mimino-kirova-13",
+      "name": "Мимино",
+      "address": "Минск, ул. Кирова, 13",
+      "active": true,
+      "reviewStatus": "MANUALLY_VERIFIED",
+      "cuisines": [
+        "GEORGIAN",
+        "EUROPEAN"
+      ],
+      "catalogSource": "https://restaurantmimino.by/o-restorane/",
+      "catalogVerifiedAt": "2026-10-07",
+      "check": {
+        "amount": 80.00,
+        "type": "PUBLISHED",
+        "source": "https://yandex.com/maps/org/mimino/147722488839/",
+        "verifiedAt": "2026-10-07",
+        "explanation": "PUBLISHED SECONDARY: верхняя граница опубликованного в карточке заведения Яндекс Карт диапазона среднего счёта 30–80 BYN. Причина вторичного источника: официальный сайт не публикует средний чек, а применимость интернет-цен к залу не подтверждена. Карточка сверена по адресу, телефону и ссылке на официальный сайт; это не официальное обещание ресторана."
+      },
+      "hoursSource": "https://restaurantmimino.by/o-restorane/",
+      "hoursVerifiedAt": "2026-10-07",
+      "openingIntervals": [
+        {
+          "weekday": "MONDAY",
+          "opensAt": "12:00",
+          "closesAt": "02:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "TUESDAY",
+          "opensAt": "12:00",
+          "closesAt": "02:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "WEDNESDAY",
+          "opensAt": "12:00",
+          "closesAt": "02:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "THURSDAY",
+          "opensAt": "12:00",
+          "closesAt": "02:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "FRIDAY",
+          "opensAt": "12:00",
+          "closesAt": "02:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "SATURDAY",
+          "opensAt": "12:00",
+          "closesAt": "02:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "SUNDAY",
+          "opensAt": "12:00",
+          "closesAt": "02:00",
+          "closesNextDay": true
+        }
+      ],
+      "menu": null
+    }
+  ]
+}

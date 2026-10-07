@@ -56,6 +56,8 @@ public final class SearchFactualRenderer {
                 case BELARUSIAN -> "белорусская кухня";
                 case ITALIAN -> "итальянская кухня";
                 case GEORGIAN -> "грузинская кухня";
+                case EUROPEAN -> "европейская кухня";
+                case ASIAN -> "азиатская кухня";
             };
             case BUDGET_MATCH -> "входит в бюджет по ориентировочному чеку";
             case HOURS_MATCH -> "работает в выбранное время по расписанию";

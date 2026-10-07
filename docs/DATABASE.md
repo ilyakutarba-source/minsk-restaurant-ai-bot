@@ -1,6 +1,57 @@
 # Данные и PostgreSQL
 
-**IMPLEMENTED:** 10 конкретных филиалов, 60 menu items, Flyway V1–V9, ConversationState, JDBC ChatMemory и SelectionItem.
+**IMPLEMENTED на feature/miniapp-firecrawl-v2:** 30 конкретных заведений, 89 menu items,
+Flyway V1–V11, ConversationState, JDBC ChatMemory и SelectionItem. Ниже сохранена
+история первоначального MVP; V2-каталог не развёрнут в production.
+
+## V2-03 — расширенный curated каталог
+
+Ручная проверка новых данных: **2026-10-07**. Каталог содержит 30 активных заведений
+17 брендов: исходные 10 сохранены, добавлены 20 заведений 14 новых брендов.
+Это ограниченный curated subset Минска. `Restaurant` по-прежнему означает конкретное
+заведение; отдельные Brand/Chain/Venue entities не нужны.
+
+Новые бренды: Кухмистр, Чумацький Шлях, Берёзка, Друзья, Gan Bei (3 адреса),
+Coffee Embassy (3), Літвіны (3), Beans & Leaves, BAR:DOT XX1, Ташкент, Ember,
+Млын Руж, Чайка, Мимино. Кухни: BELARUSIAN — 13 заведений, ITALIAN — 5,
+GEORGIAN — 2, EUROPEAN — 8, ASIAN — 5; возможны несколько кухонь на заведение.
+Две новые широкие категории покрывают европейские кафе и азиатскую/узбекскую кухню.
+
+Immutable [dataset V11](../src/main/resources/db/seed/curated-catalog-v11.json) хранит
+конкретные адреса, кухни, недельные часы, отдельные источники/даты и объяснения чеков.
+Всего 4 PUBLISHED и 26 DERIVED checks. Coffee Embassy публикует сценарий
+«завтрак + кофе до 30/35 BYN», доступный весь день; это не обещание цены любого ужина.
+У Мимино выбран верх опубликованного диапазона 30–80 BYN из
+[карточки Яндекс Карт](https://yandex.com/maps/org/mimino/147722488839/):
+официального среднего чека нет, применимость интернет-магазина к залу не доказана.
+Этот единственный secondary check-source явно обозначен в provenance;
+адрес, кухня и часы подтверждены [официальным сайтом](https://restaurantmimino.by/o-restorane/).
+Остальные 29 чеков опираются на официальные источники. DERIVED сценарии используют
+реальные цены зала, food-only метод и BigDecimal; у Літвінаў одна полноценная голенка
+с гарниром, прямо исключённая из доставки, у остальных новых DERIVED — два блюда.
+Оценка Млын Руж не включает шоу/дополнительные услуги. Сетевое меню Gan Bei применяется
+только к перечисленным на официальном сайте филиалам; individual staff confirmation
+не заявляется. Кухня/закрытие кухни не подменяют часы самого заведения.
+
+89 позиций меню: 60 исходных + 29 новых. Из 20 новых заведений 16 имеют 1–2 проверенные
+PARTIAL позиции, 4 — без сохранённого меню (Coffee Embassy ×3, Мимино).
+Всего 26 с PARTIAL / 4 DATA_UNAVAILABLE. Меню не участвует в eligibility поиска.
+205 недельных интервалов включают закрытые дни и переход через полночь.
+
+V10 расширяет только SQL cuisine constraint. V11 читает проверенный локальный JSON
+через `CuratedCatalogDataset` / `CuratedCatalogImport` в транзакции Flyway;
+checksum включает dataset. Весь batch проверяется до записи: обязательные поля,
+MANUALLY_VERIFIED, цены, часы, optional menu и дубликаты по нормализованным
+name + address, в том числе среди неактивных existing записей. Импорт add-only:
+повтор прямого импорта отклоняется; Flyway reapply выполняет 0 миграций.
+Даты заданы куратором, не временем импорта. Нет HTTP, Spring bean, REST или AI tool
+для импорта; Firecrawl candidates автоматически не допускаются. V1–V9 неизменны.
+
+Acceptance 2026-10-07: fresh PostgreSQL 17.10 V1→V11 и Hibernate validate PASS,
+170 targeted tests PASS на H2 и PostgreSQL, Flyway reapply 0, normalized duplicates 0.
+`mvnw.cmd clean test` и `mvnw.cmd clean verify`: по 482 tests PASS, без skipped.
+Local-only evidence: `probes/v2-03-evidence/` (summary, sources-review, acceptance,
+postgresql-result и логи); production DB/VPS/main не изменялись.
 Google enrichment исключён из текущего MVP: [PRODUCT](PRODUCT.md#google-places--excluded-from-current-mvp).
 Search rules: [ARCHITECTURE](ARCHITECTURE.md#правила-поиска-и-рекомендаций).
 Разговорное поведение: [AI](AI.md). Scope: [PRODUCT](PRODUCT.md).
@@ -105,7 +156,10 @@ Search использует сохранённый независимый BigDec
 
 ### Menu data strategy
 
-5–10 полезных позиций на заведение, coverage всегда PARTIAL. Источник и дата относятся к сохранённой части меню. Полное меню, автоматический scraping и внешний API меню не нужны.
+В первоначальном MVP — 5–10 полезных позиций на заведение; V2 допускает несколько
+проверенных позиций или отсутствие сохранённого меню. Coverage сохранённого набора
+всегда PARTIAL, максимум 10 позиций. Источник и дата относятся к сохранённой части
+меню. Полное меню, автоматический scraping и внешний API меню не нужны.
 
 Хранить фиксированные опубликованные BYN-цены. Не выдавать цену «за 100 г» как цену целого блюда; такие позиции лучше не включать в учебный набор. portion optional хранится только если указан в источнике.
 
@@ -258,6 +312,8 @@ Constraints не доказывают актуальность источник�
 | V7 create selection items | Четыре pointer/context поля; PK, два FK, position/version checks, restaurant index | IMPLEMENTED |
 | V8 expand final catalog | Семь проверенных конкретных филиалов и 49 недельных интервалов | IMPLEMENTED |
 | V9 seed final partial menus (Java) | Immutable JSON, 42 menu items для новых семи филиалов; existing MenuDataset contract/checksum | IMPLEMENTED |
+| V10 extend curated cuisines | EUROPEAN / ASIAN в SQL constraint | IMPLEMENTED, feature V2 |
+| V11 expand curated catalog (Java) | Immutable reviewed JSON: +20 venues, +29 menu items, +135 intervals; strict add-only import/checksum | IMPLEMENTED, feature V2 |
 
 Polling checkpoint storage допускается только при подтверждённой необходимости,
 если библиотека Telegram не покрывает offset. Отдельная domain subsystem не нужна.

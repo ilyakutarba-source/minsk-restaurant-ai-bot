@@ -64,7 +64,7 @@ class PartialMenuTest {
     @Test
     void flywayCreatesAndSeedsMenuAndDoesNotRepeatInsert() {
         assertThat(flyway.validateWithResult().validationSuccessful).isTrue();
-        assertThat(flyway.info().applied()).hasSize(9);
+        assertThat(flyway.info().applied()).hasSize(11);
         long before = items.count();
         assertThat(before).isPositive();
         assertThat(flyway.migrate().migrationsExecuted).isZero();
@@ -73,7 +73,8 @@ class PartialMenuTest {
 
     @Test
     void allFinalMenusExposeVerifiedPartialMetadataAndRepresentativePositivePrices() {
-        for (var restaurant : catalog.getCatalog(0, 20).content()) {
+        for (var restaurant : catalog.getCatalog(0, 100).content()) {
+            if (restaurant.catalogVerifiedAt().equals(LocalDate.of(2026, 10, 7))) continue;
             var menu = menu(restaurant.id());
             assertThat(menu.status()).isEqualTo(MenuDetails.Status.AVAILABLE);
             assertThat(menu.coverage()).isEqualTo(MenuCoverage.PARTIAL);
@@ -157,7 +158,7 @@ class PartialMenuTest {
     void catalogRemainsReadableWithAllMenuRowsRemoved() {
         jdbc.update("DELETE FROM menu_items");
         entityManager.clear();
-        assertThat(catalog.getCatalog(0, 20).content()).hasSize(10);
+        assertThat(catalog.getCatalog(0, 100).content()).hasSize(30);
         for (var restaurant : catalog.getCatalog(0, 20).content()) {
             assertThat(catalog.getRestaurant(restaurant.id()).orElseThrow().estimatedCheckPerGuest()).isPositive();
             assertThat(menu(restaurant.id()).status()).isEqualTo(MenuDetails.Status.DATA_UNAVAILABLE);
@@ -206,7 +207,7 @@ class PartialMenuTest {
         entityManager.flush();
         entityManager.clear();
         assertThat(items.findAll().stream().map(MenuItem::getId).sorted().toList()).isEqualTo(before);
-        assertThat(restaurants.count()).isEqualTo(10);
+        assertThat(restaurants.count()).isEqualTo(30);
     }
 
     @Test
@@ -239,7 +240,7 @@ class PartialMenuTest {
         try {
             assertThatThrownBy(() -> importText(invalid)).isInstanceOf(IllegalArgumentException.class);
             assertThat(menu(id("Васильки"))).isEqualTo(before);
-            assertThat(restaurants.count()).isEqualTo(10);
+            assertThat(restaurants.count()).isEqualTo(30);
         } finally {
             importText(seedJson());
         }

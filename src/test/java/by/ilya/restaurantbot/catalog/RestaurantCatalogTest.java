@@ -43,16 +43,16 @@ class RestaurantCatalogTest {
     @Test
     void migrationsValidateAndReapplyWithoutDuplicatingSeed() {
         assertThat(flyway.validateWithResult().validationSuccessful).isTrue();
-        assertThat(flyway.info().applied()).hasSize(9);
+        assertThat(flyway.info().applied()).hasSize(11);
         assertThat(flyway.migrate().migrationsExecuted).isZero();
-        assertThat(repository.count()).isEqualTo(10);
-        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM opening_intervals", Integer.class)).isEqualTo(70);
+        assertThat(repository.count()).isEqualTo(30);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM opening_intervals", Integer.class)).isEqualTo(205);
     }
 
     @Test
     void seedPreservesBranchIdentityAndVerifiedChecksForAllThreeRestaurants() {
         var catalog = service.getCatalog(0, 20);
-        assertThat(catalog.totalElements()).isEqualTo(10);
+        assertThat(catalog.totalElements()).isEqualTo(30);
         assertThat(catalog.content().subList(0, 3)).extracting(RestaurantDetails::name)
                 .containsExactly("Васильки", "Pizza Tempo", "Хинкальня");
         assertThat(catalog.content().subList(0, 3)).extracting(RestaurantDetails::address).containsExactly(
@@ -112,19 +112,19 @@ class RestaurantCatalogTest {
         assertThat(actual.cuisines()).containsExactlyInAnyOrder(Cuisine.BELARUSIAN, Cuisine.ITALIAN);
         assertThat(actual.openingIntervals()).containsExactly(new RestaurantDetails.Hours(
                 DayOfWeek.FRIDAY, LocalTime.of(20, 0), LocalTime.of(2, 0), true));
-        assertThat(repository.count()).isEqualTo(11);
+        assertThat(repository.count()).isEqualTo(31);
     }
 
     @Test
     void activeCatalogIsPagedAndDetailsAreMappedBeforeTransactionEnds() {
         var first = service.getCatalog(0, 1);
         var second = service.getCatalog(1, 1);
-        assertThat(first.totalElements()).isEqualTo(10);
+        assertThat(first.totalElements()).isEqualTo(30);
         assertThat(first.content()).hasSize(1);
         assertThat(second.content().getFirst().id()).isGreaterThan(first.content().getFirst().id());
         jdbc.update("UPDATE restaurants SET active = FALSE WHERE id = ?", first.content().getFirst().id());
         entityManager.clear();
-        assertThat(service.getCatalog(0, 20).content()).hasSize(9);
+        assertThat(service.getCatalog(0, 100).content()).hasSize(29);
         assertThat(service.getRestaurant(first.content().getFirst().id()).orElseThrow().active()).isFalse();
         assertThat(service.getRestaurant(Long.MAX_VALUE)).isEmpty();
         assertThat(service.getCatalog(100, 20).content()).isEmpty();
@@ -136,7 +136,7 @@ class RestaurantCatalogTest {
         var id = service.getCatalog(0, 20).content().get(2).id();
         mvc.perform(get("/api/v1/restaurants").param("page", "0").param("size", "2"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.content.length()").value(2))
-                .andExpect(jsonPath("$.totalElements").value(10));
+                .andExpect(jsonPath("$.totalElements").value(30));
         mvc.perform(get("/api/v1/restaurants/{id}", id))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.name").value("Хинкальня"))
                 .andExpect(jsonPath("$.estimatedCheckPerGuest").value(44.00))

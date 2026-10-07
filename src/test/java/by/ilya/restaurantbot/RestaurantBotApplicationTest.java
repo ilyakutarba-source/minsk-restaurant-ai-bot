@@ -34,7 +34,7 @@ class RestaurantBotApplicationTest {
         try (var connection = dataSource.getConnection()) {
             assertThat(connection.getMetaData().getDatabaseProductName()).isEqualTo("H2");
         }
-        assertThat(flyway.info().applied()).hasSize(9);
+        assertThat(flyway.info().applied()).hasSize(11);
 
         mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk())

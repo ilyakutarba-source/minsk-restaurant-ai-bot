@@ -69,14 +69,14 @@ class RestaurantSearchTest {
     // Keep the original three-branch regression fixture; FinalCatalogAcceptanceTest covers all ten.
     @org.junit.jupiter.api.BeforeEach
     void initialThreeBranchFixture() {
-        jdbc.update("UPDATE restaurants SET active = FALSE WHERE catalog_verified_at = DATE '2026-10-06'" );
+        jdbc.update("UPDATE restaurants SET active = FALSE WHERE catalog_verified_at IN (DATE '2026-10-06', DATE '2026-10-07')" );
         entityManager.clear();
     }
 
     @org.junit.jupiter.api.AfterEach
     void restoreExpandedBranchesAfterNonTransactionalRestChecks() {
         // Some REST tests opt out of @Transactional; leave the shared test database intact.
-        jdbc.update("UPDATE restaurants SET active = TRUE WHERE catalog_verified_at = DATE '2026-10-06'");
+        jdbc.update("UPDATE restaurants SET active = TRUE WHERE catalog_verified_at IN (DATE '2026-10-06', DATE '2026-10-07')");
         entityManager.clear();
     }
 

@@ -7,6 +7,7 @@ import by.ilya.restaurantbot.search.*;
 import by.ilya.restaurantbot.conversation.*;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.*;
 import org.springframework.context.annotation.*;
@@ -37,6 +38,12 @@ class FinalCatalogAcceptanceTest {
     @Autowired ReferenceResolver resolver;
     @Autowired ConversationStore store;
 
+    // Preserve V1 catalog expectations as a regression; V2 expansion has its own full-catalog acceptance.
+    @BeforeEach void isolateOriginalTen() {
+        jdbc.update("UPDATE restaurants SET active=false WHERE catalog_verified_at=DATE '2026-10-07'");
+        em.clear();
+    }
+
     SearchRequest request(int guests, String budget, String date, String time, Cuisine cuisine, Set<RestaurantTag> tags) {
         return new SearchRequest(guests, new BigDecimal(budget), date, time, cuisine, tags);
     }
@@ -45,12 +52,12 @@ class FinalCatalogAcceptanceTest {
 
     @Test void finalDataHasTenSpecificBranchesAndSixtyVerifiedPartialItems() {
         assertThat(flyway.validateWithResult().validationSuccessful).isTrue();
-        assertThat(flyway.info().applied()).hasSize(9);
+        assertThat(flyway.info().applied()).hasSize(11);
         assertThat(flyway.migrate().migrationsExecuted).isZero();
         var all = catalog.getCatalog(0, 20);
         assertThat(all.totalElements()).isEqualTo(10);
-        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM menu_items", Integer.class)).isEqualTo(60);
-        assertThat(jdbc.queryForObject("SELECT COUNT(DISTINCT seed_key) FROM restaurants", Integer.class)).isEqualTo(10);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM menu_items WHERE restaurant_id IN (SELECT id FROM restaurants WHERE active=true)", Integer.class)).isEqualTo(60);
+        assertThat(jdbc.queryForObject("SELECT COUNT(DISTINCT seed_key) FROM restaurants WHERE active=true", Integer.class)).isEqualTo(10);
         assertThat(all.content()).extracting(RestaurantDetails::address).doesNotHaveDuplicates();
         for (var r : all.content()) {
             assertThat(r.catalogSource()).startsWith("https://");

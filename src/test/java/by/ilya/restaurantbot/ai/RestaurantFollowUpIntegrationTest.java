@@ -142,6 +142,26 @@ class RestaurantFollowUpIntegrationTest {
         assertOneFollowUp(reply);
     }
 
+    @Test void expandedVenueWithoutMenuUsesTelegramUnavailableReplyWithoutInventedItems() {
+        long cafe=jdbc.queryForObject("SELECT id FROM restaurants WHERE seed_key='embassy-mira-1'",Long.class);
+        selections.replace(A,List.of(cafe));
+        var reply=turn("Меню первого",MENU,"{\"reference\":{\"ordinal\":1}}");
+        assertThat(reply.status()).isEqualTo(DATA_UNAVAILABLE);
+        assertThat(reply.followUpResult().menu().items()).isEmpty();
+        assertThat(reply.followUpResult().menu().coverage()).isNull();
+        assertThat(reply.text()).contains("Сохранённое меню недоступно")
+                .doesNotContain("invented address price hours", "Источник меню", "null");
+        assertOneFollowUp(reply);
+        var bot=mock(TelegramBot.class);
+        var sent=mock(SendResponse.class); when(sent.isOk()).thenReturn(true);
+        when(bot.execute(any(SendMessage.class))).thenReturn(sent);
+        var update=BotUtils.parseUpdate("{\"update_id\":1,\"message\":{\"message_id\":1,\"chat\":{\"id\":"+A
+                +",\"type\":\"private\"},\"text\":\"Меню первого\"}}");
+        new TelegramUpdateHandler(bot,conversation).process(List.of(update));
+        var message=ArgumentCaptor.forClass(SendMessage.class); verify(bot).execute(message.capture());
+        assertThat(message.getValue().getParameters().get("text")).isEqualTo(reply.text());
+    }
+
     @Test void missingSavedMenuIsDataUnavailableAndKeepsMetadata() {
         var prices = jdbc.queryForList("SELECT id FROM menu_items WHERE restaurant_id=3 AND active=true", Long.class);
         try {
