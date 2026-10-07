@@ -19,7 +19,12 @@ final class MiniAppMapper {
             case CUISINE_MATCH -> "Подходит выбранная кухня";
             case BUDGET_MATCH -> "Входит в бюджет по ориентировочному чеку";
             case HOURS_MATCH -> "Работает в выбранное время по расписанию";
-            default -> throw new IllegalArgumentException("Unexpected structured search reason");
+            case COZY_TAG_MATCH -> "Совпадает пожелание «уютно» по тегу каталога";
+            case QUIET_TAG_MATCH -> "Совпадает пожелание «спокойно» по тегу каталога";
+            case ROMANTIC_TAG_MATCH -> "Совпадает пожелание романтической обстановки по тегу каталога";
+            case CASUAL_TAG_MATCH -> "Совпадает пожелание повседневной обстановки по тегу каталога";
+            case FRIENDS_TAG_MATCH -> "Совпадает пожелание «с друзьями» по тегу каталога";
+            case PREMIUM_TAG_MATCH -> "Совпадает пожелание премиальной обстановки по тегу каталога";
         }).toList();
         return new MiniAppRestaurantCard(r.id(), r.name(), r.address(), cuisines(r.cuisines()),
                 candidate.estimatedTotalByn(), "Открыто по расписанию к " + TIME.format(result.normalizedCriteria().time()),

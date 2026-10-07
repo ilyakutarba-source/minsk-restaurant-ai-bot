@@ -55,7 +55,7 @@
 
   async function api(path, body) {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
+    const timeout = setTimeout(() => controller.abort(), path === '/search/natural' ? 30000 : 15000);
     try {
       const response = await fetch(`/api/miniapp/v1${path}`, {
         method: body ? 'POST' : 'GET', credentials: 'omit', signal: controller.signal,
@@ -74,7 +74,7 @@
     document.querySelectorAll('button').forEach(b => { b.disabled = true; });
     content.setAttribute('aria-busy', 'true');
     showStatus('Загружаем…');
-    try { await action(); showStatus(''); }
+    try { showStatus(await action() || ''); }
     catch (error) { showStatus(messages[error.message] || messages.TEMPORARY_ERROR); }
     finally {
       busy = false;
@@ -166,6 +166,22 @@
         totalBudgetByn: Number(document.getElementById('budget').value), date: date.value,
         time: document.getElementById('time').value, cuisine: document.getElementById('cuisine').value || null
       });
+      cards = data.cards; warnings = data.warnings;
+      results();
+    });
+  });
+  const naturalForm = document.getElementById('natural-form');
+  naturalForm.addEventListener('submit', event => {
+    event.preventDefault();
+    if (!naturalForm.reportValidity()) return;
+    const query = document.getElementById('query').value;
+    if (!query.trim() || query.length > 2000) {
+      showStatus('Напишите непустой запрос длиной до 2000 символов.');
+      return;
+    }
+    load(async () => {
+      const data = await api('/search/natural', { query });
+      if (data.status === 'NEED_CLARIFICATION') return data.message;
       cards = data.cards; warnings = data.warnings;
       results();
     });

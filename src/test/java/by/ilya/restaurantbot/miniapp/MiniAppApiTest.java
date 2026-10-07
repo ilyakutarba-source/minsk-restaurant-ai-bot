@@ -89,6 +89,16 @@ class MiniAppApiTest {
     }
 
     @Test
+    void disabledAiOnlyDisablesNaturalSearch() throws Exception {
+        mvc.perform(post("/api/miniapp/v1/search/natural").header("X-Telegram-Init-Data", auth)
+                .contentType("application/json").content("{\"query\":\"Сегодня 21:00 двое 150 BYN\"}"))
+                .andExpect(status().isServiceUnavailable()).andExpect(jsonPath("$.code").value("TEMPORARY_ERROR"));
+        mvc.perform(post("/api/miniapp/v1/search").header("X-Telegram-Init-Data", auth)
+                .contentType("application/json").content(VALID)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.cards.length()").value(3));
+    }
+
+    @Test
     void knownDetailsOnlyExposeUiFieldsAndSecondaryEvidence() throws Exception {
         String body = mvc.perform(get("/api/miniapp/v1/restaurants/1").header("X-Telegram-Init-Data", auth))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.name").isNotEmpty())

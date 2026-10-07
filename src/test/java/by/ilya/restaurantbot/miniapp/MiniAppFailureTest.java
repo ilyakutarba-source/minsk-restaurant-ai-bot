@@ -17,7 +17,8 @@ class MiniAppFailureTest {
         var search = mock(RestaurantSearchService.class);
         var restaurants = mock(RestaurantService.class);
         var menus = mock(MenuService.class);
-        var mvc = MockMvcBuilders.standaloneSetup(new MiniAppController(search, restaurants, menus))
+        var ai = mock(org.springframework.beans.factory.ObjectProvider.class);
+        var mvc = MockMvcBuilders.standaloneSetup(new MiniAppController(search, restaurants, menus, ai))
                 .setControllerAdvice(new MiniAppErrors()).build();
         when(search.search(any())).thenThrow(new DataAccessResourceFailureException("SQL private details"));
         mvc.perform(post("/api/miniapp/v1/search").contentType("application/json")

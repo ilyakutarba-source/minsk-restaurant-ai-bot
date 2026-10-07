@@ -3,7 +3,8 @@
 ## Текущий запуск — IMPLEMENTED
 
 Требуются JDK 21, Maven Wrapper 3.9.16 и PostgreSQL для default profile.
-Spring Boot получает DB connection из внешней среды, Flyway применяет V1–V9,
+Spring Boot получает DB connection из внешней среды; feature checkout применяет
+Flyway V1–V11, CURRENT PRODUCTION MVP остаётся на V9.
 Hibernate проверяет схему через `ddl-auto=validate`. Обычный запуск bind'ится на
 `127.0.0.1`; Compose задаёт `SERVER_ADDRESS=0.0.0.0` внутри контейнера и публикует
 порт только на loopback host.
@@ -48,7 +49,7 @@ SDK/initData вне Telegram могут отсутствовать: UI пока�
 [Verifier/header/freshness contract](ARCHITECTURE.md#v2-04--mini-app-boundary).
 
 **LIVE_TELEGRAM_MINIAPP_GATE = USER_INPUT_REQUIRED.** Public HTTPS для feature:
-UNKNOWN / не подтверждён; live Telegram launch NOT RUN. Нужны отдельный согласованный
+NOT AVAILABLE для feature по read-only проверке 2026-10-08; live Telegram launch NOT RUN. Нужны отдельный согласованный
 staging/public HTTPS URL, routing и Telegram bot configuration (Main Mini App,
 menu button либо inline web_app button). [Официальные варианты запуска](https://core.telegram.org/bots/webapps#launching-mini-apps).
 Для authenticated UI использовать запуск с initData; keyboard sendData flow здесь
@@ -59,8 +60,32 @@ menu button либо inline web_app button). [Официальные вариа�
 `/api/miniapp/v1/**`, включая передачу X-Telegram-Init-Data; существующие `/api/v1/**`,
 Swagger и `/v3/api-docs` сохраняются private. Не открывать весь app port.
 Live routing/DNS/Dokploy/bot settings не менялись в V2-04; покупка домена и deployment
-не выполнялись. Feature dataset/schema latest V11 остаются local; production acceptance
+не выполнялись. Feature dataset/schema latest V11 остаются на feature branch; production acceptance
 TASK-13 ниже описывает прежний deployed V9. Новых migrations в V2-04 нет.
+
+### V2-05 — release prerequisites
+
+Natural API `/api/miniapp/v1/search/natural` использует тот же server-side initData
+verifier и runtime AI_ENABLED/AIAI_API_KEY configuration. При disabled/unavailable AI
+natural search отвечает controlled 503, structured search/details/menu продолжают работать.
+Новые secrets, providers, tools, migrations и Firecrawl runtime dependency не добавлены.
+[Stateless contract/statuses](ARCHITECTURE.md#v2-04--mini-app-boundary).
+
+Read-only VPS audit 2026-10-08: production app остаётся только на
+127.0.0.1:18080, PostgreSQL без host mapping; `/miniapp/` отвечает 404.
+У app только private backend network, нет Traefik routing labels; dynamic YAML
+proxy configs не содержат target app/18080 route. Наличие общего HTTPS proxy
+не означает наличие подходящего feature URL. **Public HTTPS: NOT AVAILABLE**
+для этой Mini App; **LIVE_MINIAPP_GATE: USER_INPUT_REQUIRED**.
+
+Перед отдельным production release: получить user approval на merge/deploy,
+проверить backup и согласовать V10–V11 migration, выбрать отдельный HTTPS URL
+и узкий route allowlist выше, настроить Telegram launch с initData и dev-mode=false,
+проверить valid/tampered/stale auth и реальное mobile открытие.
+При staging нужны отдельные Compose project/DB volume/host port; для polling —
+отдельный test bot token. Второй production poller недопустим.
+В V2-05 staging/deploy/DNS/routing/bot settings не менялись; выполнены только local
+offline browser/API tests и три opt-in live AI сценария без Telegram transport.
 
 ### Проверка TASK-13 — 2026-10-06
 

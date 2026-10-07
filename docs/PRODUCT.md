@@ -24,10 +24,17 @@ Search → до трёх Results → Details / сохранённое Menu, с �
 а отсутствие сохранённых данных не означает отсутствие меню у ресторана.
 Предусмотрены loading/empty/error states и Telegram theme colors.
 
-Это локальная экспериментальная возможность V2, без natural-language поля, AI,
-Firecrawl runtime, booking, аккаунтов или новой схемы БД. Обычный Telegram chat flow
-сохранён. Live Telegram launch: **USER_INPUT_REQUIRED**; public HTTPS и конфигурация
-запуска ещё не проверены. Production-ready статус не заявляется.
+В V2-05 добавлен второй отдельный способ поиска: «Или опишите своими словами» →
+полный запрос → «Найти с AI» → до трёх Java factual cards либо уточнение.
+Каждый запрос независим; уточнённые критерии нужно повторить в новом полном запросе.
+Structured form сохранена и работает при disabled/unavailable AI. Loading,
+clarification, empty и controlled error states реализованы, chat UI не добавлен.
+Firecrawl runtime, booking, аккаунты и новая схема БД отсутствуют; Telegram chat flow сохранён.
+Live Telegram launch: **USER_INPUT_REQUIRED**; подходящий public HTTPS URL для
+feature **NOT AVAILABLE** по read-only VPS проверке 2026-10-08.
+V2 feature release status и acceptance: [README](../README.md#v2-feature-ready-for-release).
+CURRENT PRODUCTION MVP продолжает использовать прежний Telegram MVP; Mini App
+и V11 dataset не развёрнуты в production.
 [API и авторизация](ARCHITECTURE.md#v2-04--mini-app-boundary),
 [локальный запуск и live gate](DEPLOYMENT.md#v2-04--mini-app-local-demo-и-live-gate).
 

@@ -6,10 +6,10 @@ import java.util.Locale;
 import by.ilya.restaurantbot.search.SearchRequest;
 
 /** Conservative guards for common ambiguous wording; the model must also abstain from guessing. */
-final class CriteriaAmbiguity {
+public final class CriteriaAmbiguity {
     private CriteriaAmbiguity() { }
 
-    static List<String> fields(String text) {
+    public static List<String> fields(String text) {
         String value = text.toLowerCase(Locale.ROOT);
         var fields = new ArrayList<String>();
         if (value.matches("(?s).*(на человека|с человека|каждому|per person|доллар|евро|usd|eur|rub|₽|рубл|недорого|неясный бюджет).*" )

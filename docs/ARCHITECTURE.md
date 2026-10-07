@@ -214,11 +214,13 @@ Menu filters и import semantics: [DATABASE](DATABASE.md#menu-data-strategy).
 `/miniapp/` (static HTML/CSS/vanilla JS + официальный Telegram Web App SDK)
 → thin MiniAppController → RestaurantSearchService / RestaurantService / MenuService.
 Контроллер не получает repositories/EntityManager. Services и search contract/ranking
-не меняются; AI, Firecrawl, conversation memory/selection не участвуют в Mini App запросах.
+не меняются. Structured search/details/menu работают без AI. Firecrawl и conversation
+memory/selection не участвуют ни в одном Mini App запросе.
 
 | Method / path | UI response | HTTP |
 |---|---|---|
 | POST /api/miniapp/v1/search | guests, totalBudgetByn, date, time, optional cuisine → cards (≤3), warnings | 200, 400, 401, 503 |
+| POST /api/miniapp/v1/search/natural | query (1–2000 characters) → status, cards (≤3), warnings, optional Java clarification message | 200, 400, 401, 503 |
 | GET /api/miniapp/v1/restaurants/{id} | active known venue → details, weekly hours, secondary source links/dates | 200, 400, 401, 404, 503 |
 | GET /api/miniapp/v1/restaurants/{id}/menu | available/notice/items (name, priceByn, optional portion) | 200, 400, 401, 404, 503 |
 
@@ -227,6 +229,23 @@ curator methodology. ID нужен только для follow-up requests, ви�
 Opening summary карточки сообщает подтверждённое existing search соответствие
 времени прибытия; details показывает собственное недельное расписание с caveat.
 Empty search → 200 с пустыми cards; UI показывает NO_RESULTS.
+
+V2-05 natural search: тот же initData interceptor → existing SpringAiSearchAdapter
+→ searchRestaurants → RestaurantSearchService → trusted SearchResult → MiniAppMapper.
+Один полный self-contained query; history пустая, criteria preparation identity,
+без ConversationState/ChatMemory/SelectionItem. Переиспользован existing Java
+CriteriaAmbiguity.fields guard: «вечером» и неясная валюта требуют уточнения,
+даже если модель подставила полные criteria. Доступность utility для adapter не
+подключает разговорное состояние. Новых prompt/ChatClient/model/tools нет;
+bounded execution и AI contract принадлежат [AI](AI.md#bounded-execution).
+
+OK/NO_RESULTS возвращают только existing UI card projections из trusted result;
+NEED_CLARIFICATION — пустые cards и Java-owned message. Conversational menu/details
+tool без chat scope также получает clarification полного запроса. INVALID_INPUT →
+400, TEMPORARILY_UNAVAILABLE → 503 TEMPORARY_ERROR; raw model prose/protocol,
+adapter text и counters в API не выдаются. Disabled AI не создаёт обязательной
+зависимости для structured search/details/menu. Подтверждённые tag reason codes
+маппятся Java в подписи с оговоркой «по тегу каталога», без обещаний обстановки.
 Ошибки имеют только `code`/безопасное `message`: INVALID_INPUT (400), AUTH_FAILED (401),
 NOT_FOUND (404), TEMPORARY_ERROR (503), без exception/provider/SQL details.
 

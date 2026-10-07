@@ -34,6 +34,13 @@
         </select></label>
         <button type="submit">Найти ресторан</button>
       </form>
+      <form id="natural-form" aria-labelledby="natural-title">
+        <h2 id="natural-title">Или опишите своими словами</h2>
+        <label>Ваш запрос<textarea id="query" name="query" maxlength="2000" rows="4" required
+          placeholder="Сегодня в 21:00 нас двое, до 150 BYN, хочется итальянскую кухню"></textarea></label>
+        <p class="hint">Укажите гостей, общий бюджет в BYN, дату и точное время. Каждый запрос — новый поиск.</p>
+        <button type="submit">Найти с AI</button>
+      </form>
     </section>
     <section id="content-view" hidden aria-label="Результаты поиска"></section>
     <noscript>Для поиска включите JavaScript.</noscript>

@@ -4,6 +4,15 @@
 Flyway V1–V11, ConversationState, JDBC ChatMemory и SelectionItem. Ниже сохранена
 история первоначального MVP; V2-каталог не развёрнут в production.
 
+V2-05 не добавляет и не переписывает migrations/data. Final fresh PostgreSQL
+acceptance 2026-10-08: отдельный local cluster/database, пустая public schema →
+V1–V11, Hibernate validate PASS; **30 active venues, 17 brands, 89 menu items,
+205 intervals, normalized duplicate venues 0**. Flyway validate/reapply PASS.
+Mini App natural search не записывает criteria/selection/chat memory.
+Local-only evidence: `probes/v2-05-evidence/postgresql-final.md`.
+Production PostgreSQL остаётся V9 с первоначальными 10 заведениями/60 menu items;
+production migration в этой задаче не выполнялась.
+
 ## V2-03 — расширенный curated каталог
 
 Ручная проверка новых данных: **2026-10-07**. Каталог содержит 30 активных заведений

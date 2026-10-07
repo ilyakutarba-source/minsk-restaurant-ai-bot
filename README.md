@@ -6,7 +6,7 @@ Java services и собственная БД определяют факты и 
 
 ## Features
 
-**IMPLEMENTED:** каталог десяти реальных активных филиалов, собственные часы и ориентировочные
+**CURRENT PRODUCTION MVP:** каталог десяти реальных активных филиалов, собственные часы и ориентировочные
 чеки, 60 menu items (по 6 на филиал, PARTIAL), controlled JSON import, детерминированный Restaurant Search,
 четыре REST endpoints и Swagger, Flyway и тесты на H2/PostgreSQL; stateless Spring AI
 search tool, Structured Output explanation и Java factual renderer/fallback;
@@ -19,6 +19,29 @@ controlled errors/unsupported requests и input/output limits.
 
 **EXCLUDED FROM CURRENT MVP:** Google Places enrichment. Рейтинг и live часы Google
 не входят в текущий scope; [продуктовое решение](docs/PRODUCT.md#google-places--excluded-from-current-mvp).
+
+## V2 feature ready for release
+
+На `feature/miniapp-firecrawl-v2`: компактный Telegram UX, developer-only Firecrawl PoC,
+curated каталог 30 активных заведений / 17 брендов / 89 menu items (Flyway V11),
+Mini App `/miniapp/` с ручным и natural-language поиском, Details/Menu.
+Natural search использует существующий Spring AI adapter; фактические карточки
+формирует Java. Запросы stateless: в каждом укажите гостей, общий BYN budget,
+дату и точное время. Разговор с продолжением критериев остаётся в Telegram.
+Ручной поиск работает при отключённом или недоступном AI.
+[API/auth boundary](docs/ARCHITECTURE.md#v2-04--mini-app-boundary),
+[запуск и release prerequisites](docs/DEPLOYMENT.md#v2-05--release-prerequisites).
+
+Это feature branch, production merge/deploy не выполнены. Production MVP выше
+остаётся на прежней схеме V9 и прежнем dataset. Public HTTPS для feature не доступен;
+live Telegram Mini App gate — USER_INPUT_REQUIRED.
+
+Final acceptance 2026-10-08: targeted Mini App 55 PASS; fresh PostgreSQL 324 PASS;
+`mvnw.cmd clean test` и `mvnw.cmd clean verify` — по 537 PASS, без failures/errors/skipped.
+Обычные tests используют offline fixtures.
+Отдельный opt-in `-Dtest=MiniAppAiLiveSmokeIT` прошёл 3 сценария через authenticated
+API (OK + два NEED_CLARIFICATION), максимум 2 model calls / 1 tool execution.
+Подробности dataset и deployment gates находятся в документах-владельцах выше.
 
 ## Example user scenario
 
@@ -245,7 +268,8 @@ VPS resources, Telegram/AIAI E2E, mutable-state restart/redeploy и backup smoke
 Каталог ограничен 10 конкретными филиалами трёх сетей; полным каталогом Минска он не является.
 Сетевые филиалы используют проверенное общее меню и одинаковую методику чека.
 Поддержаны Минск, BYN, 1–6 гостей,
-сегодня и следующие шесть дней. REST не разбирает естественный язык.
+сегодня и следующие шесть дней. Production REST принимает structured criteria;
+отдельный natural-language Mini App API добавлен только на V2 feature branch.
 DERIVED check — собственная ориентировочная оценка, не официальный средний чек.
 Наличие столика, блюда, праздничные часы и тишина не гарантируются.
 Google Places enrichment исключён из текущего MVP; Google key для запуска не требуется.
