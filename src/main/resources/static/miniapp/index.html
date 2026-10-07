@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Рестораны Минска</title>
+  <link rel="stylesheet" href="/miniapp/style.css">
+  <script src="https://telegram.org/js/telegram-web-app.js?64"></script>
+  <script src="/miniapp/app.js" defer></script>
+</head>
+<body>
+  <main>
+    <header><p class="eyebrow">МИНСК · ПОДБОР РЕСТОРАНА</p><h1>Куда пойдём?</h1>
+      <p class="muted">Небольшой проверенный каталог для ваших планов.</p></header>
+    <p id="launch-note" class="notice" hidden></p>
+    <button id="back" class="secondary" type="button" hidden>← Назад</button>
+    <p id="status" role="status" aria-live="polite" hidden></p>
+    <section id="search-view" aria-labelledby="search-title">
+      <h2 id="search-title">Ваше посещение</h2>
+      <form id="search-form">
+        <label>Количество гостей<input id="guests" name="guests" type="number" min="1" max="6" step="1" value="2" required></label>
+        <label>Общий бюджет, BYN<input id="budget" name="budget" type="number" min="0.01" step="0.01" value="150" required>
+          <span class="hint">Сумма на всех гостей</span></label>
+        <div class="row">
+          <label>Дата<input id="date" name="date" type="date" required></label>
+          <label>Время<input id="time" name="time" type="time" value="19:00" required></label>
+        </div>
+        <p class="hint">Время Минска. Сегодня и следующие 6 дней.</p>
+        <label>Кухня<select id="cuisine" name="cuisine">
+          <option value="">Любая</option><option value="BELARUSIAN">Белорусская</option>
+          <option value="ITALIAN">Итальянская</option><option value="GEORGIAN">Грузинская</option>
+          <option value="EUROPEAN">Европейская</option><option value="ASIAN">Азиатская</option>
+        </select></label>
+        <button type="submit">Найти ресторан</button>
+      </form>
+    </section>
+    <section id="content-view" hidden aria-label="Результаты поиска"></section>
+    <noscript>Для поиска включите JavaScript.</noscript>
+  </main>
+</body>
+</html>

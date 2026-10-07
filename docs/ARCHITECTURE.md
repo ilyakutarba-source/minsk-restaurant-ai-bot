@@ -191,7 +191,7 @@ AI explanation использует только допустимые причи
 
 ## REST API
 
-Все четыре endpoints реализованы. REST/Swagger — локальная проверка Java logic;
+Четыре первоначальных endpoints реализованы. REST/Swagger — локальная проверка Java logic;
 HTTP доступ ограничен loopback. Сетевые требования: [DEPLOYMENT](DEPLOYMENT.md#доступ-и-секреты).
 
 | Method / path | Вход / результат | HTTP |
@@ -207,6 +207,47 @@ DB/transaction failure → 503 без fallback facts. Entities/provider DTO на
 Menu status: AVAILABLE / NO_RESULTS / DATA_UNAVAILABLE. PARTIAL/source/date сохраняются
 при пустом результате, если metadata есть; unknown restaurant → 404.
 Menu filters и import semantics: [DATABASE](DATABASE.md#menu-data-strategy).
+
+### V2-04 — Mini App boundary
+
+На feature branch добавлен отдельный adapter `miniapp`:
+`/miniapp/` (static HTML/CSS/vanilla JS + официальный Telegram Web App SDK)
+→ thin MiniAppController → RestaurantSearchService / RestaurantService / MenuService.
+Контроллер не получает repositories/EntityManager. Services и search contract/ranking
+не меняются; AI, Firecrawl, conversation memory/selection не участвуют в Mini App запросах.
+
+| Method / path | UI response | HTTP |
+|---|---|---|
+| POST /api/miniapp/v1/search | guests, totalBudgetByn, date, time, optional cuisine → cards (≤3), warnings | 200, 400, 401, 503 |
+| GET /api/miniapp/v1/restaurants/{id} | active known venue → details, weekly hours, secondary source links/dates | 200, 400, 401, 404, 503 |
+| GET /api/miniapp/v1/restaurants/{id}/menu | available/notice/items (name, priceByn, optional portion) | 200, 400, 401, 404, 503 |
+
+DTO являются UI projections, без JPA entities, seedKey, ranking scores, check type и
+curator methodology. ID нужен только для follow-up requests, визуально не выводится.
+Opening summary карточки сообщает подтверждённое existing search соответствие
+времени прибытия; details показывает собственное недельное расписание с caveat.
+Empty search → 200 с пустыми cards; UI показывает NO_RESULTS.
+Ошибки имеют только `code`/безопасное `message`: INVALID_INPUT (400), AUTH_FAILED (401),
+NOT_FOUND (404), TEMPORARY_ERROR (503), без exception/provider/SQL details.
+
+Каждый `/api/miniapp/**` request проверяется MVC interceptor через raw header
+`X-Telegram-Init-Data`. Изолированный TelegramMiniAppInitDataVerifier реализует
+[официальный bot-token HMAC-SHA-256 алгоритм](https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app):
+URL-decode один раз, reject duplicates/malformed/control characters/oversized input,
+все поля кроме hash сортируются и соединяются LF, HMAC key выводится из server-side
+bot token с ключом WebAppData, hash сравнивается constant-time.
+Поле signature, когда есть, остаётся частью bot-token HMAC (это не third-party Ed25519 flow).
+Подписанный auth_date принимается не старше 3600 секунд, с допуском будущего 30 секунд.
+Trusted context содержит только время аутентификации; userId/username из JS/query
+не используются. Raw initData/token не сохраняются и не логируются. API responses no-store.
+Это bounded launch proof; одноразовые session tokens/replay storage не добавлены.
+
+Default `restaurant-bot.miniapp.dev-mode=false`: даже test profile требует подпись.
+Явный dev mode требует dev/test profile, отсутствие prod/production и loopback server
+binding; иначе startup fails. Только unsigned loopback requests разрешены в этом режиме;
+предъявленная некорректная подпись всё равно отклоняется. Static assets публичны,
+каталог API защищён. Operational ограничения и live gate принадлежат
+[DEPLOYMENT](DEPLOYMENT.md#v2-04--mini-app-local-demo-и-live-gate).
 
 ## Внешние интеграции
 

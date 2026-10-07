@@ -11,7 +11,25 @@ Minsk Restaurant AI Bot помогает выбрать ресторан из с
 исходные 10 сохранены. Частичное меню доступно у 26 заведений, у 4 честно недоступно;
 поиск работает в обоих случаях. Кухни и происхождение чеков описаны в
 [DATABASE](DATABASE.md#v2-03--расширенный-curated-каталог).
-Это принятый локально feature dataset; production release и Mini App ещё не выполнены.
+Это принятый локально feature dataset; production release ещё не выполнен.
+
+## V2-04 — experimental Telegram Mini App на feature branch
+
+Небольшой mobile-first интерфейс `/miniapp/` на HTML/CSS/vanilla JavaScript:
+Search → до трёх Results → Details / сохранённое Menu, с внутренним возвратом назад.
+Поля: 1–6 гостей, общий бюджет BYN на всех гостей, дата/время Минска в существующем
+окне поиска, optional cuisine. Поиск использует существующий deterministic Java service.
+Карточки содержат адрес, кухни, ориентировочную общую сумму, статус по расписанию
+и подтверждённые причины. Источники и даты вторичны в details; меню честно PARTIAL,
+а отсутствие сохранённых данных не означает отсутствие меню у ресторана.
+Предусмотрены loading/empty/error states и Telegram theme colors.
+
+Это локальная экспериментальная возможность V2, без natural-language поля, AI,
+Firecrawl runtime, booking, аккаунтов или новой схемы БД. Обычный Telegram chat flow
+сохранён. Live Telegram launch: **USER_INPUT_REQUIRED**; public HTTPS и конфигурация
+запуска ещё не проверены. Production-ready статус не заявляется.
+[API и авторизация](ARCHITECTURE.md#v2-04--mini-app-boundary),
+[локальный запуск и live gate](DEPLOYMENT.md#v2-04--mini-app-local-demo-и-live-gate).
 
 ## Реализованные возможности первоначального MVP — IMPLEMENTED
 

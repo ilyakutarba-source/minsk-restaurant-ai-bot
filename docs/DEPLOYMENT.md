@@ -26,6 +26,42 @@ Telegram ordinal follow-up после redeploy подтверждён польз
 вернуло сохранённое PARTIAL-меню Pizza Tempo, ID 4, из прежней selection.
 CI configuration отсутствует. Remote acceptance подтверждена результатами ниже.
 
+### V2-04 — Mini App local demo и live gate
+
+Feature-only entry `/miniapp/`; assets `/miniapp/index.html`, `/miniapp/style.css`,
+`/miniapp/app.js` обслуживает тот же Spring Boot process, без frontend build/Node service.
+Обычный запуск сохраняет mandatory initData validation. Для отдельного локального
+browser demo с JDK 21 и H2 (без external keys/Telegram poller):
+
+```powershell
+.\mvnw.cmd spring-boot:test-run '-Dspring-boot.run.profiles=test' '-Dspring-boot.run.arguments=--server.port=18084 --server.address=127.0.0.1 --restaurant-bot.miniapp.dev-mode=true --restaurant-bot.telegram.bot-token= --restaurant-bot.ai.enabled=false'
+```
+
+Открыть `http://127.0.0.1:18084/miniapp/`; выбрать свободный local port при конфликте.
+Dev flag нужно задавать явно, default false; dev/test profile сам по себе его не включает.
+**Не включать dev-mode в production/staging или за public proxy.** Startup guard
+требует loopback binding и dev/test profile, запрещает prod/production; запрос также
+должен прийти с loopback. Это локальное demo, не механизм public auth. Reverse proxy
+может сделать public caller loopback для backend, поэтому guard не заменяет это правило.
+SDK/initData вне Telegram могут отсутствовать: UI показывает local notice; обычный
+сервер отвечает AUTH_FAILED. Token и initData не помещать в URL, access logs или frontend.
+[Verifier/header/freshness contract](ARCHITECTURE.md#v2-04--mini-app-boundary).
+
+**LIVE_TELEGRAM_MINIAPP_GATE = USER_INPUT_REQUIRED.** Public HTTPS для feature:
+UNKNOWN / не подтверждён; live Telegram launch NOT RUN. Нужны отдельный согласованный
+staging/public HTTPS URL, routing и Telegram bot configuration (Main Mini App,
+menu button либо inline web_app button). [Официальные варианты запуска](https://core.telegram.org/bots/webapps#launching-mini-apps).
+Для authenticated UI использовать запуск с initData; keyboard sendData flow здесь
+не интегрирован. Нужен токен соответствующего бота только на сервере и dev-mode=false.
+Для staging с polling использовать отдельного test bot, без второго production poller.
+
+Будущий public proxy должен разрешать только `/miniapp/` и его assets и
+`/api/miniapp/v1/**`, включая передачу X-Telegram-Init-Data; существующие `/api/v1/**`,
+Swagger и `/v3/api-docs` сохраняются private. Не открывать весь app port.
+Live routing/DNS/Dokploy/bot settings не менялись в V2-04; покупка домена и deployment
+не выполнялись. Feature dataset/schema latest V11 остаются local; production acceptance
+TASK-13 ниже описывает прежний deployed V9. Новых migrations в V2-04 нет.
+
 ### Проверка TASK-13 — 2026-10-06
 
 | Gate | Фактический результат |

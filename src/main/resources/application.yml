@@ -40,6 +40,8 @@ server:
   address: 127.0.0.1
 
 restaurant-bot:
+  miniapp:
+    dev-mode: false
   telegram:
     bot-token: ${TELEGRAM_BOT_TOKEN:}
   ai:
