@@ -94,7 +94,7 @@ class RestaurantSearchTest {
     }
 
     private Restaurant synthetic(String key, String check, List<OpeningInterval> hours) {
-        var r = new Restaurant(key, key, "Synthetic test address", true,
+        var r = new Restaurant(key, key, key, "Synthetic test address", true,
                 "https://example.test/catalog", LocalDate.of(2026, 10, 2), Set.of(Cuisine.ITALIAN));
         r.setEstimatedCheck(new BigDecimal(check), CheckEstimationType.PUBLISHED,
                 "https://example.test/check", LocalDate.of(2026, 10, 2));

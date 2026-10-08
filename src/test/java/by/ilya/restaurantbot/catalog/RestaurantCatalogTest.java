@@ -43,7 +43,7 @@ class RestaurantCatalogTest {
     @Test
     void migrationsValidateAndReapplyWithoutDuplicatingSeed() {
         assertThat(flyway.validateWithResult().validationSuccessful).isTrue();
-        assertThat(flyway.info().applied()).hasSize(11);
+        assertThat(flyway.info().applied()).hasSize(12);
         assertThat(flyway.migrate().migrationsExecuted).isZero();
         assertThat(repository.count()).isEqualTo(30);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM opening_intervals", Integer.class)).isEqualTo(205);
@@ -95,7 +95,7 @@ class RestaurantCatalogTest {
 
     @Test
     void persistenceRoundTripKeepsMoneyEnumsAndOvernightHoursAndAllowsAnotherBranchName() {
-        var restaurant = new Restaurant("synthetic-other-branch", "Васильки", "Synthetic test address",
+        var restaurant = new Restaurant("synthetic-other-branch", "vasilki", "Васильки", "Synthetic test address",
                 true, "https://example.test/catalog", LocalDate.of(2026, 10, 2),
                 Set.of(Cuisine.BELARUSIAN, Cuisine.ITALIAN));
         restaurant.setEstimatedCheck(new BigDecimal("19.99"), CheckEstimationType.PUBLISHED,
@@ -193,7 +193,7 @@ class RestaurantCatalogTest {
 
     @Test
     void invalidDerivedCheckAndAmbiguousHoursAreRejectedBeforePersistence() {
-        var restaurant = new Restaurant("synthetic", "Synthetic", "Synthetic", true,
+        var restaurant = new Restaurant("synthetic", "synthetic", "Synthetic", "Synthetic", true,
                 "https://example.test", LocalDate.of(2026, 10, 2), Set.of(Cuisine.ITALIAN));
         assertThatThrownBy(() -> restaurant.setEstimatedCheck(new BigDecimal("10.001"),
                 CheckEstimationType.DERIVED, "https://example.test", LocalDate.of(2026, 10, 2)))

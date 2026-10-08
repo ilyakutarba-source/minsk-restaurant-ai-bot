@@ -74,7 +74,7 @@ class TelegramSearchIntegrationTest {
     @ValueSource(strings = {"valid", "invalid", "failed"})
     void fullTelegramTurnPreservesTrustedFactsAndExplanationFallback(String explanation) throws Exception {
         var plan = """
-                {"items":[{"position":1,"reasonCodes":["CUISINE_MATCH","BUDGET_MATCH"],"phrasing":"NEUTRAL"},{"position":2,"reasonCodes":["BUDGET_MATCH"],"phrasing":"NEUTRAL"},{"position":3,"reasonCodes":["HOURS_MATCH"],"phrasing":"NEUTRAL"}]}
+                {"items":[{"position":1,"reasonCodes":["CUISINE_MATCH","BUDGET_MATCH"],"phrasing":"NEUTRAL"}]}
                 """;
         var response = switch (explanation) {
             case "valid" -> ProviderFixture.explanation(plan);
@@ -92,6 +92,7 @@ class TelegramSearchIntegrationTest {
                     "≈65.40 BYN на 2 гостей", "21:00", "не гарантия итоговой суммы")
                     .doesNotContain("Васильки", "Хинкальня", "provider payload", "ID:", "https://", "DERIVED");
             assertThat(reply.modelCalls()).isEqualTo(2);
+            assertThat(reply.searchResult().candidates()).hasSize(1);
             assertThat(reply.toolExecutions()).isEqualTo(1);
             assertThat(reply.explanationFallback()).isEqualTo(!explanation.equals("valid"));
             assertThat(text).isEqualTo(reply.text());

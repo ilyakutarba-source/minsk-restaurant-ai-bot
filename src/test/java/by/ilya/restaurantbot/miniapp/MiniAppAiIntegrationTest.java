@@ -92,7 +92,7 @@ class MiniAppAiIntegrationTest {
                 response("{\"PRIVATE_MODEL_PROSE\":true}", "STOP", List.of()));
         var body = natural("Сегодня в 21:00 нас двое, до 150 BYN, итальянская кухня, спокойно")
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("OK"))
-                .andExpect(jsonPath("$.cards.length()").value(3))
+                .andExpect(jsonPath("$.cards.length()").value(1))
                 .andExpect(header().string("Cache-Control", "no-store"))
                 .andReturn().getResponse().getContentAsString();
         var expected = search.search(new SearchRequest(2, new java.math.BigDecimal("150"), "TODAY", "21:00",

@@ -28,6 +28,8 @@ public class Restaurant {
 
     @Column(name = "seed_key", nullable = false, unique = true, length = 100)
     private String seedKey;
+    @Column(name = "brand_key", nullable = false, length = 100)
+    private String brandKey;
     @Column(nullable = false, length = 200)
     private String name;
     @Column(nullable = false, length = 300)
@@ -79,15 +81,23 @@ public class Restaurant {
     protected Restaurant() {
     }
 
-    public Restaurant(String seedKey, String name, String address, boolean active,
+    public Restaurant(String seedKey, String brandKey, String name, String address, boolean active,
                       String catalogSource, LocalDate catalogVerifiedAt, Set<Cuisine> cuisines) {
+        requireBrandKey(brandKey);
         this.seedKey = seedKey;
+        this.brandKey = brandKey;
         this.name = name;
         this.address = address;
         this.active = active;
         this.catalogSource = catalogSource;
         this.catalogVerifiedAt = catalogVerifiedAt;
         this.cuisines.addAll(cuisines);
+    }
+
+    static void requireBrandKey(String brandKey) {
+        if (brandKey == null || brandKey.length() > 100 || !brandKey.matches("[a-z0-9]+(?:-[a-z0-9]+)*")) {
+            throw new IllegalArgumentException("An explicit canonical brand key is required");
+        }
     }
 
     public void setEstimatedCheck(BigDecimal amount, CheckEstimationType type, String source, LocalDate verifiedAt) {
@@ -125,6 +135,7 @@ public class Restaurant {
     public LocalDate getMenuVerifiedAt() { return menuVerifiedAt; }
     public MenuCoverage getMenuCoverage() { return menuCoverage; }
     public String getSeedKey() { return seedKey; }
+    public String getBrandKey() { return brandKey; }
     public String getName() { return name; }
     public String getAddress() { return address; }
     public boolean isActive() { return active; }

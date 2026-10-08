@@ -52,7 +52,7 @@ class FinalCatalogAcceptanceTest {
 
     @Test void finalDataHasTenSpecificBranchesAndSixtyVerifiedPartialItems() {
         assertThat(flyway.validateWithResult().validationSuccessful).isTrue();
-        assertThat(flyway.info().applied()).hasSize(11);
+        assertThat(flyway.info().applied()).hasSize(12);
         assertThat(flyway.migrate().migrationsExecuted).isZero();
         var all = catalog.getCatalog(0, 20);
         assertThat(all.totalElements()).isEqualTo(10);
@@ -97,7 +97,7 @@ class FinalCatalogAcceptanceTest {
     @Test void fullCatalogBudgetCuisineStableRankingAndHardFiltersBeatSoftTags() {
         var q = request(2,"65.40","TODAY","21:00",Cuisine.ITALIAN,Set.of(RestaurantTag.QUIET));
         var result = search.search(q);
-        assertThat(ids(result)).containsExactly(id("pizza-tempo-karla-marksa-26"),id("pizza-tempo-bobruyskaya-6"),id("pizza-tempo-nezavisimosti-18"));
+        assertThat(ids(result)).containsExactly(id("pizza-tempo-karla-marksa-26"));
         assertThat(ids(search.search(q))).isEqualTo(ids(result));
         assertThat(result.candidates()).allSatisfy(c -> {
             assertThat(c.estimatedTotalByn()).isEqualByComparingTo("65.40");
@@ -107,11 +107,11 @@ class FinalCatalogAcceptanceTest {
         assertThat(search.search(request(2,"65.39","TODAY","21:00",null,null)).candidates()).isEmpty();
         assertThat(search.search(request(4,"65.40","TODAY","21:00",null,null)).candidates()).isEmpty();
         var tags = Set.of(RestaurantTag.COZY,RestaurantTag.FRIENDS);
-        long bobruyskaya=id("pizza-tempo-bobruyskaya-6"), nez18=id("pizza-tempo-nezavisimosti-18"), nez78=id("pizza-tempo-nezavisimosti-78");
-        assertThat(ids(search.search(request(2,"150","TODAY","21:00",null,tags)))).containsExactly(3L,2L,bobruyskaya);
-        assertThat(ids(search.search(request(2,"70","TODAY","21:00",null,tags)))).containsExactly(2L,bobruyskaya,nez18);
+        long bobruyskaya=id("pizza-tempo-bobruyskaya-6");
+        assertThat(ids(search.search(request(2,"150","TODAY","21:00",null,tags)))).containsExactly(3L,2L,1L);
+        assertThat(ids(search.search(request(2,"70","TODAY","21:00",null,tags)))).containsExactly(2L);
         jdbc.update("UPDATE restaurants SET active=false WHERE id=2"); em.clear();
-        assertThat(ids(search.search(q))).containsExactly(bobruyskaya,nez18,nez78);
+        assertThat(ids(search.search(q))).containsExactly(bobruyskaya);
     }
 
     @Test void finalBranchHoursCoverOpenCloseOvernightAndWeekBoundary() {

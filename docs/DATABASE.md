@@ -1,5 +1,49 @@
 # Данные и PostgreSQL
 
+## POST-V2-01 — brand membership
+
+Базовый V2 выпущен 2026-10-08: `FULL_V2_RELEASE_PASS`, production main `1b73be8`,
+V1–V11, 30 заведений / 17 брендов / 89 menu items / 205 intervals.
+Ниже сохранены исторические заметки до release. POST-V2-01 реализован отдельно;
+production migration/deploy не выполнялись.
+
+`Restaurant` остаётся конкретным заведением. V12 добавляет обязательный внутренний
+`brand_key VARCHAR(100)` без default, unique constraint, отдельной Brand entity и FK.
+Ключ — явный стабильный lowercase ASCII slug `[a-z0-9]+(-[a-z0-9]+)*`, максимум 100
+символов. Пустое/null/неканоническое значение отклоняется Java и SQL constraints.
+Один ключ разделяют филиалы бренда; самостоятельное заведение получает собственный.
+Название, адрес, домен и владелец не определяют принадлежность автоматически.
+
+V12 содержит точный reviewed mapping по всем 30 `seed_key`, включая неактивные
+записи, на 17 брендов. Изменяется только новая колонка; исходные ID и все прежние
+значения сохраняются. Неизвестная запись без mapping останавливает миграцию на
+NOT NULL, вместо назначения неподтверждённого бренда. V1–V11 и immutable JSON
+datasets не переписываются. Источник mapping — собственный reviewed каталог.
+
+Новые `Restaurant` создаются с обязательным `brandKey` в конструкторе. Controlled
+import использует `CuratedCatalogImport.apply(connection, dataset, brandKeysBySeedKey)`:
+явный mapping должен точно покрывать batch, все ключи проверяются до первой записи.
+Новый филиал получает существующий ключ после ручной проверки; новый бренд — новый
+ключ. SQL не может обнаружить смысловую ошибку куратора, например два разных ключа
+одного реального бренда; это проверяется review данных.
+
+Двухаргументный `apply(connection, dataset)` сохранён только для исторической V11,
+которая выполняется до появления колонки. Он не выводит brandKey из старых данных;
+после V12 попытка добавить им новое заведение блокируется NOT NULL.
+Новый overload не меняет V11 input/checksum и не добавляет публичный write endpoint.
+
+Поиск использует ключ только внутри Java service; наружу в catalog/search/Mini App
+DTO и AI tool schema он не передаётся. Правило выдачи принадлежит
+[ARCHITECTURE](ARCHITECTURE.md#deterministic-ranking).
+
+Acceptance: `BrandDiversityMigrationTest` проверяет fresh V1→V12, upgrade V11→V12,
+точный mapping всех записей, Flyway validate/reapply и сохранность всех прежних
+значений восьми таблиц, включая синтетические private state/selection/memory.
+Тест запускается на H2 и отдельно на изолированной PostgreSQL; PostgreSQL URL
+ограничен loopback acceptance database этой задачи. Production не используется.
+
+## Исторический V2 feature acceptance до release
+
 **IMPLEMENTED на feature/miniapp-firecrawl-v2:** 30 конкретных заведений, 89 menu items,
 Flyway V1–V11, ConversationState, JDBC ChatMemory и SelectionItem. Ниже сохранена
 история первоначального MVP; V2-каталог не развёрнут в production.
@@ -73,7 +117,7 @@ conversation data принадлежат [DEPLOYMENT](DEPLOYMENT.md); схема
 
 | Объект | Основные поля | Обоснование |
 |---|---|---|
-| Restaurant | id, seedKey, name, address, active, catalogSource, catalogVerifiedAt | Конкретное реальное заведение/филиал |
+| Restaurant | id, seedKey, brandKey, name, address, active, catalogSource, catalogVerifiedAt | Конкретное реальное заведение/филиал; brand membership см. POST-V2-01 выше |
 | Restaurant check metadata | estimatedCheckPerGuest, checkEstimationType, checkSource, checkVerifiedAt | Независимый ориентир бюджета на одного гостя, BYN; PUBLISHED / DERIVED |
 | Restaurant schedule metadata | hoursSource, hoursVerifiedAt | Происхождение собственного недельного расписания |
 | Restaurant menu metadata | menuSource, menuVerifiedAt, menuCoverage=PARTIAL | Одно частичное меню без отдельной Menu entity |
@@ -323,6 +367,7 @@ Constraints не доказывают актуальность источник�
 | V9 seed final partial menus (Java) | Immutable JSON, 42 menu items для новых семи филиалов; existing MenuDataset contract/checksum | IMPLEMENTED |
 | V10 extend curated cuisines | EUROPEAN / ASIAN в SQL constraint | IMPLEMENTED, feature V2 |
 | V11 expand curated catalog (Java) | Immutable reviewed JSON: +20 venues, +29 menu items, +135 intervals; strict add-only import/checksum | IMPLEMENTED, feature V2 |
+| V12 add restaurant brand key | Обязательный явный ключ, exact mapping 30 заведений → 17 брендов | IMPLEMENTED, feature POST-V2-01; production не применён |
 
 Polling checkpoint storage допускается только при подтверждённой необходимости,
 если библиотека Telegram не покрывает offset. Отдельная domain subsystem не нужна.

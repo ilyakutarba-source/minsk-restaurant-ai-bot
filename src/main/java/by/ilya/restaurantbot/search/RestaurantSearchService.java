@@ -5,6 +5,7 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 
 import by.ilya.restaurantbot.catalog.Restaurant;
@@ -32,21 +33,30 @@ public class RestaurantSearchService {
 
     public SearchResult search(SearchRequest request) {
         var criteria = SearchCriteria.normalize(request, clock);
-        var candidates = repository.findAllByOrderByIdAsc().stream()
+        var ranked = repository.findAllByOrderByIdAsc().stream()
                 .filter(Restaurant::isActive)
                 .filter(r -> criteria.cuisine() == null || r.getCuisines().contains(criteria.cuisine()))
                 .filter(RestaurantSearchService::hasVerifiedCheck)
                 .filter(r -> estimatedTotal(r, criteria).compareTo(criteria.totalBudgetByn()) <= 0)
                 .filter(r -> isOpen(r, criteria))
-                .map(r -> candidate(r, criteria))
-                .sorted(ORDER)
-                .limit(3)
+                .map(r -> new BrandedCandidate(r.getBrandKey(), candidate(r, criteria)))
+                .sorted(Comparator.comparing(BrandedCandidate::candidate, ORDER))
                 .toList();
-        return new SearchResult(criteria, "BYN", candidates, List.of(
+        var seenBrands = new HashSet<String>();
+        var candidates = new ArrayList<Candidate>();
+        for (var entry : ranked) {
+            if (seenBrands.add(entry.brandKey())) {
+                candidates.add(entry.candidate());
+                if (candidates.size() == 3) break;
+            }
+        }
+        return new SearchResult(criteria, "BYN", List.copyOf(candidates), List.of(
                 "Ориентировочный чек, не гарантия итоговой суммы.",
                 "Сохранённое недельное расписание не гарантирует праздничные часы или свободный столик.",
                 "Теги описывают характеристики каталога, не гарантируют обстановку при посещении."));
     }
+
+    private record BrandedCandidate(String brandKey, Candidate candidate) { }
 
     private static boolean hasVerifiedCheck(Restaurant r) {
         return r.getEstimatedCheckPerGuest() != null && r.getEstimatedCheckPerGuest().signum() > 0

@@ -64,7 +64,7 @@ class PartialMenuTest {
     @Test
     void flywayCreatesAndSeedsMenuAndDoesNotRepeatInsert() {
         assertThat(flyway.validateWithResult().validationSuccessful).isTrue();
-        assertThat(flyway.info().applied()).hasSize(11);
+        assertThat(flyway.info().applied()).hasSize(12);
         long before = items.count();
         assertThat(before).isPositive();
         assertThat(flyway.migrate().migrationsExecuted).isZero();
@@ -145,7 +145,7 @@ class PartialMenuTest {
 
     @Test
     void existingRestaurantWithoutMetadataIs200Unavailable() throws Exception {
-        var restaurant = restaurants.saveAndFlush(new Restaurant("synthetic-no-menu", "Synthetic", "Synthetic",
+        var restaurant = restaurants.saveAndFlush(new Restaurant("synthetic-no-menu", "synthetic", "Synthetic", "Synthetic",
                 true, "https://example.test/catalog", LocalDate.of(2026, 10, 2), Set.of(Cuisine.ITALIAN)));
         var menu = menu(restaurant.getId());
         assertThat(menu.status()).isEqualTo(MenuDetails.Status.DATA_UNAVAILABLE);

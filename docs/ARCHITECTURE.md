@@ -165,12 +165,19 @@ MenuItem rows и menu metadata не влияют на eligibility. Ограни�
 - MatchCount = число совпавших requested tags, по +1 за уникальный тег.
 - Кухня уже hard filter, дополнительного балла за неё нет.
 - Порядок: `matchCount DESC → estimatedTotalByn ASC → restaurant ID ASC`.
-- Limit применяется после сортировки: максимум 3 кандидата.
+- После сортировки выбирается первый кандидат каждого `Restaurant.brandKey`;
+  затем применяется limit: максимум 3 кандидата разных брендов.
+- Если подходящих брендов меньше трёх, возвращается меньше результатов;
+  hard filters ради заполнения выдачи не ослабляются.
 - Одинаковые criteria и каталог дают одинаковый порядок.
 - Google rating, случайность, LLM ranking, weights, embeddings, RAG и ML не используются.
 
 Pipeline: catalog → hard filters → eligible restaurants → soft tag matching →
-deterministic ranking → result. Чек используется как собственная оценка, не цена любого заказа.
+deterministic ranking → deduplication по явному brandKey → limit(3) → result.
+Лучший подходящий филиал бренда определяется тем же ranking, без новых весов.
+Принадлежность к бренду хранится в каталоге, не выводится из названий и не решается LLM:
+[DATABASE](DATABASE.md#post-v2-01--brand-membership).
+Чек используется как собственная оценка, не цена любого заказа.
 
 ### REST search contract
 
@@ -187,7 +194,10 @@ Candidate: собственный RestaurantDetails DTO, estimatedTotalByn, matc
 allowedReasonCodes. Причины: CUISINE_MATCH при заданной кухне, BUDGET_MATCH,
 HOURS_MATCH и `<TAG>_TAG_MATCH` только для совпавших запрошенных тегов.
 AI explanation использует только допустимые причины: [AI](AI.md#гибридный-flow-и-объяснение).
-Новых search tables/migrations, menu dependency и внешних API calls нет.
+Отдельных search tables, menu dependency и внешних API calls нет.
+POST-V2-01 добавляет только brand membership в существующий каталог через V12.
+Telegram и оба Mini App search используют это правило в общем RestaurantSearchService;
+публичные DTO и tool contracts не расширяются.
 
 ## REST API
 

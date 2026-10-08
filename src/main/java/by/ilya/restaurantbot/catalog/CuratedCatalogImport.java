@@ -3,12 +3,36 @@ package by.ilya.restaurantbot.catalog;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.HashSet;
+import java.util.Map;
 
 /** Explicit developer-side import used by Flyway; caller owns the transaction. No Spring bean or API. */
 public final class CuratedCatalogImport {
     private CuratedCatalogImport() { }
 
     public static void apply(Connection connection, CuratedCatalogDataset dataset) throws SQLException {
+        // Historical V11 runs before brand_key exists. Keep its SQL and dataset contract intact.
+        applyInternal(connection, dataset, null);
+    }
+
+    /** Current imports require reviewed, explicit membership for every venue; never infer from names. */
+    public static void apply(Connection connection, CuratedCatalogDataset dataset,
+                             Map<String, String> brandKeysBySeedKey) throws SQLException {
+        dataset.validate();
+        if (brandKeysBySeedKey == null) throw new IllegalArgumentException("Brand assignments are required");
+        var assignments = Map.copyOf(brandKeysBySeedKey);
+        var expected = new HashSet<String>();
+        for (var venue : dataset.venues()) {
+            expected.add(venue.seedKey());
+            Restaurant.requireBrandKey(assignments.get(venue.seedKey()));
+        }
+        if (!assignments.keySet().equals(expected)) {
+            throw new IllegalArgumentException("Brand assignments must exactly cover the imported venues");
+        }
+        applyInternal(connection, dataset, assignments);
+    }
+
+    private static void applyInternal(Connection connection, CuratedCatalogDataset dataset,
+                                      Map<String, String> assignments) throws SQLException {
         dataset.validate();
         var keys = new HashSet<String>();
         var identities = new HashSet<CuratedCatalogDataset.Identity>();
@@ -25,17 +49,22 @@ public final class CuratedCatalogImport {
                 throw new IllegalArgumentException("Curated import would duplicate an existing venue");
             }
         }
-        for (var v : dataset.venues()) insert(connection, v);
+        for (var v : dataset.venues()) insert(connection, v, assignments == null ? null : assignments.get(v.seedKey()));
     }
 
-    private static void insert(Connection connection, CuratedCatalogDataset.Venue v) throws SQLException {
+    private static void insert(Connection connection, CuratedCatalogDataset.Venue v, String brandKey) throws SQLException {
         long id;
-        try (var insert = connection.prepareStatement("""
+        String sql = """
                 INSERT INTO restaurants (seed_key,name,address,active,catalog_source,catalog_verified_at,
                     estimated_check_per_guest,check_estimation_type,check_source,check_verified_at,
                     hours_source,hours_verified_at,menu_source,menu_verified_at,menu_coverage)
                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-                """, java.sql.Statement.RETURN_GENERATED_KEYS)) {
+                """;
+        if (brandKey != null) {
+            sql = sql.replace("menu_coverage)", "menu_coverage,brand_key)")
+                    .replace("VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
+        }
+        try (var insert = connection.prepareStatement(sql, java.sql.Statement.RETURN_GENERATED_KEYS)) {
             insert.setString(1,v.seedKey()); insert.setString(2,v.name()); insert.setString(3,v.address());
             insert.setBoolean(4,v.active()); insert.setString(5,v.catalogSource());
             insert.setObject(6,v.catalogVerifiedAt()); insert.setBigDecimal(7,v.check().amount());
@@ -46,6 +75,7 @@ public final class CuratedCatalogImport {
             insert.setString(13,menu == null ? null : menu.source());
             insert.setObject(14,menu == null ? null : menu.verifiedAt());
             insert.setString(15,menu == null ? null : menu.coverage().name());
+            if (brandKey != null) insert.setString(16, brandKey);
             insert.executeUpdate();
             try (var generated = insert.getGeneratedKeys()) {
                 if (!generated.next()) throw new SQLException("Missing generated restaurant ID");
