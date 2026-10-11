@@ -40,7 +40,7 @@ class FinalCatalogAcceptanceTest {
 
     // Preserve V1 catalog expectations as a regression; V2 expansion has its own full-catalog acceptance.
     @BeforeEach void isolateOriginalTen() {
-        jdbc.update("UPDATE restaurants SET active=false WHERE catalog_verified_at=DATE '2026-10-07'");
+        jdbc.update("UPDATE restaurants SET active=false WHERE catalog_verified_at IN (DATE '2026-10-07', DATE '2026-10-08')");
         em.clear();
     }
 
@@ -52,7 +52,7 @@ class FinalCatalogAcceptanceTest {
 
     @Test void finalDataHasTenSpecificBranchesAndSixtyVerifiedPartialItems() {
         assertThat(flyway.validateWithResult().validationSuccessful).isTrue();
-        assertThat(flyway.info().applied()).hasSize(12);
+        assertThat(flyway.info().applied()).hasSize(13);
         assertThat(flyway.migrate().migrationsExecuted).isZero();
         var all = catalog.getCatalog(0, 20);
         assertThat(all.totalElements()).isEqualTo(10);

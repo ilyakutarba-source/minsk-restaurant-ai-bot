@@ -41,7 +41,7 @@ class CuratedCatalogBrandImportTest {
         var dataset = new CuratedCatalogDataset(List.of(venue("brand-test-a"), venue("brand-test-b"), venue("brand-test-c")));
         CuratedCatalogImport.apply(DataSourceUtils.getConnection(source), dataset,
                 Map.of("brand-test-a", "reviewed-brand", "brand-test-b", "reviewed-brand", "brand-test-c", "other-brand"));
-        assertThat(count()).isEqualTo(33);
+        assertThat(count()).isEqualTo(39);
         assertThat(jdbc.queryForList("SELECT seed_key FROM restaurants WHERE brand_key='reviewed-brand'", String.class))
                 .containsExactlyInAnyOrder("brand-test-a", "brand-test-b");
         assertThat(jdbc.queryForObject("SELECT brand_key FROM restaurants WHERE seed_key='brand-test-c'", String.class))
@@ -54,11 +54,11 @@ class CuratedCatalogBrandImportTest {
                 Map.of("brand-test-a", "valid", "brand-test-b", "valid", "unknown", "valid"))) {
             assertThatThrownBy(() -> CuratedCatalogImport.apply(DataSourceUtils.getConnection(source), dataset, assignments))
                     .isInstanceOf(IllegalArgumentException.class);
-            assertThat(count()).isEqualTo(30);
+            assertThat(count()).isEqualTo(36);
         }
         assertThatThrownBy(() -> CuratedCatalogImport.apply(DataSourceUtils.getConnection(source), dataset, null))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThat(count()).isEqualTo(30);
+        assertThat(count()).isEqualTo(36);
     }
     @Test void historicalImporterCannotAdmitAnUnbrandedVenueAfterV12() throws Exception {
         var dataset = new CuratedCatalogDataset(List.of(venue("brand-test-legacy")));

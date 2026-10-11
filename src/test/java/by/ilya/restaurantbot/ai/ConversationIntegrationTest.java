@@ -365,7 +365,7 @@ class ConversationIntegrationTest {
         assertThat(store.load(B).currentCriteria().guests()).isEqualTo(2);
         assertThat(store.load(A).selectionVersion()).isEqualTo(version + 2);
         assertThat(selections.current(A)).extracting(by.ilya.restaurantbot.conversation.SelectionItem::restaurantId)
-                .containsExactlyElementsOf(search.search(AiJson.mapper().readValue(FULL, by.ilya.restaurantbot.search.SearchRequest.class)).candidates().stream().map(c -> c.restaurant().id()).toList());
+                .containsExactlyElementsOf(search.search(store.load(A).currentCriteria()).candidates().stream().map(c -> c.restaurant().id()).toList());
         var transcript = memory.get(store.load(A).conversationId());
         assertThat(transcript).hasSize(4);
         assertThat(transcript.get(0).getText()).contains("Сегодня");

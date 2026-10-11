@@ -46,15 +46,15 @@ class CuratedCatalogAcceptanceTest {
         return search.search(new SearchRequest(guests,new BigDecimal(budget),date,time,cuisine,tags));
     }
     List<Long> ids(SearchResult r) { return r.candidates().stream().map(c->c.restaurant().id()).toList(); }
-    @Test void freshCatalogHasThirtyVenuesSeventeenBrandsAndOptionalVerifiedMenus() throws Exception {
+    @Test void freshCatalogHasThirtySixVenuesTwentyThreeBrandsAndOptionalVerifiedMenus() throws Exception {
         assertThat(flyway.validateWithResult().validationSuccessful).isTrue();
-        assertThat(flyway.info().applied()).hasSize(12);
+        assertThat(flyway.info().applied()).hasSize(13);
         assertThat(flyway.migrate().migrationsExecuted).isZero();
         var all=catalog.getCatalog(0,100);
-        assertThat(all.totalElements()).isEqualTo(30);
-        assertThat(jdbc.queryForObject("SELECT COUNT(DISTINCT brand_key) FROM restaurants", Integer.class)).isEqualTo(17);
-        assertThat(count("menu_items")).isEqualTo(89);
-        assertThat(count("opening_intervals")).isEqualTo(205);
+        assertThat(all.totalElements()).isEqualTo(36);
+        assertThat(jdbc.queryForObject("SELECT COUNT(DISTINCT brand_key) FROM restaurants", Integer.class)).isEqualTo(23);
+        assertThat(count("menu_items")).isEqualTo(101);
+        assertThat(count("opening_intervals")).isEqualTo(247);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM restaurants WHERE check_estimation_type='PUBLISHED'",Integer.class)).isEqualTo(4);
         assertThat(all.content()).allSatisfy(r -> {
             assertThat(r.active()).isTrue(); assertThat(r.address()).startsWith("Минск,");
@@ -95,7 +95,7 @@ class CuratedCatalogAcceptanceTest {
                 v.cuisines(),v.catalogSource(),v.catalogVerifiedAt(),v.check(),v.hoursSource(),v.hoursVerifiedAt(),v.openingIntervals(),null);
         assertThatThrownBy(()->CuratedCatalogImport.apply(connection,new CuratedCatalogDataset(List.of(fresh,duplicate))))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThat(count("restaurants")).isEqualTo(30); assertThat(count("menu_items")).isEqualTo(89);
+        assertThat(count("restaurants")).isEqualTo(36); assertThat(count("menu_items")).isEqualTo(101);
     }
     @Test void controlledImportSupportsEmptyPartialMenuAndValidatesEntireBatchFirst() throws Exception {
         var v=dataset().venues().getFirst(); var connection=DataSourceUtils.getConnection(source);
@@ -106,7 +106,7 @@ class CuratedCatalogAcceptanceTest {
                 v.catalogSource(),v.catalogVerifiedAt(),v.check(),v.hoursSource(),v.hoursVerifiedAt(),v.openingIntervals(),null);
         assertThatThrownBy(()->CuratedCatalogImport.apply(connection,new CuratedCatalogDataset(List.of(fresh,invalid))))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThat(count("restaurants")).isEqualTo(30);
+        assertThat(count("restaurants")).isEqualTo(36);
         CuratedCatalogImport.apply(connection,new CuratedCatalogDataset(List.of(fresh)), Map.of(fresh.seedKey(), "synthetic")); em.clear();
         assertThat(menus.getMenuByRestaurantId(id(fresh.seedKey()),null,null).orElseThrow().status())
                 .isEqualTo(MenuDetails.Status.DATA_UNAVAILABLE);
@@ -121,15 +121,16 @@ class CuratedCatalogAcceptanceTest {
         mvc.perform(get("/api/v1/restaurants/{id}",mira)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.cuisines[0]").value("EUROPEAN"));
         var asian=find(2,"93.20","2026-10-09","12:00",Cuisine.ASIAN,null);
-        assertThat(ids(asian)).containsExactly(id("ganbei-pritytskogo-156"));
-        assertThat(asian.candidates()).allSatisfy(c->assertThat(c.estimatedTotalByn()).isEqualByComparingTo("93.20"));
-        assertThat(find(2,"93.19","2026-10-09","12:00",Cuisine.ASIAN,null).candidates()).isEmpty();
+        assertThat(ids(asian)).containsExactly(id("yangtze-svobody-8"), id("ganbei-pritytskogo-156"));
+        assertThat(asian.candidates().getLast().estimatedTotalByn()).isEqualByComparingTo("93.20");
+        assertThat(asian.candidates().getFirst().estimatedTotalByn()).isEqualByComparingTo("86.00");
+        assertThat(ids(find(2,"93.19","2026-10-09","12:00",Cuisine.ASIAN,null))).containsExactly(id("yangtze-svobody-8"));
         jdbc.update("UPDATE restaurants SET active=false WHERE id=?",mira); em.clear();
         assertThat(find(2,"60","2026-10-09","12:00",Cuisine.EUROPEAN,null).candidates()).isEmpty();
     }
     @Test void fullCatalogRankingTagsBudgetLimitAndMenuIndependence() {
         var noTags=find(1,"150","2026-10-09","21:00",null,null);
-        assertThat(ids(noTags)).containsExactly(id("embassy-mira-1"),2L,1L);
+        assertThat(ids(noTags)).containsExactly(id("embassy-mira-1"),2L,id("pekaridze-platonova-45"));
         var tags=Set.of(RestaurantTag.COZY,RestaurantTag.FRIENDS);
         var ranked=find(2,"150","2026-10-09","21:00",null,tags);
         assertThat(ids(ranked)).containsExactly(3L,id("embassy-mira-1"),2L);

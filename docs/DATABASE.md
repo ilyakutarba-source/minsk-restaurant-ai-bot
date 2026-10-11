@@ -1,5 +1,52 @@
 # Данные и PostgreSQL
 
+## POST-V2-02C — каталог V13
+
+Локальное расширение от POST-V2-01: **36 активных адресных заведений / 23 бренда /
+101 menu items / 247 недельных интервалов** на fresh V13. Исходные 30 записей,
+их IDs, поля и связанные данные сохраняются. Production не изменяется.
+
+[V13](../src/main/java/db/migration/V13__expand_verified_catalog.java) использует
+существующий `CuratedCatalogImport` и immutable
+[curated-catalog-v13.json](../src/main/resources/db/seed/curated-catalog-v13.json).
+Mapping seedKey → brandKey задан явно в Java migration; checksum включает JSON с
+нормализованными переводами строк и отсортированный mapping. Весь batch проверяется
+до первой записи; JDBC записи выполняются в транзакции Flyway. Прямой повтор импорта
+отклоняется как duplicate, повторный Flyway migrate выполняет ноль миграций.
+V1–V12, прежние datasets, схема сущностей и общий search algorithm не изменены.
+
+| seedKey | brandKey | cuisines | DERIVED BYN/гость |
+|---|---|---|---:|
+| la-scala-nemiga-36 | la-scala | ITALIAN | 76.00 |
+| mziuri-pritytskogo-97b | mziuri | GEORGIAN, EUROPEAN | 41.00 |
+| pekaridze-platonova-45 | pekaridze | GEORGIAN | 39.00 |
+| sorrento-internatsionalnaya-38 | sorrento | ITALIAN | 65.00 |
+| da-claudio-karla-marksa-25 | da-claudio | ITALIAN | 60.00 |
+| yangtze-svobody-8 | yangtze | ASIAN | 43.00 |
+
+Все шесть имеют PARTIAL по две позиции и семь интервалов зала; tags пусты.
+Сохранён исходный reviewed `verifiedAt=2026-10-08` из утверждённого набора.
+Обязательная повторная проверка источников перед созданием V13 выполнена
+**2026-10-11**, а не назначена timestamp импорта. Адреса, часы, блюда, цены и
+provenance находятся в immutable dataset; детали gate и evidence — в
+[POST-V2-02C acceptance](POST-V2-02C-ACCEPTANCE.md).
+
+Чеки — food-only ориентиры основного прайса зала. Для Янцзы 30+3+10 BYN:
+гарнир сохранён в происхождении чека, не выдан за MAIN в меню. La Scala остаётся
+76, а Мзиури 41, без снижения ради budget threshold. BYN у Сорренто интерпретирован
+из связи PDF «Кухня и бар» с официальной минской страницей; ISO-валюта на PDF
+отдельно не расшифрована. Применимость и сумма возможных депозитов неизвестны.
+У пяти кандидатов время последнего горячего заказа UNKNOWN; часы зала не гарантируют
+горячий заказ в 21:00. У La Scala опубликована кухня до 23:00, отдельного kitchen
+calendar/фильтра в модели нет. Неопубликованные порции остаются null.
+
+Контроль: `CatalogExpansionMigrationTest` — fresh V1→V13, upgrade V12→V13,
+сохранность восьми таблиц с synthetic state/selection/memory, Hibernate validate,
+Flyway validate/reapply, duplicate/missing-brand/invalid-batch rejection и реальный
+SQL failure в последнем меню с полным rollback. `CatalogExpansionAuditTest`
+повторяет 135 сценариев через настоящий Java service и записывает evidence только
+для выделенной loopback PostgreSQL acceptance DB. Результаты принадлежат отчёту.
+
 ## POST-V2-01 — brand membership
 
 Базовый V2 выпущен 2026-10-08: `FULL_V2_RELEASE_PASS`, production main `1b73be8`,
@@ -368,6 +415,7 @@ Constraints не доказывают актуальность источник�
 | V10 extend curated cuisines | EUROPEAN / ASIAN в SQL constraint | IMPLEMENTED, feature V2 |
 | V11 expand curated catalog (Java) | Immutable reviewed JSON: +20 venues, +29 menu items, +135 intervals; strict add-only import/checksum | IMPLEMENTED, feature V2 |
 | V12 add restaurant brand key | Обязательный явный ключ, exact mapping 30 заведений → 17 брендов | IMPLEMENTED, feature POST-V2-01; production не применён |
+| V13 expand verified catalog (Java) | Immutable reviewed JSON: +6 venues, +12 PARTIAL menu items, +42 intervals; explicit brand mapping/checksum, add-only transaction | IMPLEMENTED, local feature POST-V2-02C; production не применён |
 
 Polling checkpoint storage допускается только при подтверждённой необходимости,
 если библиотека Telegram не покрывает offset. Отдельная domain subsystem не нужна.

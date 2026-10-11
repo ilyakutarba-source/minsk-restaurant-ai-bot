@@ -1,0 +1,575 @@
+{
+  "venues": [
+    {
+      "seedKey": "la-scala-nemiga-36",
+      "name": "La Scala Trattoria Ignazio",
+      "address": "Минск, ул. Немига, 36",
+      "active": true,
+      "reviewStatus": "MANUALLY_VERIFIED",
+      "cuisines": [
+        "ITALIAN"
+      ],
+      "catalogSource": "https://la-scala.by/restaurant",
+      "catalogVerifiedAt": "2026-10-08",
+      "check": {
+        "amount": 76.00,
+        "type": "DERIVED",
+        "source": "https://la-scala.by/menu/osnovnoe-menu",
+        "verifiedAt": "2026-10-08",
+        "explanation": "Лингвини с морепродуктами от моряка Туридду 52.00 + томатный крем-суп 24.00 = 76.00 BYN. Один гость, основной прайс зала, только еда; напитки, алкоголь, десерт, доставка, чаевые и дополнительные услуги не включены. Ориентир куратора, не официальный средний чек."
+      },
+      "hoursSource": "https://la-scala.by/restaurant",
+      "hoursVerifiedAt": "2026-10-08",
+      "openingIntervals": [
+        {
+          "weekday": "MONDAY",
+          "opensAt": "12:00",
+          "closesAt": "00:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "TUESDAY",
+          "opensAt": "12:00",
+          "closesAt": "00:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "WEDNESDAY",
+          "opensAt": "12:00",
+          "closesAt": "00:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "THURSDAY",
+          "opensAt": "12:00",
+          "closesAt": "00:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "FRIDAY",
+          "opensAt": "12:00",
+          "closesAt": "00:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "SATURDAY",
+          "opensAt": "12:00",
+          "closesAt": "00:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "SUNDAY",
+          "opensAt": "12:00",
+          "closesAt": "00:00",
+          "closesNextDay": true
+        }
+      ],
+      "menu": {
+        "restaurantSeedKey": "la-scala-nemiga-36",
+        "coverage": "PARTIAL",
+        "source": "https://la-scala.by/menu/osnovnoe-menu",
+        "verifiedAt": "2026-10-08",
+        "items": [
+          {
+            "seedKey": "la-scala-linguine-turiddu",
+            "name": "Лингвини с морепродуктами от моряка Туридду",
+            "category": "PASTA",
+            "dishType": "PASTA",
+            "priceByn": 52.00,
+            "portion": null,
+            "description": null,
+            "source": "https://la-scala.by/menu/osnovnoe-menu",
+            "active": true
+          },
+          {
+            "seedKey": "la-scala-tomato-cream-soup",
+            "name": "Томатный крем-суп",
+            "category": "SOUP",
+            "dishType": null,
+            "priceByn": 24.00,
+            "portion": null,
+            "description": null,
+            "source": "https://la-scala.by/menu/osnovnoe-menu",
+            "active": true
+          }
+        ]
+      }
+    },
+    {
+      "seedKey": "mziuri-pritytskogo-97b",
+      "name": "Мзиури",
+      "address": "Минск, ул. Притыцкого, 97б",
+      "active": true,
+      "reviewStatus": "MANUALLY_VERIFIED",
+      "cuisines": [
+        "GEORGIAN",
+        "EUROPEAN"
+      ],
+      "catalogSource": "https://mziuri.by/",
+      "catalogVerifiedAt": "2026-10-08",
+      "check": {
+        "amount": 41.00,
+        "type": "DERIVED",
+        "source": "https://mziuri.by/menu/",
+        "verifiedAt": "2026-10-08",
+        "explanation": "Оджахури 24.00 + харчо с шоти 17.00 = 41.00 BYN. Один гость, основной прайс зала, только еда; напитки, алкоголь, десерт, доставка, чаевые и дополнительные услуги не включены. Ориентир куратора, не официальный средний чек."
+      },
+      "hoursSource": "https://mziuri.by/",
+      "hoursVerifiedAt": "2026-10-08",
+      "openingIntervals": [
+        {
+          "weekday": "MONDAY",
+          "opensAt": "12:00",
+          "closesAt": "00:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "TUESDAY",
+          "opensAt": "12:00",
+          "closesAt": "00:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "WEDNESDAY",
+          "opensAt": "12:00",
+          "closesAt": "00:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "THURSDAY",
+          "opensAt": "12:00",
+          "closesAt": "00:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "FRIDAY",
+          "opensAt": "12:00",
+          "closesAt": "00:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "SATURDAY",
+          "opensAt": "12:00",
+          "closesAt": "00:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "SUNDAY",
+          "opensAt": "12:00",
+          "closesAt": "00:00",
+          "closesNextDay": true
+        }
+      ],
+      "menu": {
+        "restaurantSeedKey": "mziuri-pritytskogo-97b",
+        "coverage": "PARTIAL",
+        "source": "https://mziuri.by/menu/",
+        "verifiedAt": "2026-10-08",
+        "items": [
+          {
+            "seedKey": "mziuri-odjahuri",
+            "name": "Оджахури",
+            "category": "MAIN",
+            "dishType": null,
+            "priceByn": 24.00,
+            "portion": "300 г",
+            "description": null,
+            "source": "https://mziuri.by/menu/",
+            "active": true
+          },
+          {
+            "seedKey": "mziuri-kharcho",
+            "name": "Харчо",
+            "category": "SOUP",
+            "dishType": null,
+            "priceByn": 17.00,
+            "portion": "300/125 г",
+            "description": null,
+            "source": "https://mziuri.by/menu/",
+            "active": true
+          }
+        ]
+      }
+    },
+    {
+      "seedKey": "pekaridze-platonova-45",
+      "name": "Пекаридзе",
+      "address": "Минск, ул. Платонова, 45",
+      "active": true,
+      "reviewStatus": "MANUALLY_VERIFIED",
+      "cuisines": [
+        "GEORGIAN"
+      ],
+      "catalogSource": "https://pekaridze.by/contacty",
+      "catalogVerifiedAt": "2026-10-08",
+      "check": {
+        "amount": 39.00,
+        "type": "DERIVED",
+        "source": "https://pekaridze.by/menu_osnovnoe",
+        "verifiedAt": "2026-10-08",
+        "explanation": "Остри с говядиной 24.00 + харчо 15.00 = 39.00 BYN. Один гость, основной прайс зала, только еда; напитки, алкоголь, десерт, доставка, чаевые и дополнительные услуги не включены. Ориентир куратора, не официальный средний чек."
+      },
+      "hoursSource": "https://pekaridze.by/contacty",
+      "hoursVerifiedAt": "2026-10-08",
+      "openingIntervals": [
+        {
+          "weekday": "MONDAY",
+          "opensAt": "10:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "TUESDAY",
+          "opensAt": "10:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "WEDNESDAY",
+          "opensAt": "10:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "THURSDAY",
+          "opensAt": "10:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "FRIDAY",
+          "opensAt": "10:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "SATURDAY",
+          "opensAt": "10:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "SUNDAY",
+          "opensAt": "10:00",
+          "closesAt": "22:00",
+          "closesNextDay": false
+        }
+      ],
+      "menu": {
+        "restaurantSeedKey": "pekaridze-platonova-45",
+        "coverage": "PARTIAL",
+        "source": "https://pekaridze.by/menu_osnovnoe",
+        "verifiedAt": "2026-10-08",
+        "items": [
+          {
+            "seedKey": "pekaridze-ostri-beef",
+            "name": "Остри с говядиной",
+            "category": "MAIN",
+            "dishType": null,
+            "priceByn": 24.00,
+            "portion": null,
+            "description": null,
+            "source": "https://pekaridze.by/menu_osnovnoe",
+            "active": true
+          },
+          {
+            "seedKey": "pekaridze-kharcho",
+            "name": "Харчо",
+            "category": "SOUP",
+            "dishType": null,
+            "priceByn": 15.00,
+            "portion": null,
+            "description": null,
+            "source": "https://pekaridze.by/menu_osnovnoe",
+            "active": true
+          }
+        ]
+      }
+    },
+    {
+      "seedKey": "sorrento-internatsionalnaya-38",
+      "name": "Сорренто",
+      "address": "Минск, ул. Интернациональная, 38",
+      "active": true,
+      "reviewStatus": "MANUALLY_VERIFIED",
+      "cuisines": [
+        "ITALIAN"
+      ],
+      "catalogSource": "https://sorrento.ru/sorrentominsk/",
+      "catalogVerifiedAt": "2026-10-08",
+      "check": {
+        "amount": 65.00,
+        "type": "DERIVED",
+        "source": "https://familygarden.su/upload/iblock/1eb/l3e7kf2ncj9kwne0poflxylfq3315si3.pdf",
+        "verifiedAt": "2026-10-08",
+        "explanation": "Спагетти карбонара с беконом в сливочном соусе 45.00 + куриный суп с лапшой 20.00 = 65.00 BYN. PDF основного меню связан с минским рестораном; обозначение «Р» принято как BYN по этой привязке. Возможные депозиты: сумма и применимость не установлены, в food-only ориентир не включены. Один гость, основной прайс зала, только еда; напитки, алкоголь, десерт, доставка, чаевые и дополнительные услуги не включены. Ориентир куратора, не официальный средний чек."
+      },
+      "hoursSource": "https://sorrento.ru/sorrentominsk/",
+      "hoursVerifiedAt": "2026-10-08",
+      "openingIntervals": [
+        {
+          "weekday": "MONDAY",
+          "opensAt": "11:00",
+          "closesAt": "00:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "TUESDAY",
+          "opensAt": "11:00",
+          "closesAt": "00:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "WEDNESDAY",
+          "opensAt": "11:00",
+          "closesAt": "00:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "THURSDAY",
+          "opensAt": "11:00",
+          "closesAt": "00:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "FRIDAY",
+          "opensAt": "11:00",
+          "closesAt": "00:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "SATURDAY",
+          "opensAt": "11:00",
+          "closesAt": "00:00",
+          "closesNextDay": true
+        },
+        {
+          "weekday": "SUNDAY",
+          "opensAt": "11:00",
+          "closesAt": "00:00",
+          "closesNextDay": true
+        }
+      ],
+      "menu": {
+        "restaurantSeedKey": "sorrento-internatsionalnaya-38",
+        "coverage": "PARTIAL",
+        "source": "https://familygarden.su/upload/iblock/1eb/l3e7kf2ncj9kwne0poflxylfq3315si3.pdf",
+        "verifiedAt": "2026-10-08",
+        "items": [
+          {
+            "seedKey": "sorrento-spaghetti-carbonara",
+            "name": "Спагетти карбонара с беконом в сливочном соусе",
+            "category": "PASTA",
+            "dishType": "PASTA",
+            "priceByn": 45.00,
+            "portion": null,
+            "description": null,
+            "source": "https://familygarden.su/upload/iblock/1eb/l3e7kf2ncj9kwne0poflxylfq3315si3.pdf",
+            "active": true
+          },
+          {
+            "seedKey": "sorrento-chicken-noodle-soup",
+            "name": "Куриный с лапшой",
+            "category": "SOUP",
+            "dishType": null,
+            "priceByn": 20.00,
+            "portion": null,
+            "description": null,
+            "source": "https://familygarden.su/upload/iblock/1eb/l3e7kf2ncj9kwne0poflxylfq3315si3.pdf",
+            "active": true
+          }
+        ]
+      }
+    },
+    {
+      "seedKey": "da-claudio-karla-marksa-25",
+      "name": "Da Claudio",
+      "address": "Минск, ул. Карла Маркса, 25",
+      "active": true,
+      "reviewStatus": "MANUALLY_VERIFIED",
+      "cuisines": [
+        "ITALIAN"
+      ],
+      "catalogSource": "https://daclaudio.by/",
+      "catalogVerifiedAt": "2026-10-08",
+      "check": {
+        "amount": 60.00,
+        "type": "DERIVED",
+        "source": "https://daclaudio.by/menu",
+        "verifiedAt": "2026-10-08",
+        "explanation": "Тальятелле с миксом грибов, мясом сицилийских колбасок и ароматом трюфеля 39.00 + крем-суп из гороха с креветками 21.00 = 60.00 BYN. Подтверждение: https://daclaudio.by/documents/menuKitchenPdf.pdf. Дневная скидка не применена. Один гость, основной прайс зала, только еда; напитки, алкоголь, десерт, доставка, чаевые и дополнительные услуги не включены. Ориентир куратора, не официальный средний чек."
+      },
+      "hoursSource": "https://daclaudio.by/",
+      "hoursVerifiedAt": "2026-10-08",
+      "openingIntervals": [
+        {
+          "weekday": "MONDAY",
+          "opensAt": "12:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "TUESDAY",
+          "opensAt": "12:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "WEDNESDAY",
+          "opensAt": "12:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "THURSDAY",
+          "opensAt": "12:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "FRIDAY",
+          "opensAt": "12:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "SATURDAY",
+          "opensAt": "12:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "SUNDAY",
+          "opensAt": "12:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        }
+      ],
+      "menu": {
+        "restaurantSeedKey": "da-claudio-karla-marksa-25",
+        "coverage": "PARTIAL",
+        "source": "https://daclaudio.by/menu",
+        "verifiedAt": "2026-10-08",
+        "items": [
+          {
+            "seedKey": "da-claudio-tagliatelle-sausage-mushroom",
+            "name": "Тальятелле с миксом грибов, мясом сицилийских колбасок и ароматом трюфеля",
+            "category": "PASTA",
+            "dishType": "PASTA",
+            "priceByn": 39.00,
+            "portion": "450 г",
+            "description": null,
+            "source": "https://daclaudio.by/menu",
+            "active": true
+          },
+          {
+            "seedKey": "da-claudio-pea-shrimp-soup",
+            "name": "Крем-суп из гороха с креветками",
+            "category": "SOUP",
+            "dishType": null,
+            "priceByn": 21.00,
+            "portion": "270 г",
+            "description": null,
+            "source": "https://daclaudio.by/menu",
+            "active": true
+          }
+        ]
+      }
+    },
+    {
+      "seedKey": "yangtze-svobody-8",
+      "name": "Янцзы",
+      "address": "Минск, площадь Свободы, 8",
+      "active": true,
+      "reviewStatus": "MANUALLY_VERIFIED",
+      "cuisines": [
+        "ASIAN"
+      ],
+      "catalogSource": "https://yangtze.by/",
+      "catalogVerifiedAt": "2026-10-08",
+      "check": {
+        "amount": 43.00,
+        "type": "DERIVED",
+        "source": "https://yangtze.by/nashe-menyu/blyuda-iz-pticy/",
+        "verifiedAt": "2026-10-08",
+        "explanation": "Куриное филе с арахисом — Гонг Бао Ти Дин 30.00 + Мифан 3.00 + суп с куриным филе и грибами шиитаки — Ди Пьан Тан 10.00 = 43.00 BYN. Рис: https://yangtze.by/nashe-menyu/garnir/; суп: https://yangtze.by/nashe-menyu/supy/. Гарнир отдельно учтён в чеке, в PARTIAL меню не включён: категории GARNISH нет. Цены «р» относятся к основному прайсу минского ресторана в BYN. Один гость, основной прайс зала, только еда; напитки, алкоголь, десерт, доставка, чаевые и дополнительные услуги не включены. Ориентир куратора, не официальный средний чек."
+      },
+      "hoursSource": "https://yangtze.by/",
+      "hoursVerifiedAt": "2026-10-08",
+      "openingIntervals": [
+        {
+          "weekday": "MONDAY",
+          "opensAt": "11:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "TUESDAY",
+          "opensAt": "11:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "WEDNESDAY",
+          "opensAt": "11:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "THURSDAY",
+          "opensAt": "11:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "FRIDAY",
+          "opensAt": "11:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "SATURDAY",
+          "opensAt": "11:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        },
+        {
+          "weekday": "SUNDAY",
+          "opensAt": "11:00",
+          "closesAt": "23:00",
+          "closesNextDay": false
+        }
+      ],
+      "menu": {
+        "restaurantSeedKey": "yangtze-svobody-8",
+        "coverage": "PARTIAL",
+        "source": "https://yangtze.by/nashe-menyu/blyuda-iz-pticy/",
+        "verifiedAt": "2026-10-08",
+        "items": [
+          {
+            "seedKey": "yangtze-gong-bao-chicken",
+            "name": "Куриное филе с арахисом — Гонг Бао Ти Дин",
+            "category": "MAIN",
+            "dishType": null,
+            "priceByn": 30.00,
+            "portion": "300 г",
+            "description": null,
+            "source": "https://yangtze.by/nashe-menyu/blyuda-iz-pticy/",
+            "active": true
+          },
+          {
+            "seedKey": "yangtze-chicken-shiitake-soup",
+            "name": "Суп с куриным филе и грибами шиитаки — Ди Пьан Тан",
+            "category": "SOUP",
+            "dishType": null,
+            "priceByn": 10.00,
+            "portion": "230 г",
+            "description": null,
+            "source": "https://yangtze.by/nashe-menyu/supy/",
+            "active": true
+          }
+        ]
+      }
+    }
+  ]
+}

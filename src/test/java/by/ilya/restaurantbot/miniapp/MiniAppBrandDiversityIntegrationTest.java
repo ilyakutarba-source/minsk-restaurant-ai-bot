@@ -46,11 +46,11 @@ class MiniAppBrandDiversityIntegrationTest {
     @Autowired ChatMemory memory;
     @Autowired Clock clock;
 
-    @ParameterizedTest @CsvSource({"ITALIAN,1", "ASIAN,2", "ANY,3"})
-    void telegramStructuredAndNaturalReturnTheSameOneTwoOrThreeBrands(String cuisineName, int count) throws Exception {
+    @ParameterizedTest @CsvSource({"ITALIAN,80,1", "ITALIAN,120,2", "ITALIAN,150,3", "ASIAN,150,3", "ANY,150,3"})
+    void telegramStructuredAndNaturalReturnTheSameOneTwoOrThreeBrands(String cuisineName, String budget, int count) throws Exception {
         reset(model);
         Cuisine cuisine = cuisineName.equals("ANY") ? null : Cuisine.valueOf(cuisineName);
-        var request = new SearchRequest(2, new BigDecimal("150"), "TODAY", "21:00", cuisine, Set.of());
+        var request = new SearchRequest(2, new BigDecimal(budget), "TODAY", "21:00", cuisine, Set.of());
         var expected = search.search(request);
         var ids = expected.candidates().stream().map(c -> c.restaurant().id()).toList();
         assertThat(ids).hasSize(count);
@@ -61,11 +61,11 @@ class MiniAppBrandDiversityIntegrationTest {
         String auth = InitDataFixture.signed(InitDataFixture.NOW);
         String structured = mvc.perform(post("/api/miniapp/v1/search").header("X-Telegram-Init-Data", auth)
                 .contentType("application/json").content(json.writeValueAsString(
-                        new MiniAppSearchRequest(2, new BigDecimal("150"), "TODAY", "21:00", cuisine))))
+                        new MiniAppSearchRequest(2, new BigDecimal(budget), "TODAY", "21:00", cuisine))))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         String natural = mvc.perform(post("/api/miniapp/v1/search/natural").header("X-Telegram-Init-Data", auth)
                 .contentType("application/json").content(json.writeValueAsString(Map.of(
-                        "query", "Сегодня 21:00 двое 150 BYN " + cuisineName))))
+                        "query", "Сегодня 21:00 двое " + budget + " BYN " + cuisineName))))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         assertThat(json.readTree(natural).get("cards")).isEqualTo(json.readTree(structured).get("cards"));
         for (int i = 0; i < count; i++) {

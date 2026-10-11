@@ -1,5 +1,15 @@
 # Продукт и границы MVP
 
+## POST-V2-02C — локальное расширение каталога
+
+Добавлены шесть проверенных адресных заведений в отдельной feature branch.
+Состав, источники и ограничения: [DATABASE — V13](DATABASE.md#post-v2-02c--каталог-v13).
+Приёмка и матрица покрытия: [POST-V2-02C](POST-V2-02C-ACCEPTANCE.md).
+Telegram и оба способа поиска Mini App используют прежний общий Java service;
+hard filters, ranking и максимум три разных бренда сохраняются. Часы зала
+подтверждают прибытие, а не гарантированный горячий заказ или свободный столик.
+Production/deploy в этой задаче не изменяются.
+
 ## POST-V2-01 — разнообразие брендов
 
 Реализовано в отдельной feature branch после V2 release (`FULL_V2_RELEASE_PASS`,
@@ -10,8 +20,9 @@ production main `1b73be8`). Production/deploy в этой задаче не из
 для Telegram, Mini App structured и natural-language search через общий Java service.
 Алгоритм: [ARCHITECTURE](ARCHITECTURE.md#deterministic-ranking);
 принадлежность к бренду: [DATABASE](DATABASE.md#post-v2-01--brand-membership).
-Каталог не расширяется: в текущей ITALIAN категории один бренд Pizza Tempo,
-поэтому подходящий итальянский запрос возвращает один филиал.
+В POST-V2-01 каталог не расширялся: ITALIAN имела один бренд Pizza Tempo,
+поэтому подходящий итальянский запрос возвращал один филиал. Последующее
+расширение описано в [DATABASE — V13](DATABASE.md#post-v2-02c--каталог-v13).
 
 Ниже сохранены исторические разделы V2 до production release 2026-10-08.
 

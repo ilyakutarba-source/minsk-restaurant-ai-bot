@@ -42,7 +42,7 @@ class SpringAiSearchIntegrationTest {
     @Test
     void eval1FullItalianRequestWithRealJavaSearchAndProductionSdk() throws Exception {
         String plan = """
-                {"items":[{"position":1,"reasonCodes":["CUISINE_MATCH","BUDGET_MATCH"],"phrasing":"NEUTRAL"}]}
+                {"items":[{"position":1,"reasonCodes":["CUISINE_MATCH","BUDGET_MATCH"],"phrasing":"NEUTRAL"},{"position":2,"reasonCodes":["CUISINE_MATCH","BUDGET_MATCH"],"phrasing":"NEUTRAL"},{"position":3,"reasonCodes":["CUISINE_MATCH","BUDGET_MATCH"],"phrasing":"NEUTRAL"}]}
                 """;
         try (var fixture = new ProviderFixture(ProviderFixture.selection(FULL), ProviderFixture.explanation(plan));
              var http = new AiConfiguration().aiHttpClient()) {
@@ -50,7 +50,7 @@ class SpringAiSearchIntegrationTest {
             assertThat(reply.status()).isEqualTo(OK);
             assertThat(reply.searchResult().normalizedCriteria().guests()).isEqualTo(2);
             assertThat(reply.searchResult().normalizedCriteria().cuisine()).isEqualTo(Cuisine.ITALIAN);
-            assertThat(reply.searchResult().candidates()).hasSize(1);
+            assertThat(reply.searchResult().candidates()).hasSize(3);
             assertThat(reply.text()).contains("Pizza Tempo", "Карла Маркса, 26", "65.40 BYN");
             assertThat(reply.explanationFallback()).isFalse();
             assertThat(reply.modelCalls()).isEqualTo(2);
@@ -89,7 +89,7 @@ class SpringAiSearchIntegrationTest {
     void eval12ExplanationMayUseOnlyConfirmedTagsAndPositions() throws Exception {
         String args = FULL.replace("ITALIAN", "GEORGIAN").replace("QUIET", "COZY");
         String valid = """
-                {"items":[{"position":1,"reasonCodes":["COZY_TAG_MATCH"],"phrasing":"WARM"}]}
+                {"items":[{"position":1,"reasonCodes":["COZY_TAG_MATCH"],"phrasing":"WARM"},{"position":2,"reasonCodes":["BUDGET_MATCH"],"phrasing":"NEUTRAL"},{"position":3,"reasonCodes":["BUDGET_MATCH"],"phrasing":"NEUTRAL"}]}
                 """;
         for (var plan : List.of(valid, valid.replace("COZY_TAG_MATCH", "QUIET_TAG_MATCH"))) {
             try (var fixture = new ProviderFixture(ProviderFixture.selection(args), ProviderFixture.explanation(plan));

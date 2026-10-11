@@ -94,7 +94,7 @@ class BrandDiversityMigrationTest {
                         VALUES ('unmapped','Unmapped','Минск, Test','https://example.test',DATE '2026-10-08')
                         """);
                 var before = snapshot(jdbc);
-                assertThatThrownBy(() -> config(c, schema).load().migrate())
+                assertThatThrownBy(() -> config(c, schema).target("12").load().migrate())
                         .hasRootCauseInstanceOf(SQLException.class);
                 c.setSchema(schema);
                 if (c.getMetaData().getDatabaseProductName().equals("PostgreSQL")) {
@@ -128,7 +128,7 @@ class BrandDiversityMigrationTest {
                     jdbc.update("UPDATE restaurants SET active=FALSE WHERE seed_key='ember-pobediteley-9'");
                     before = snapshot(jdbc);
                 }
-                var flyway = config(c, schema).load();
+                var flyway = config(c, schema).target("12").load();
                 assertThat(flyway.migrate().migrationsExecuted).isEqualTo(upgrade ? 1 : 12);
                 c.setSchema(schema);
                 assertCatalog(jdbc);
