@@ -1,253 +1,184 @@
 # Продукт и границы MVP
 
+Minsk Restaurant AI Bot помогает выбрать ресторан из собственного ограниченного
+каталога Минска и получить сведения о выбранном заведении. Основной UI —
+русскоязычный Telegram private chat; Telegram Mini App предлагает форму поиска,
+независимый AI-поиск, карточки, details и сохранённое меню.
+
+## Текущее состояние production
+
+С 2026-10-11 production release **PASS**: `POST_V2_V13_PRODUCTION_RELEASE_PASS`,
+commit `6b2de35`, Flyway V13. Каталог: **36 активных адресных заведений, 23 бренда,
+101 позиция меню, 247 интервалов работы**. Telegram Bot и Mini App работают,
+публичный HTTPS обеспечивается Dokploy/Traefik.
+Результаты и границы проверки: [DEPLOYMENT](DEPLOYMENT.md#production-release--2026-10-11).
+
 ## POST-V2-02C — локальное расширение каталога
 
-Добавлены шесть проверенных адресных заведений в отдельной feature branch.
+История этапа: шесть проверенных заведений были добавлены и приняты локально,
+затем включены в production release V13 2026-10-11.
 Состав, источники и ограничения: [DATABASE — V13](DATABASE.md#post-v2-02c--каталог-v13).
-Приёмка и матрица покрытия: [POST-V2-02C](POST-V2-02C-ACCEPTANCE.md).
-Telegram и оба способа поиска Mini App используют прежний общий Java service;
-hard filters, ranking и максимум три разных бренда сохраняются. Часы зала
-подтверждают прибытие, а не гарантированный горячий заказ или свободный столик.
-Production/deploy в этой задаче не изменяются.
+Telegram и оба способа поиска Mini App используют общий Java service.
+Часы зала подтверждают прибытие, не гарантируют горячий заказ или свободный столик.
 
 ## POST-V2-01 — разнообразие брендов
 
-Реализовано в отдельной feature branch после V2 release (`FULL_V2_RELEASE_PASS`,
-production main `1b73be8`). Production/deploy в этой задаче не изменяются.
-Одна подборка содержит максимум три разных ресторанных бренда. Для каждого бренда
-выбирается лучший подходящий филиал по прежнему ranking. Если подходящих брендов
-меньше трёх, карточек меньше; кухня, бюджет и часы не ослабляются. Правило одинаково
-для Telegram, Mini App structured и natural-language search через общий Java service.
-Алгоритм: [ARCHITECTURE](ARCHITECTURE.md#deterministic-ranking);
-принадлежность к бренду: [DATABASE](DATABASE.md#post-v2-01--brand-membership).
-В POST-V2-01 каталог не расширялся: ITALIAN имела один бренд Pizza Tempo,
-поэтому подходящий итальянский запрос возвращал один филиал. Последующее
-расширение описано в [DATABASE — V13](DATABASE.md#post-v2-02c--каталог-v13).
+Реализовано через обязательный явный `brandKey` и применено в production с V12.
+Подборка содержит максимум три разных ресторанных бренда; для каждого выбирается
+лучший подходящий филиал по ranking. Если брендов меньше трёх, карточек меньше:
+кухня, бюджет и часы не ослабляются. Правило едино для Telegram, structured и natural
+Mini App search. Алгоритм: [ARCHITECTURE](ARCHITECTURE.md#deterministic-ranking);
+brand membership: [DATABASE](DATABASE.md#post-v2-01--brand-membership).
 
-Ниже сохранены исторические разделы V2 до production release 2026-10-08.
+## Telegram Bot
 
-Minsk Restaurant AI Bot помогает выбрать ресторан из собственного ограниченного
-каталога Минска и получить сведения о выбранном заведении. Основной целевой UI —
-русскоязычный Telegram private chat; поиск с уточнениями доступен в Telegram,
-структурированный поиск и чтение каталога — через REST/Swagger.
+Личный чат принимает полный запрос обычным языком, задаёт уточнения по отсутствующим
+или неоднозначным критериям и сохраняет валидные частичные критерии.
+«А если нас четверо?» продолжает поиск с прежними бюджетом, датой, временем и кухней.
+«Меню второго», «Есть паста у первого?» и «До скольки последний?» читают свежие
+собственные данные по текущей успешно показанной подборке. Номер должен существовать;
+неоднозначное имя требует уточнения.
 
-## V2-03 на feature branch
+`/start` объясняет возможности, `/help` даёт примеры, `/new` очищает memory,
+criteria и selection. Команды выполняет Java без AI calls.
+Разговоры изолированы по server-side chatId; memory и selection хранятся в PostgreSQL.
+Вход ограничен 2000 символами; длинные plain-text ответы делятся на части.
+Failed/partial send не обновляет transcript и selection; гарантированной доставки нет.
+Contracts: [AI](AI.md), transport: [DEPLOYMENT](DEPLOYMENT.md#telegram-long-polling--implemented).
 
-Расширенный curated каталог заведений Минска: **30 активных заведений, 17 брендов**,
-исходные 10 сохранены. Частичное меню доступно у 26 заведений, у 4 честно недоступно;
-поиск работает в обоих случаях. Кухни и происхождение чеков описаны в
-[DATABASE](DATABASE.md#v2-03--расширенный-curated-каталог).
-Это принятый локально feature dataset; production release ещё не выполнен.
+## V2-04 — Telegram Mini App
 
-## V2-04 — experimental Telegram Mini App на feature branch
+Реализованный mobile-first интерфейс `/miniapp/` на HTML/CSS/vanilla JavaScript:
+Search → до трёх Results → Details / Menu, с возвратом назад и темой Telegram.
+Форма принимает 1–6 гостей, общий BYN-бюджет, дату/время Минска, optional cuisine.
+Карточки показывают адрес, кухни, ориентировочную сумму и подтверждённые причины.
+Details содержит недельные часы, источники и даты. Меню обозначено PARTIAL;
+отсутствие сохранённых данных не означает отсутствие меню у ресторана.
 
-Небольшой mobile-first интерфейс `/miniapp/` на HTML/CSS/vanilla JavaScript:
-Search → до трёх Results → Details / сохранённое Menu, с внутренним возвратом назад.
-Поля: 1–6 гостей, общий бюджет BYN на всех гостей, дата/время Минска в существующем
-окне поиска, optional cuisine. Поиск использует существующий deterministic Java service.
-Карточки содержат адрес, кухни, ориентировочную общую сумму, статус по расписанию
-и подтверждённые причины. Источники и даты вторичны в details; меню честно PARTIAL,
-а отсутствие сохранённых данных не означает отсутствие меню у ресторана.
-Предусмотрены loading/empty/error states и Telegram theme colors.
-
-В V2-05 добавлен второй отдельный способ поиска: «Или опишите своими словами» →
-полный запрос → «Найти с AI» → до трёх Java factual cards либо уточнение.
-Каждый запрос независим; уточнённые критерии нужно повторить в новом полном запросе.
-Structured form сохранена и работает при disabled/unavailable AI. Loading,
-clarification, empty и controlled error states реализованы, chat UI не добавлен.
-Firecrawl runtime, booking, аккаунты и новая схема БД отсутствуют; Telegram chat flow сохранён.
-Live Telegram launch: **USER_INPUT_REQUIRED**; подходящий public HTTPS URL для
-feature **NOT AVAILABLE** по read-only VPS проверке 2026-10-08.
-V2 feature release status и acceptance: [README](../README.md#v2-feature-ready-for-release).
-CURRENT PRODUCTION MVP продолжает использовать прежний Telegram MVP; Mini App
-и V11 dataset не развёрнуты в production.
-[API и авторизация](ARCHITECTURE.md#v2-04--mini-app-boundary),
-[локальный запуск и live gate](DEPLOYMENT.md#v2-04--mini-app-local-demo-и-live-gate).
-
-## Реализованные возможности первоначального MVP — IMPLEMENTED
-
-- 10 конкретных активных филиалов: четыре Васильки, пять Pizza Tempo и одна Хинкальня.
-- Собственные адреса, cuisine/tags, часы и ориентировочный чек на одного гостя.
-- По шесть сохранённых menu items на ресторан (60 всего), с source/date и PARTIAL coverage.
-- Java Restaurant Search по полным структурированным критериям посещения.
-- До трёх кандидатов в стабильном порядке с подтверждёнными reason codes.
-- REST catalog/details/menu/recommendations и Swagger.
-- Stateless Spring AI search по полному natural-language запросу, controlled
-  ExplanationPlan и Java factual card/fallback; [AI contract](AI.md).
-- Telegram private text messages и long polling: полный запрос → существующий AI
-  search → собственная PostgreSQL → Java factual card → sendMessage.
-- Bounded PostgreSQL conversation memory, сохранение и продолжение критериев, базовый `/new`.
-- Текущая успешно показанная подборка по chatId и Java foundation для ordinal/last/exact-name references.
-- Telegram menu/details follow-up: ReferenceResolver → MenuService/RestaurantService,
-  supported PASTA/price filter, PARTIAL caveat и свежие собственные facts в Java response.
-- `/start` и `/help` с примерами реального поиска и follow-up; Java-only commands.
-- Controlled unsupported booking/city/currency, ошибки provider/DB/Telegram,
-  input limits и lossless split длинного plain-text ответа.
-- Docker Compose app/postgres, Dokploy/VPS, private HTTP/DB, persistent volume
-  и проверенные restart/redeploy; [deployment acceptance](DEPLOYMENT.md#проверка-task-13--2026-10-06).
-
-Чек, расписание и меню имеют отдельные источники и даты проверки. Поиск работает
-при частичном или отсутствующем меню. [Модель и происхождение данных](DATABASE.md).
+Второй способ поиска — «Или опишите своими словами» / «Найти с AI».
+Каждый запрос независим и требует полных критериев. NEED_CLARIFICATION предлагает
+повторить полный уточнённый запрос; chat UI и продолжение критериев отсутствуют.
+Форма, details и menu работают при отключённом или недоступном AI.
+Реализованы loading, clarification, empty и controlled error states.
+API проверяет подписанный Telegram initData; token остаётся на сервере.
+[API/auth boundary](ARCHITECTURE.md#v2-04--mini-app-boundary),
+[локальное demo](DEPLOYMENT.md#v2-04--mini-app-local-demo-и-live-gate).
 
 ## Core user journey — IMPLEMENTED
 
-1. Пользователь: «Сегодня в 21:00 нас двое, до 150 BYN, итальянская кухня, хочется спокойно».
-2. AI извлекает критерии; при недостающих или неоднозначных данных задаётся уточнение.
-3. Java search возвращает подходящие рестораны; пользователь видит короткое
-   объяснение, фактические карточки и ориентировочную сумму на указанное число гостей.
-4. «Что по меню у второго?» обращается к конкретному ресторану из показанной подборки.
-5. «До скольки первый?» перечитывает собственные часы; запрос рейтинга получает
-   сообщение о его недоступности.
-6. «А если нас четверо?» меняет гостей, сохраняя остальные критерии.
-7. `/new` очищает разговор, критерии и последнюю подборку.
+1. «Сегодня в 21:00 нас двое, общий бюджет 150 BYN, итальянская кухня».
+2. AI извлекает критерии; Java валидирует их и при необходимости уточняет.
+3. Java возвращает до трёх подходящих разных брендов, адреса и ориентировочные суммы.
+4. «Меню второго» читает частичное меню именно второй показанной позиции.
+5. «До скольки первый?» читает собственные часы; рейтинг честно недоступен.
+6. «А если нас четверо?» меняет гостей с сохранением остальных критериев в Telegram.
+7. `/new` начинает новый разговор.
 
-Полный self-contained запрос и короткие уточнения работают в Telegram. Валидные
-частичные критерии сохраняются; Java спрашивает оставшиеся обязательные или
-неоднозначные поля. Java resolution по последней подборке и menu/details tools реализованы,
-включая шаги 4–5 для собственных данных. `/start` и `/help` реализованы;
-Google rating исключён из текущего MVP.
-Правила tools/memory/reference resolution: [AI](AI.md).
+В Mini App шаги поиска/details/menu доступны через форму, AI-запрос и кнопки;
+шаги продолжения разговора относятся к Telegram chat.
 
 ## MVP — MUST
 
-| Возможность | Продуктовая граница | Состояние |
-|---|---|---|
-| Каталог | 10–12 реальных заведений, конкретные филиалы | IMPLEMENTED: 10 |
-| Посещение | Минск, BYN, 1–6 гостей, сегодня и следующие 6 дней | IMPLEMENTED в Java search и Telegram slice |
-| Поиск | Гости, общий бюджет, дата/время, optional cuisine/tags; до 3 вариантов | IMPLEMENTED |
-| Чек | Проверяемый ориентир на гостя с type/source/date | IMPLEMENTED |
-| Меню | 5–10 позиций на заведение, только PARTIAL | IMPLEMENTED: по 6 для всех 10 филиалов |
-| Telegram | Личные чаты, русский язык, long polling | IMPLEMENTED: search/menu/details, commands, controlled errors/limits |
-| AI | Один provider/model, Spring AI Tool Calling и Structured Output | IMPLEMENTED: ровно 3 tools, Java factual rendering |
-| Контекст | Ограниченная ChatMemory и последняя показанная подборка по chatId | Memory/criteria/selection и Java ReferenceResolver IMPLEMENTED |
-| Команды | `/start`, `/help`, `/new` | IMPLEMENTED; без model/tool calls |
-| Проверка backend | Четыре REST endpoints, Swagger, H2 и PostgreSQL tests | IMPLEMENTED |
-| Доставка | Docker Compose, Dokploy/VPS и persistent PostgreSQL | IMPLEMENTED; текущая remote acceptance — [status/runbook](DEPLOYMENT.md) |
-
-Техническая архитектура и детерминированные правила: [ARCHITECTURE](ARCHITECTURE.md).
-Provider/модель и доверенные tool contracts: [AI](AI.md).
-
-## Google Places — EXCLUDED FROM CURRENT MVP
-
-2026-10-06 пользователь явно исключил Google Places enrichment из текущего MVP.
-Google implementation — NOT IMPLEMENTED; live Google gate — NOT PASSED.
-Billing prerequisite недоступен в текущем setup; [техническая причина](DEPLOYMENT.md#google-places--excluded-from-current-mvp).
-
-Core MVP не зависит от Google: собственные catalog/search/menu/details продолжают
-работать. Google rating и live hours не входят в текущий scope. Возможность можно
-пересмотреть позже при доступном billing/API access и новом явном решении о scope.
+| Возможность | Реализованная граница |
+|---|---|
+| Каталог | 36 конкретных активных заведений / 23 бренда, собственные источники |
+| Посещение | Минск, BYN, 1–6 гостей, сегодня и следующие 6 дней |
+| Поиск | Гости, общий бюджет, дата/время, optional cuisine/tags; до трёх разных брендов |
+| Чек | Ориентир на гостя с type/source/date, независимый от полноты меню |
+| Меню | PARTIAL, максимум 10 позиций на заведение; saved menu может отсутствовать |
+| Telegram | Private chats, long polling, search/continuation/menu/details, команды |
+| Mini App | Форма, stateless AI search, cards/details/menu, server-side initData validation |
+| AI | Один provider/model, ровно три read-only tools, Structured Output и Java rendering |
+| Контекст | Bounded memory и текущая показанная selection в Telegram |
+| Backend | Четыре private REST endpoints, Swagger, H2 и PostgreSQL tests |
+| Deployment | Docker Compose → Dokploy/VPS, HTTPS через Traefik, persistent PostgreSQL |
 
 ## Пользовательское поведение и ограничения
 
-**Подбор.** Hard constraints не ослабляются автоматически. Неизвестные чек/часы не
-подтверждают соответствие запросу. Пустой REST search возвращает пустой список;
-Telegram возвращает честный NO_RESULTS и предлагает новый запрос с другими критериями.
+Hard constraints не ослабляются автоматически. Неизвестные чек/часы не подтверждают
+соответствие. Нет совпадений — пустой результат с честным сообщением и предложением
+изменить критерии.
 
-**Бюджет.** Указанная сумма — общий бюджет на всех гостей. Ориентировочный чек не
-гарантирует окончательную сумму заказа; DERIVED не означает официальный средний чек.
-Количество гостей не проверяет вместимость или наличие столика.
+Бюджет относится ко всем гостям. `DERIVED` — собственный ориентир по выбранным
+опубликованным ценам, не официальный средний чек и не цена любой корзины.
+Число гостей не проверяет capacity. Недельные часы проверяют прибытие, не длительность
+ужина, праздничные исключения или последний горячий заказ. Теги субъективны.
 
-**Обстановка.** Теги выражают субъективную характеристику каталога. Они не обещают
-тишину, романтическую обстановку или доступность места в конкретный вечер.
+«Не найдено в сохранённой части меню» не доказывает отсутствие блюда вообще.
+Наличие блюда, аллергены и неуказанные ингредиенты не выводятся из названия.
+Поиск работает и без сохранённого меню; меню и ориентир чека имеют отдельные источники.
 
-**Меню.** «Не найдено в сохранённой части меню» не означает отсутствие блюда вообще.
-Наличие блюда, аллергены и неуказанные ингредиенты не выводятся из его названия.
+Ordinal/last references используют текущую успешно показанную подборку конкретного
+чата. Пустой успешно отправленный search очищает selection, failed send оставляет
+прежнюю. Memory не является источником ресторанных фактов.
+Ошибка объяснения AI оставляет Java factual cards; ошибка интерпретации/provider
+даёт controlled response. Structured search не зависит от AI.
 
-**Контекст — IMPLEMENTED.** «Первый/второй/третий/последний» ссылается только на текущую успешно
-показанную подборку. Неоднозначное название требует уточнения; разные чаты изолированы.
-Пустая успешно отправленная выдача очищает подборку; failed send сохраняет прежнюю.
-Java resolver поддерживает exact normalized name; menu/details AI tools используют
-его в Telegram follow-up, без нового поиска и замены текущей подборки.
+## Google Places — EXCLUDED FROM CURRENT MVP
 
-**Ошибки AI — IMPLEMENTED для search/menu/details.** REST Java search работает
-независимо от AI. При failed explanation остаётся Java factual card;
-недоступный рейтинг
-не придумывается и не восстанавливается из разговорной памяти.
+Google Places enrichment исключён из scope 2026-10-06 и не реализован.
+Google rating/live hours не используются; Google key для запуска не нужен.
+Каталог, поиск, menu/details работают на собственной БД.
 
-Собственное недельное расписание не гарантирует праздничных исключений. Продукт
-не бронирует столики, не принимает оплату и не обещает доступность блюда.
+## OUT OF SCOPE
 
-**Команды и ошибки — IMPLEMENTED.** `/start` объясняет возможности, `/help` показывает
-примеры, `/new` очищает memory/criteria/selection и меняет generation. Help не меняет
-текущую подборку. Java scope guards отклоняют явные booking/city/currency requests;
-остальное неподдерживаемое wording требует abstention модели и Java clarification.
-Пользователю предлагаются Минск и общий BYN budget, без скрытой конвертации/поиска.
-Временные provider/DB ошибки не добавляют выдуманные факты. Если хотя бы одна часть
-Telegram reply не отправлена, новый transcript и selection не сохраняются; ранее
-сохранённые valid criteria могут остаться. Guaranteed delivery отсутствует.
-Точные limits и guards: [AI](AI.md#bounded-execution); transport: [DEPLOYMENT](DEPLOYMENT.md#telegram-long-polling--implemented).
-
-## OUT OF SCOPE первого релиза
-
-- Google Places enrichment: rating, live hours и Google Maps сведения.
-- Полный каталог Минска, полное меню, scraping и автоматическая синхронизация.
-- Favorites, профиль, постоянные preferences и история рекомендаций.
-- Геолокация/distance, другие города, несколько AI providers.
-- Сложные сравнения прошлых подборок и произвольные selectors.
-- Booking, оплата, публичный admin/chat API и отдельный web UI.
-- Autonomous loops, AI SQL/JPA access, embeddings, vector DB, RAG и ML ranking.
-- Microservices, Redis/Kafka, delivery state machine и exactly-once guarantees.
+- Полный каталог Минска, полные меню и автоматическая синхронизация/scraping.
+- Google Places, live ratings/reviews, геолокация/distance и другие города/валюты.
+- Booking, оплата, favorites, профили и постоянные preferences.
+- История рекомендаций и сложные сравнения прошлых подборок.
+- Публичный admin/chat API, несколько AI providers, SQL/JPA-доступ модели.
+- Embeddings, vector DB, RAG, ML ranking, autonomous loops.
+- Microservices, Redis/Kafka, distributed delivery и exactly-once guarantees.
 
 ## Возможные расширения
 
-После MVP: CI, ограниченные callbacks, retention cleanup, праздничные часы,
-backup restore drill и Google reviews при проверенных условиях отображения.
-Это будущие возможности, не часть текущей реализации.
+CI, callbacks, retention cleanup, праздничные часы и внешнее хранение backup
+могут рассматриваться отдельно. Это идеи, не реализованные возможности.
+Автоматического допуска непроверенных внешних данных в каталог нет.
 
 ## Definition of Done
 
-Критерии первоначальной спецификации восстановлены в текущем документе без
-расширения scope. Технические пункты подтверждены TASK-12/13; отдельный финальный
-gate — репетиция и объяснение студентом. Отметки не означают гарантию будущих
-ответов модели или production reliability.
+Production release подтверждён 2026-10-11; это результат проверенных сценариев,
+а не гарантия будущих ответов модели или безотказности.
 
-- [x] Clean checkout собирается; совместимые версии pinned по результату TASK-00.
-- [x] PostgreSQL запускается; Flyway создаёт схему; Hibernate validate проходит.
-- [x] Есть 10–12 реальных заведений с проверяемыми собственными источниками.
-- [x] У ориентировочного чека есть смысл «на одного», source и verifiedAt.
-- [x] Частичные меню содержат 5–10 полезных позиций, source и verifiedAt.
-- [x] Поиск работает независимо от полноты меню; ranking детерминирован.
-- [x] Telegram long polling работает в личных чатах.
-- [x] Spring AI реально выбирает и вызывает три tools через application services.
-- [x] AI не имеет SQL/JPA-доступа; factual cards формирует Java.
-- [x] Контролируемое AI-объяснение работает; его отказ оставляет фактическую выдачу.
-- [x] Chat memory изолирована по chatId и переживает restart.
-- [x] /new очищает memory/state/selection; «меню второго» работает по показанному порядку.
-- [x] Google enrichment проверен live либо официально исключён после failed gate:
-  EXCLUDED FROM CURRENT MVP, live gate NOT PASSED; [решение](#google-places--excluded-from-current-mvp).
-- Google failure не ломает поиск; Google content не сохраняется в memory/каталоге
-  произвольно — **N/A / EXCLUDED**: adapter, calls и content отсутствуют.
-- [x] Четыре REST endpoints и Swagger доступны в непубличной конфигурации.
-- [x] Основные unit/integration tests и PostgreSQL acceptance проходят.
-- [x] Eval соответствует простым критериям [AI.md](AI.md#ai-eval).
-- [x] Docker Compose работает; Dokploy deployment на VPS воспроизводим.
-- [x] Persistent PostgreSQL volume переживает restart/redeploy; приложение поднимается после restart.
-- [x] Документирован способ backup; restore drill не является обязательным gate.
-- [x] Секретов нет в Git, образах и обычных логах по выполненному audit.
-- [x] README позволяет повторить настройку, запуск и демонстрацию.
-- [ ] Проведена репетиция защиты; студент объясняет границы AI/Java/DB.
+- [x] Java 21 build, pinned dependencies, executable JAR.
+- [x] PostgreSQL, Flyway V1–V13, Hibernate validate, данные с source/date.
+- [x] Детерминированный поиск и дедупликация брендов; меню не влияет на eligibility.
+- [x] Telegram search/continuation/menu/details, команды, изоляция и persistence.
+- [x] Mini App structured/natural API, Java cards, server-side auth.
+- [x] Три read-only tools, bounded calls, validated explanation/fallback.
+- [x] H2 regression и отдельная PostgreSQL migration/search acceptance.
+- [x] Dokploy production release, HTTPS boundary, один poller, persistent volume.
+- [x] Backup и фактический restore/migration rehearsal в изолированной БД.
+- [x] Production Telegram AI search/follow-up и Mini App launch/form/menu/details.
+- [ ] Репетиция защиты и объяснение студентом границ AI/Java/DB отдельно от release.
 
-Evidence: данные/migrations/PostgreSQL — [DATABASE](DATABASE.md#postgresql-acceptance);
-automated checks — [README](../README.md#tests); model/tool/eval — [AI](AI.md#ai-eval);
-deployment/persistence/secrets/backup — [DEPLOYMENT](DEPLOYMENT.md#проверка-task-13--2026-10-06).
-TTL, CI/CD, callbacks и production delivery guarantees не являются условиями DoD.
+Проверки: [README](../README.md#tests), [DATABASE](DATABASE.md#postgresql-acceptance),
+[AI eval](AI.md#ai-eval), [DEPLOYMENT](DEPLOYMENT.md#production-release--2026-10-11).
+Отдельный production AI-запрос Mini App и launch в mobile client не проверялись.
+
+## История релизов
+
+| Этап | Состояние на дату этапа |
+|---|---|
+| Первоначальный MVP, 2026-10-06 | V9, 10 филиалов, 60 menu items, 70 интервалов; Telegram и private HTTP |
+| V2, 2026-10-08 | V11, 30 заведений / 17 брендов / 89 menu items / 205 интервалов; Mini App и HTTPS |
+| POST-V2, 2026-10-11 | V12 brandKey + V13 expansion; текущие 36 / 23 / 101 / 247 |
+
+Локальные feature acceptance описывают состояние до соответствующего release.
+Изначальные требования 10–12 мест и 5–10 позиций относились к первому MVP;
+текущий curated каталог допускает несколько проверенных позиций или отсутствие меню.
 
 ## Diploma demo — 8–10 минут
 
-| Время | Что показать и объяснить |
+| Время | Что показать |
 |---|---|
-| 0:00–0:45 | Проблема и ограниченный собственный каталог |
-| 0:45–2:00 | Telegram → ConversationService → Spring AI/tools → Java services → PostgreSQL |
-| 2:00–6:30 | Полный поиск; «Меню второго»; изменение гостей; часы последнего |
-| 6:30–8:00 | Persistence, tests/eval, deployment и поведение при external failures |
-| 8:00–9:30 | PARTIAL/DERIVED, Google exclusion и реальные ограничения MVP |
+| 0:00–1:00 | Задача, ограниченный каталог, источники и PARTIAL/DERIVED |
+| 1:00–2:00 | Telegram/Mini App → AI interpretation → Java services → PostgreSQL |
+| 2:00–5:00 | Поиск разных брендов, «Меню второго», изменение гостей, часы |
+| 5:00–7:00 | Mini App форма, cards/details/menu, отличие stateless AI search |
+| 7:00–9:30 | Tests/eval, HTTPS/private boundary, persistence и ограничения |
 
-Перед демонстрацией `/new` очищает старый контекст без AI. Дата/время поиска должны
-попадать в поддержанный диапазон и собственное расписание. Показать все три tools
-и роль Java validation/renderer; не читать длинные карточки целиком.
-При недоступном live provider/Telegram явно перейти к **fallback evidence**:
-сохранённым acceptance results, code/tests и последнему подтверждённому E2E.
-Сохранённые ответы и offline fixtures не выдаются за live response.
-
-Текущие инструкции запуска/тестов: [README](../README.md).
-Требования deployment и secrets: [DEPLOYMENT](DEPLOYMENT.md).
+Перед Telegram demo `/new` очищает старый контекст. Дата/время должны попадать в
+поддержанный диапазон и сохранённое расписание. При недоступном provider использовать
+локальный structured поиск и явно отделять сохранённые результаты от live response.

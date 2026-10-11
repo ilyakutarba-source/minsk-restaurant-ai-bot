@@ -4,6 +4,10 @@
 Продуктовый scope: [PRODUCT](PRODUCT.md). AI contracts: [AI](AI.md).
 Схема и provenance: [DATABASE](DATABASE.md). Runtime: [DEPLOYMENT](DEPLOYMENT.md).
 
+Production release 2026-10-11 — `6b2de35`, Flyway V13. Telegram Bot и Mini App
+используют общий Java search; действующий HTTPS/private boundary описан в
+[DEPLOYMENT](DEPLOYMENT.md#deployment-topology--implemented).
+
 ## Реализованная архитектура — IMPLEMENTED
 
 ```mermaid
@@ -14,11 +18,16 @@ flowchart TD
     MEMORY --> PG
     CONVERSATION --> AI
     REST[REST controllers / Swagger] --> SERVICES[RestaurantService / MenuService / RestaurantSearchService]
+    MINIAPP[Telegram Mini App / HTTPS / initData validation] --> MANUAL[Structured search / details / menu]
+    MINIAPP --> NATURAL[Stateless natural search]
+    MANUAL --> SERVICES
+    NATURAL --> AI
     AI[Spring AI ChatClient / bounded adapter] --> TOOL[At most one execution / 3 validated product tools]
     TOOL --> SERVICES
     TOOL --> REFERENCE
     SERVICES --> DTO[Own DTO / ordered search candidates]
     DTO --> CARDS[Java factual renderer / validated ExplanationPlan or fallback]
+    DTO --> MAPPER[MiniAppMapper / factual UI cards and details]
     CARDS --> SEND[Telegram sendMessage / plain text]
     SEND --> DELIVERED[Successful send / ConversationService]
     DELIVERED --> SELECTION[Delivered search only / atomic current selection replacement]
@@ -27,7 +36,7 @@ flowchart TD
     REFERENCE --> SERVICES
     SERVICES --> JPA[JPA repositories]
     JPA --> PG[(PostgreSQL)]
-    FLYWAY[Flyway V1–V9] --> PG
+    FLYWAY[Flyway V1–V13] --> PG
 ```
 
 Пакет `catalog` содержит Restaurant, menu, persistence и services; `search` — criteria,
@@ -35,6 +44,8 @@ filters/ranking и Clock configuration; `api` — тонкие REST controllers;
 bounded ChatClient adapter, три read-only tools, plan validation и Java renderers;
 `conversation` — ConversationService, typed criteria merge, JDBC state/selection, ReferenceResolver и memory configuration;
 `telegram` — private text filtering, library polling lifecycle и plain-text sendMessage.
+`miniapp` — static UI, тонкий API adapter, server-side initData validation и UI DTO mapper;
+structured path вызывает services напрямую, natural path — существующий stateless AI adapter.
 Controllers не выполняют поиск и не возвращают JPA entities. Own DTO создаются внутри
 read-only transactions, `open-in-view=false`. Денежные значения — BigDecimal.
 
@@ -76,6 +87,7 @@ Telegram private chat → ConversationService → Spring AI ChatClient
 | ReferenceResolver | Ordinal/last/exact name → restaurantId в текущем чате | IMPLEMENTED; используется обоими follow-up tools |
 | Java renderer | Search factual cards/explanation fallback, own details и PARTIAL menu | IMPLEMENTED |
 | Telegram adapter | Private text check, one library poller, lossless plain-text split, explicit send failure | IMPLEMENTED |
+| Mini App adapter | Signed read-only API, structured/stateless natural search, own UI DTO | IMPLEMENTED в production |
 | Google adapter | Place Details enrichment известного ресторана | EXCLUDED FROM CURRENT MVP; NOT IMPLEMENTED |
 
 Adapters → application services → repositories/clients. Services поиска/меню/details
@@ -201,8 +213,9 @@ Telegram и оба Mini App search используют это правило в
 
 ## REST API
 
-Четыре первоначальных endpoints реализованы. REST/Swagger — локальная проверка Java logic;
-HTTP доступ ограничен loopback. Сетевые требования: [DEPLOYMENT](DEPLOYMENT.md#доступ-и-секреты).
+Четыре первоначальных endpoints реализованы. REST/Swagger — локальная проверка Java logic.
+На host доступ ограничен loopback; public HTTPS proxy эти endpoints не публикует.
+Сетевые требования: [DEPLOYMENT](DEPLOYMENT.md#доступ-и-секреты).
 
 | Method / path | Вход / результат | HTTP |
 |---|---|---|
@@ -220,11 +233,11 @@ Menu filters и import semantics: [DATABASE](DATABASE.md#menu-data-strategy).
 
 ### V2-04 — Mini App boundary
 
-На feature branch добавлен отдельный adapter `miniapp`:
+В production работает отдельный adapter `miniapp`:
 `/miniapp/` (static HTML/CSS/vanilla JS + официальный Telegram Web App SDK)
 → thin MiniAppController → RestaurantSearchService / RestaurantService / MenuService.
 Контроллер не получает repositories/EntityManager. Services и search contract/ranking
-не меняются. Structured search/details/menu работают без AI. Firecrawl и conversation
+не меняются. Structured search/details/menu работают без AI. External ingestion и conversation
 memory/selection не участвуют ни в одном Mini App запросе.
 
 | Method / path | UI response | HTTP |
@@ -275,7 +288,9 @@ Default `restaurant-bot.miniapp.dev-mode=false`: даже test profile треб�
 Явный dev mode требует dev/test profile, отсутствие prod/production и loopback server
 binding; иначе startup fails. Только unsigned loopback requests разрешены в этом режиме;
 предъявленная некорректная подпись всё равно отклоняется. Static assets публичны,
-каталог API защищён. Operational ограничения и live gate принадлежат
+каталог API защищён. Действующий HTTPS route находится в Dokploy deployment Patch,
+без публикации остальных REST/Swagger endpoints и PostgreSQL. Operational ограничения
+и результаты live launch принадлежат
 [DEPLOYMENT](DEPLOYMENT.md#v2-04--mini-app-local-demo-и-live-gate).
 
 ## Внешние интеграции
@@ -295,11 +310,10 @@ own details остаются source of truth. [Продуктовое решен
 
 ## Ключевые архитектурные решения
 
-V2 experimental catalog ingestion: developer-only Firecrawl PoC находится в отдельном
-пакете `ingestion.firecrawl`, без Spring beans, repositories и runtime callers.
-Только unapproved candidate JSON; fetchedAt не является verifiedAt. Production search,
-Telegram и три AI tools не используют Firecrawl. Контракт, ограничения и ручной запуск:
-[controlled PoC](FIRECRAWL-POC.md). Это эксперимент feature branch, не production capability.
+Production search, Telegram, Mini App и три AI tools не используют external ingestion.
+Каталог расширяется только проверенными данными через controlled import/Flyway;
+автоматический import непроверенных кандидатов не реализован.
+Contract и provenance: [DATABASE](DATABASE.md#controlled-seedimport).
 
 | Решение | Причина |
 |---|---|
@@ -308,11 +322,14 @@ Telegram и три AI tools не используют Firecrawl. Контрак�
 | Независимый estimated check | Budget search работает без меню |
 | PARTIAL menu | Ограниченный проверяемый набор позиций |
 | MatchCount, сумма, ID | Понятный и тестируемый deterministic ranking |
+| Явный brandKey, dedup после ranking | Лучший допустимый филиал каждого бренда, без ослабления hard filters |
 | Три read-only tools, Java facts | Ограниченная поверхность AI и проверяемый результат |
 | Memory отдельно от selection | Текст не является источником ID/порядка/фактов |
 | Selection после успешного send | Reference относится к реально показанным вариантам |
 | Google исключён из текущего MVP | Core search/details используют собственные данные; возможный будущий Google — только enrichment |
 | Long polling, один instance | Без публичного webhook и распределённой доставки |
+| Mini App в том же application | Переиспользует Java services; signed API, stateless requests |
+| Restricted HTTPS proxy | Public Mini App; private REST/Swagger и backend-only PostgreSQL |
 
 Система не требует интерфейса для каждого класса, event bus, универсального framework
 или дополнительных сервисов. Внешние границы должны быть подменяемы в тестах.

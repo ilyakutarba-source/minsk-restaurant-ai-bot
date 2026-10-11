@@ -1,105 +1,112 @@
 # Minsk Restaurant AI Bot
 
-Дипломный проект Telegram AI-гида по ограниченному каталогу ресторанов Минска.
-Java services и собственная БД определяют факты и результаты поиска; LLM используется
-для понимания запроса, выбора инструмента и контролируемого объяснения.
+Telegram AI-гид по ограниченному, вручную проверенному каталогу ресторанов Минска.
+Помогает подобрать заведение под время посещения, число гостей, общий бюджет и кухню,
+затем посмотреть адрес, расписание и сохранённую часть меню.
+
+Production release завершён **2026-10-11**: `POST_V2_V13_PRODUCTION_RELEASE_PASS`.
+Развёрнутый commit — `6b2de35`, Flyway — **V13**. Каталог содержит **36 активных
+заведений, 23 бренда, 101 позицию меню и 247 недельных интервалов работы**.
+Telegram Bot и Mini App доступны в production; HTTPS обслуживает Dokploy/Traefik.
+Результаты и границы проверки: [DEPLOYMENT](docs/DEPLOYMENT.md#production-release--2026-10-11).
 
 ## Features
 
-**CURRENT PRODUCTION MVP:** каталог десяти реальных активных филиалов, собственные часы и ориентировочные
-чеки, 60 menu items (по 6 на филиал, PARTIAL), controlled JSON import, детерминированный Restaurant Search,
-четыре REST endpoints и Swagger, Flyway и тесты на H2/PostgreSQL; stateless Spring AI
-search tool, Structured Output explanation и Java factual renderer/fallback;
-Telegram private chats/long polling, bounded PostgreSQL ChatMemory, criteria continuation,
-current selection/references, menu/details follow-up, `/start`, `/help`, `/new`,
-controlled errors/unsupported requests и input/output limits.
-
-**IMPLEMENTED:** Docker Compose app/postgres и отдельный Dokploy/VPS deployment.
-Текущая deployment acceptance: [DEPLOYMENT](docs/DEPLOYMENT.md).
-
-**EXCLUDED FROM CURRENT MVP:** Google Places enrichment. Рейтинг и live часы Google
-не входят в текущий scope; [продуктовое решение](docs/PRODUCT.md#google-places--excluded-from-current-mvp).
-
-## V2 feature ready for release
-
-На `feature/miniapp-firecrawl-v2`: компактный Telegram UX, developer-only Firecrawl PoC,
-curated каталог 30 активных заведений / 17 брендов / 89 menu items (Flyway V11),
-Mini App `/miniapp/` с ручным и natural-language поиском, Details/Menu.
-Natural search использует существующий Spring AI adapter; фактические карточки
-формирует Java. Запросы stateless: в каждом укажите гостей, общий BYN budget,
-дату и точное время. Разговор с продолжением критериев остаётся в Telegram.
-Ручной поиск работает при отключённом или недоступном AI.
-[API/auth boundary](docs/ARCHITECTURE.md#v2-04--mini-app-boundary),
-[запуск и release prerequisites](docs/DEPLOYMENT.md#v2-05--release-prerequisites).
-
-Это feature branch, production merge/deploy не выполнены. Production MVP выше
-остаётся на прежней схеме V9 и прежнем dataset. Public HTTPS для feature не доступен;
-live Telegram Mini App gate — USER_INPUT_REQUIRED.
-
-Final acceptance 2026-10-08: targeted Mini App 55 PASS; fresh PostgreSQL 324 PASS;
-`mvnw.cmd clean test` и `mvnw.cmd clean verify` — по 537 PASS, без failures/errors/skipped.
-Обычные tests используют offline fixtures.
-Отдельный opt-in `-Dtest=MiniAppAiLiveSmokeIT` прошёл 3 сценария через authenticated
-API (OK + два NEED_CLARIFICATION), максимум 2 model calls / 1 tool execution.
-Подробности dataset и deployment gates находятся в документах-владельцах выше.
+- Поиск для Минска: 1–6 гостей, общий бюджет в BYN, сегодня и следующие шесть дней,
+  точное время, необязательная кухня и предпочтения по обстановке.
+- До трёх вариантов разных брендов: Java выбирает лучший подходящий филиал каждого
+  явного `brandKey`. Бюджет, кухня и часы ради заполнения выдачи не ослабляются.
+- Telegram private chat: запрос обычным языком, уточнение критериев, продолжение
+  поиска, «Меню второго», «Есть паста у первого?», «До скольки последний?».
+- `/start`, `/help`, `/new`; bounded PostgreSQL memory и последняя показанная
+  подборка сохраняются между обычными перезапусками.
+- Telegram Mini App `/miniapp/`: форма поиска и отдельный поиск обычным языком,
+  карточки, «Подробнее» и «Меню», возврат назад, loading/empty/error states и тема Telegram.
+  Запросы Mini App независимы; для AI-поиска каждый раз нужны полные критерии.
+  Форма, детали и меню работают без AI.
+- Собственные источники и даты проверки; меню всегда `PARTIAL`, у части заведений
+  сохранённого меню нет. Это не мешает поиску.
+- REST API и Swagger для локального запуска и приватной проверки backend.
 
 ## Example user scenario
 
-Работающий Telegram-сценарий при enabled AI и runtime bot token:
+> Сегодня в 21:00 нас двое, общий бюджет 150 BYN, итальянская кухня.
 
-> Сегодня в 21:00 нас двое, общий бюджет до 150 BYN, итальянская кухня, хочется спокойно.
+AI извлекает критерии, Java проверяет их и ищет в собственной PostgreSQL.
+В production smoke 2026-10-11 этот запрос вернул **Pizza Tempo — 65.40 BYN,
+Da Claudio — 120.00 BYN, Сорренто — 130.00 BYN** на двоих.
+«Меню второго» показало сохранённое частичное меню Da Claudio.
+Это результат на указанную дату и dataset, а не обещание будущей цены или наличия столика.
 
-LLM извлекает критерии, Java выполняет поиск и возвращает до трёх вариантов.
-Запрос «Меню второго» читает сохранённую часть меню по последней показанной подборке.
-«Есть паста у первого?» применяет PASTA filter; «До скольки третий?» перечитывает
-собственное недельное расписание через Java services.
-Короткое «А если нас четверо?» сохраняет остальные критерии. `/new` очищает memory
-и criteria/selection без AI calls. Полный структурированный запрос доступен через REST/Swagger без AI.
-Пользовательские сценарии и scope: [PRODUCT](docs/PRODUCT.md).
-
-Команды: `/start` — знакомство, `/help` — примеры поиска и follow-up,
-`/new` — новый разговор без старых критериев и ordinal references. Все команды Java-only,
-без AI calls. Бот объясняет ограничения booking, other city и currency; использует
-только Минск/BYN. Вход ограничен 2000 символами. Длинные plain-text ответы делятся
-без потери фактов на части до 4096; failed/partial send не обновляет transcript/selection.
-Один poller, sequential turns одного чата, без guaranteed/exactly-once delivery.
-Update/offset и restart boundaries: [DEPLOYMENT](docs/DEPLOYMENT.md#update--offset-behavior).
+«А если нас четверо?» в Telegram меняет гостей, сохраняя остальные критерии.
+`/new` очищает разговор, критерии и ordinal references без обращения к модели.
+В Mini App критерии задаются заново; разговорного продолжения там нет.
+Сценарии и ограничения: [PRODUCT](docs/PRODUCT.md).
 
 ## Tech stack
 
 - Java 21, один Maven module, Maven Wrapper 3.9.16.
 - Spring Boot 3.5.16, Spring Data JPA/Hibernate, PostgreSQL 17.10, Flyway.
-- REST и springdoc 2.9.1; H2 для части tests, JUnit 5/Mockito.
-- Spring AI 1.1.8 закреплён BOM; OpenAI provider starter и ChatClient подключены.
-- Для AI выбран OpenAI-compatible AIAI.BY и модель `gpt-4.1-mini`.
-- Telegram transport — Pengrad Telegram Bot API 10.1.0, private chats/long polling.
+- REST, springdoc/Swagger 2.9.1; JUnit 5/Mockito, H2 для части тестов.
+- Spring AI 1.1.8, OpenAI-compatible API AIAI.BY, модель `gpt-4.1-mini`.
+- Pengrad Telegram Bot API 10.1.0, private chats и long polling.
+- Mini App: HTML/CSS/vanilla JavaScript и Telegram Web App SDK; тот же Spring Boot server.
+- Docker Compose, Dokploy/Traefik, VPS, persistent PostgreSQL volume.
 
-Точные зависимости: [pom.xml](pom.xml). Конфигурация AI: [AI](docs/AI.md).
+Точные зависимости: [pom.xml](pom.xml). Build/runtime: [DEPLOYMENT](docs/DEPLOYMENT.md).
 
 ## Architecture overview
 
-Один Spring Boot application — modular monolith. REST controllers вызывают
-application services; services читают JPA repositories. Telegram adapter вызывает
-ConversationService, который через bounded AI adapter и tools обращается к Java services.
-У LLM нет SQL/JPA-доступа.
-Границы компонентов: [ARCHITECTURE](docs/ARCHITECTURE.md).
-
-## Restaurant Search overview
-
-Поиск принимает гостей, общий BYN-бюджет, дату/время, optional cuisine и preferredTags.
-Java сначала применяет hard filters, затем ранжирует допустимые рестораны:
+Один Spring Boot application — modular monolith с пакетами `catalog`, `search`,
+`api`, `ai`, `conversation`, `telegram`, `miniapp`.
 
 ```text
-catalog → hard filters → eligible restaurants → soft tag matching → ranking → ≤3 candidates
-matchCount DESC → estimatedTotal ASC → restaurant ID ASC
+Telegram → ConversationService → Spring AI adapter → validated read-only tool
+Mini App form / private REST ──────────────────────→ Java services → PostgreSQL
+Mini App natural search → stateless Spring AI ─────→ Java services
+trusted DTO → Java factual renderer / Mini App mapper → user
 ```
 
-`estimatedTotal = estimatedCheckPerGuest × guests` вычисляется через BigDecimal.
-Число гостей не является фильтром вместимости. Часы учитывают дату, местное время
-Минска и продолжение интервала предыдущего дня. Tags влияют только на ranking.
-Правила и contract: [Restaurant Search](docs/ARCHITECTURE.md#правила-поиска-и-рекомендаций).
+LLM понимает запрос и выбирает один из трёх tools: `searchRestaurants`,
+`getRestaurantDetails`, `getRestaurantMenu`. Java определяет реальные заведения,
+цены, часы, порядок и принадлежность к бренду. У модели нет SQL/JPA-доступа,
+инструмента записи или произвольного HTTP-доступа. Structured Output ограничивает
+объяснение разрешёнными причинами; Java валидирует план и формирует фактический ответ,
+при ошибке объяснения использует fallback. Максимум два model calls и одно tool execution
+на запрос; menu/details — один model call.
 
-Пример тела `POST /api/v1/recommendations`:
+Поиск: hard filters → совпадения tags → `matchCount DESC`, сумма ASC, ID ASC
+→ дедупликация по `brandKey` → максимум три варианта.
+`estimatedTotal = estimatedCheckPerGuest × guests`, денежные вычисления — BigDecimal.
+Число гостей не проверяет вместимость, часы проверяют прибытие с учётом overnight.
+Контракты: [ARCHITECTURE](docs/ARCHITECTURE.md), [AI](docs/AI.md).
+
+## Database
+
+Flyway V1–V13 создаёт каталог, частичное меню, conversation state, JDBC memory и
+selection; Hibernate использует `validate`. V12 добавляет обязательный `brand_key`
+с явным mapping филиалов, V13 добавляет шесть проверенных заведений и их данные.
+Применённые миграции и datasets не переписываются.
+
+`DERIVED` check — ручной ориентир по опубликованным ценам выбранных блюд, а не
+расчёт корзины во время поиска. `verifiedAt` — дата проверки источника.
+Схема, provenance, история V9/V11 и актуальные данные: [DATABASE](docs/DATABASE.md).
+
+## REST API / Swagger
+
+| Method | Path | Назначение |
+|---|---|---|
+| GET | `/api/v1/restaurants` | Active catalog, page/size |
+| GET | `/api/v1/restaurants/{id}` | Собственные details |
+| GET | `/api/v1/restaurants/{id}/menu` | PARTIAL menu, optional dishType/maxItemPriceByn |
+| POST | `/api/v1/recommendations` | Полные criteria, до трёх вариантов разных брендов |
+
+Swagger: <http://127.0.0.1:8080/swagger-ui/index.html>.
+OpenAPI: <http://127.0.0.1:8080/v3/api-docs>.
+Эти endpoints остаются private в production. Публичные Mini App endpoints проверяют
+подписанный `X-Telegram-Init-Data` на сервере: [Mini App boundary](docs/ARCHITECTURE.md#v2-04--mini-app-boundary).
+
+Пример `POST /api/v1/recommendations`:
 
 ```json
 {
@@ -108,71 +115,45 @@ matchCount DESC → estimatedTotal ASC → restaurant ID ASC
   "date": "TODAY",
   "time": "21:00",
   "cuisine": "ITALIAN",
-  "preferredTags": ["QUIET"]
+  "preferredTags": []
 }
 ```
 
-## AI integration overview
-
-**IMPLEMENTED:** Spring AI ChatClient выбирает один из ровно трёх read-only tools:
-searchRestaurants, getRestaurantDetails, getRestaurantMenu. Модель выбирает причины объяснения
-через native Structured Output; Java проверяет план и формирует фактические карточки.
-Invalid/failed search explanation даёт Java fallback. До двух model calls и одного tool
-execution на turn; во втором call tools отключены. Menu/details используют один model
-call, существующий ReferenceResolver и MenuService/RestaurantService; Java формирует
-фактический ответ без search. Telegram conversation entry добавляет safe memory и Java criteria merge.
-Contracts: [AI](docs/AI.md).
-
-## Database
-
-Flyway V1–V9 создаёт каталог/меню, conversation state, JDBC memory и selection, применяет локальные datasets; Hibernate использует
-`validate`. У данных сохранены source и verifiedAt. Меню всегда PARTIAL; отсутствие
-позиции в БД не доказывает её отсутствия в полном меню. Поиск не зависит от MenuItem.
-Модель, provenance и import contract: [DATABASE](docs/DATABASE.md).
-
-DERIVED check — ручной ориентир из опубликованных цен выбранного основного блюда
-и супа на гостя; runtime не рассчитывает корзину по меню. `verifiedAt` означает
-дату проверки источника, а не дату импорта. Конкретные источники и граница применения
-общего сетевого меню к филиалам приведены в DATABASE.
-
-## REST API / Swagger
-
-| Method | Path | Назначение |
-|---|---|---|
-| GET | `/api/v1/restaurants` | Active catalog, page/size |
-| GET | `/api/v1/restaurants/{id}` | Own details |
-| GET | `/api/v1/restaurants/{id}/menu` | Partial menu, optional dishType/maxItemPriceByn |
-| POST | `/api/v1/recommendations` | Полные criteria, до трёх ordered candidates |
-
-Swagger: <http://127.0.0.1:8080/swagger-ui/index.html>.
-OpenAPI: <http://127.0.0.1:8080/v3/api-docs>.
-HTTP доступен на loopback; REST/Swagger предназначены для локального запуска и demo.
-
 ## Configuration
 
-Default profile требует `DB_URL`, `DB_USER`, `DB_PASSWORD` из внешней среды.
-Test profile использует H2 и не требует внешних ключей или PostgreSQL.
-AI search включается отдельно: `AI_ENABLED=true` и `AIAI_API_KEY` в environment.
-По умолчанию AI отключён. Для private Telegram long polling задайте также
-`TELEGRAM_BOT_TOKEN` в environment запускаемого процесса. Memory использует ту же DB.
-Секреты хранятся вне Git. Runtime/Compose mapping: [DEPLOYMENT](docs/DEPLOYMENT.md#environment-configuration).
+Default profile требует `DB_URL`, `DB_USER`, `DB_PASSWORD` во внешней среде.
+По умолчанию AI отключён. Для AI нужны `AI_ENABLED=true`, `AIAI_API_KEY`;
+для Telegram long polling — также `TELEGRAM_BOT_TOKEN`.
+Mini App проверяет подпись с помощью server-side bot token; dev-mode по умолчанию false.
+Secrets не хранятся в Git, образах или frontend.
+Переменные и Compose mapping: [DEPLOYMENT](docs/DEPLOYMENT.md#environment-configuration).
 
 ## Running locally
 
-Требуется JDK 21 в `JAVA_HOME`. Первый запуск Wrapper/сборки требует доступа к Maven Central.
-Из корня проекта в PowerShell для H2 demo:
+Требуется JDK 21 в `JAVA_HOME`; первая сборка требует доступа к Maven Central.
+H2 demo без ключей, из корня проекта в PowerShell:
 
 ```powershell
 .\mvnw.cmd spring-boot:test-run "-Dspring-boot.run.profiles=test"
 ```
 
-Для PostgreSQL задайте DB-переменные в среде и запустите:
+Для PostgreSQL задайте DB-переменные во внешней среде:
 
 ```powershell
 .\mvnw.cmd spring-boot:run
 ```
 
-На Linux/macOS используется `./mvnw` вместо `.\mvnw.cmd`.
+На Linux/macOS используйте `./mvnw`. Локальное Mini App demo с явным dev-mode:
+[DEPLOYMENT](docs/DEPLOYMENT.md#v2-04--mini-app-local-demo-и-live-gate).
+Для Compose заполните отдельный local env file вне Git по таблице deployment;
+для smoke оставьте AI выключенным и bot token пустым:
+
+```powershell
+$localEnvFile = 'C:\path\outside-repository\local.env'
+docker compose --env-file $localEnvFile config --quiet
+docker compose --env-file $localEnvFile up -d --build
+docker compose --env-file $localEnvFile ps
+```
 
 ## Tests
 
@@ -181,103 +162,44 @@ AI search включается отдельно: `AI_ENABLED=true` и `AIAI_API_
 .\mvnw.cmd clean verify
 ```
 
-Tests проверяют каталог, меню/import, search boundaries, overnight, ranking, REST,
-AI tool/plan guards и production SDK через offline loopback HTTP fixtures,
-criteria merge/ambiguity, two-chat isolation, `/new`, window/safe writes и application restart;
-menu/details routing, exact/ordinal references, fresh own facts и PARTIAL semantics.
-Telegram finishing tests также проверяют commands/unsupported/errors, response timeout
-на production AI SDK, split/partial failure, concurrent same-chat turns и two-chat isolation;
-Pengrad offset/restart/429 smoke использует только локальный HTTP fixture.
-Обычные test/verify не вызывают live provider и не требуют API key.
-Отдельный минимальный live smoke (один turn, максимум два платных calls), только
-после проверки account budget/quotas и с AIAI_API_KEY в environment:
+Обычные tests используют offline AI/Telegram fixtures и не требуют live credentials.
+Они проверяют каталог/import/rollback, search и разные бренды, REST, tool/plan guards,
+criteria continuation, references, memory/selection, restart и ошибки доставки,
+Mini App API/auth и оба способа поиска.
 
-```powershell
-.\mvnw.cmd "-Dtest=AiaiLiveSmokeIT" test
-```
+Зафиксированная V13 acceptance 2026-10-11: `clean test` и `clean verify` — по
+**575 tests PASS**; targeted PostgreSQL V13 migration/audit/shared transport suite —
+**12 tests PASS**, без failures/errors/skipped. PostgreSQL audit проверил 135 запросов
+дважды и подтвердил порядок, hard filters и разнообразие брендов.
+Это результаты release acceptance, не новая проверка при редактировании документации.
+H2 не заменяет PostgreSQL: [PostgreSQL acceptance](docs/DATABASE.md#postgresql-acceptance).
 
-Итоговый live eval запускается **отдельно и явно** на изолированной PostgreSQL test
-DB с `AIAI_API_KEY` в environment. Telegram token не нужен; transport выключен
-test profile. Набор содержит 12 conversational и 5 adversarial cases; те же inputs,
-contexts и assertions используются offline в `FinalAiOfflineEvalTest`. Не запускать
-на рабочей БД: harness использует синтетические чаты и очищает их после проверки.
-
-```powershell
-.\mvnw.cmd test "-Dtest=AiaiFinalLiveEvalIT" `
-  "-Dspring.datasource.url=$env:DB_URL" `
-  "-Dspring.datasource.username=$env:DB_USER" `
-  "-Dspring.datasource.driver-class-name=org.postgresql.Driver"
-```
-
-Пароль test DB задаётся через `SPRING_DATASOURCE_PASSWORD`, без CLI argument.
-Provider/model/settings и критерии результата: [AI eval](docs/AI.md#ai-eval).
-Обычный `test/verify` не выбирает `*IT` и не обращается к внешним API.
-
-Итоговая проверка 2026-10-06: `clean test` и `clean verify` — по 399 tests;
-PostgreSQL 17.10 — 398 tests (H2-only bootstrap исключён), failures/errors/skipped=0.
-Отдельный live eval на AIAI.BY/gpt-4.1-mini: main **12/12**, adversarial **5/5**,
-critical failures **0**. Фиксированный Clock, контекст cases и границы проверки:
-[AI eval](docs/AI.md#ai-eval). Результат одного run не гарантирует все будущие ответы модели.
-
-H2 не заменяет PostgreSQL acceptance. Команда проверки на отдельной пустой test БД:
-[PostgreSQL acceptance](docs/DATABASE.md#postgresql-acceptance).
+Opt-in live tests запускаются отдельно, с внешним `AIAI_API_KEY` и выделенной test DB
+для stateful eval. Не использовать production DB: harness создаёт синтетический state
+и очищает его. Условия и исторический eval: [AI eval](docs/AI.md#ai-eval).
 
 ## Deployment
 
-Dockerfile и `compose.yaml` реализованы: Maven Wrapper multi-stage build → Java 21
-JRE/non-root runtime; app + PostgreSQL 17.10, healthchecks и стабильный named volume.
-Local и remote deployment acceptance PASS: build/health/private HTTP/DB, Telegram/AIAI
-search, restart, Dokploy recreate, mutable state и ordinal follow-up после обоих запусков.
-Telegram long polling требует один
-активный app/poller, `AI_ENABLED=true`, runtime AIAI_API_KEY и TELEGRAM_BOT_TOKEN.
-Google key не требуется.
+Dockerfile: multi-stage Maven build → Java 21 JRE, non-root runtime.
+Compose: app + PostgreSQL 17.10, healthchecks и стабильный named volume.
+Production использует Dokploy Compose project; отдельный deployment Patch подключает
+app к Traefik и публикует через HTTPS только Mini App/static и Mini App API.
+Базовый [compose.yaml](compose.yaml) содержит private backend и loopback host port;
+сам по себе public HTTPS route не создаёт. PostgreSQL не имеет host port.
 
-### Docker Compose local start
-
-Нужен запущенный Docker Engine/Compose. В отдельном local env file вне repository
-(или ignored `.env`) задать POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD,
-POSTGRES_VOLUME_NAME (уникальное стабильное имя volume), APP_HOST_PORT (свободный port).
-Для local container smoke установить `AI_ENABLED=false`, AIAI_API_KEY и
-TELEGRAM_BOT_TOKEN оставить пустыми. Значения реальных secrets не помещать в Git.
-
-```sh
-docker compose --env-file <LOCAL_ENV_FILE> config --quiet
-docker compose --env-file <LOCAL_ENV_FILE> build
-docker compose --env-file <LOCAL_ENV_FILE> up -d --wait --wait-timeout 240
-docker compose --env-file <LOCAL_ENV_FILE> ps
-```
-
-REST: `http://127.0.0.1:<APP_HOST_PORT>/api/v1/restaurants`, Swagger:
-`http://127.0.0.1:<APP_HOST_PORT>/swagger-ui/index.html`. PostgreSQL host port отсутствует.
-При обычном stop/start/redeploy сохранять POSTGRES_VOLUME_NAME и не удалять volume.
-Shell env имеет приоритет над env file: при smoke не использовать production AI/token.
-Перед публикацией deployment candidate выполнить `mvnw clean verify` отдельно.
-
-### Dokploy/VPS
-
-Source: этот repository, branch `main`, Compose file `compose.yaml`, режим Docker
-Compose; отдельный проект, без Domains/Traefik route/scaling. Env из Dokploy UI явно
-mapped в Compose; POSTGRES_PASSWORD также передаётся как app DB_PASSWORD.
-REST/Swagger доступны через host loopback и SSH tunnel, DB — внутри Compose network.
-VPS resources, Telegram/AIAI E2E, mutable-state restart/redeploy и backup smoke
-зафиксированы отдельно от local tests. Runbook, status, private access и backup:
-[DEPLOYMENT](docs/DEPLOYMENT.md).
+Один bot token — один активный app/poller; webhook не используется.
+Production search и follow-up проверены через Telegram, Mini App launch/form/menu/details —
+через Telegram Web. Отдельный production AI-запрос Mini App и mobile launch не проверялись.
+Runbook, persistence, backup и границы безопасности: [DEPLOYMENT](docs/DEPLOYMENT.md).
 
 ## Current MVP limitations
 
-Каталог ограничен 10 конкретными филиалами трёх сетей; полным каталогом Минска он не является.
-Сетевые филиалы используют проверенное общее меню и одинаковую методику чека.
-Поддержаны Минск, BYN, 1–6 гостей,
-сегодня и следующие шесть дней. Production REST принимает structured criteria;
-отдельный natural-language Mini App API добавлен только на V2 feature branch.
-DERIVED check — собственная ориентировочная оценка, не официальный средний чек.
-Наличие столика, блюда, праздничные часы и тишина не гарантируются.
-Google Places enrichment исключён из текущего MVP; Google key для запуска не требуется.
-Поиск и details используют собственные данные. Собственные телефон/website
-не сохранены; details явно сообщает об отсутствии этих полей.
-Memory ограничена 20 user/assistant messages на чат.
-Booking, публичный admin/chat API, геопоиск и RAG/vector search вне MVP.
+Каталог ограничен 36 заведениями. Меню частичное; поиск не проверяет свободные столики,
+наличие блюд, последний горячий заказ или праздничные исключения расписания.
+Ориентировочный чек не гарантирует итоговую сумму. Tags не обещают обстановку.
+Google Places, рейтинг, booking, оплата, геопоиск, favorites, публичный admin/chat API
+и RAG/vector search не реализованы. Телефон и website не сохранены в domain model.
+Telegram memory ограничена; exactly-once delivery не гарантируется.
 
-Критерии завершения диплома: [Definition of Done](docs/PRODUCT.md#definition-of-done).
-Демонстрация рассчитана на 8–10 минут: архитектура → поиск → меню по позиции →
-изменение гостей → собственные часы → evidence проверок и ограничения.
+Scope и DoD: [PRODUCT](docs/PRODUCT.md#definition-of-done).
+История первоначального MVP и V2 явно отделена от текущего состояния в документах выше.

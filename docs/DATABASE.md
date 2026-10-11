@@ -1,10 +1,20 @@
 # Данные и PostgreSQL
 
+## Текущее состояние production
+
+С 2026-10-11 deployed commit `6b2de35`, Flyway **V13**:
+**36 активных адресных заведений / 23 brandKey / 101 позиция меню / 247 интервалов**.
+У 32 заведений есть PARTIAL-меню, у 4 saved menu отсутствует.
+Пять кухонь: BELARUSIAN, ITALIAN, GEORGIAN, EUROPEAN, ASIAN;
+одно заведение может иметь несколько кухонь. Каталог ограниченный и curated.
+V12/V13 применены в production; исходный каталог и conversation state/memory/selection
+сохранены при upgrade. [Production acceptance](DEPLOYMENT.md#production-release--2026-10-11).
+
 ## POST-V2-02C — каталог V13
 
-Локальное расширение от POST-V2-01: **36 активных адресных заведений / 23 бренда /
-101 menu items / 247 недельных интервалов** на fresh V13. Исходные 30 записей,
-их IDs, поля и связанные данные сохраняются. Production не изменяется.
+Расширение от POST-V2-01, включённое в production release 2026-10-11:
+**36 активных адресных заведений / 23 бренда / 101 menu item / 247 недельных интервалов**
+на V13. Исходные 30 записей, их IDs, поля и связанные данные сохраняются.
 
 [V13](../src/main/java/db/migration/V13__expand_verified_catalog.java) использует
 существующий `CuratedCatalogImport` и immutable
@@ -28,8 +38,9 @@ V1–V12, прежние datasets, схема сущностей и общий s
 Сохранён исходный reviewed `verifiedAt=2026-10-08` из утверждённого набора.
 Обязательная повторная проверка источников перед созданием V13 выполнена
 **2026-10-11**, а не назначена timestamp импорта. Адреса, часы, блюда, цены и
-provenance находятся в immutable dataset; детали gate и evidence — в
-[POST-V2-02C acceptance](POST-V2-02C-ACCEPTANCE.md).
+provenance находятся в immutable dataset. Историческая локальная migration/search
+acceptance: [POST-V2-02C](POST-V2-02C-ACCEPTANCE.md); subsequent production release
+подтверждён в [DEPLOYMENT](DEPLOYMENT.md#production-release--2026-10-11).
 
 Чеки — food-only ориентиры основного прайса зала. Для Янцзы 30+3+10 BYN:
 гарнир сохранён в происхождении чека, не выдан за MAIN в меню. La Scala остаётся
@@ -44,18 +55,18 @@ calendar/фильтра в модели нет. Неопубликованные
 сохранность восьми таблиц с synthetic state/selection/memory, Hibernate validate,
 Flyway validate/reapply, duplicate/missing-brand/invalid-batch rejection и реальный
 SQL failure в последнем меню с полным rollback. `CatalogExpansionAuditTest`
-повторяет 135 сценариев через настоящий Java service и записывает evidence только
-для выделенной loopback PostgreSQL acceptance DB. Результаты принадлежат отчёту.
+повторяет 135 сценариев через настоящий Java service на выделенной loopback
+PostgreSQL acceptance DB. Проверка сохранности использует synthetic conversation data.
 
 ## POST-V2-01 — brand membership
 
-Базовый V2 выпущен 2026-10-08: `FULL_V2_RELEASE_PASS`, production main `1b73be8`,
-V1–V11, 30 заведений / 17 брендов / 89 menu items / 205 intervals.
-Ниже сохранены исторические заметки до release. POST-V2-01 реализован отдельно;
-production migration/deploy не выполнялись.
+История: базовый V2 выпущен 2026-10-08, commit `1b73be8`, V1–V11,
+30 заведений / 17 брендов / 89 menu items / 205 intervals.
+POST-V2-01 реализовал V12 отдельно; она применена в production 2026-10-11.
 
 `Restaurant` остаётся конкретным заведением. V12 добавляет обязательный внутренний
-`brand_key VARCHAR(100)` без default, unique constraint, отдельной Brand entity и FK.
+`brand_key VARCHAR(100) NOT NULL` с CHECK canonical format. Default, уникального
+ограничения на brand_key, отдельной Brand entity и FK нет: один ключ разделяют филиалы.
 Ключ — явный стабильный lowercase ASCII slug `[a-z0-9]+(-[a-z0-9]+)*`, максимум 100
 символов. Пустое/null/неканоническое значение отклоняется Java и SQL constraints.
 Один ключ разделяют филиалы бренда; самостоятельное заведение получает собственный.
@@ -91,20 +102,21 @@ Acceptance: `BrandDiversityMigrationTest` проверяет fresh V1→V12, upg
 
 ## Исторический V2 feature acceptance до release
 
-**IMPLEMENTED на feature/miniapp-firecrawl-v2:** 30 конкретных заведений, 89 menu items,
-Flyway V1–V11, ConversationState, JDBC ChatMemory и SelectionItem. Ниже сохранена
-история первоначального MVP; V2-каталог не развёрнут в production.
+Снимок локальной acceptance **до V2 release 2026-10-08**: 30 конкретных заведений,
+89 menu items, Flyway V1–V11, ConversationState, JDBC ChatMemory и SelectionItem.
+Он описывает прежний dataset и не заменяет актуальные V13 counts выше.
 
 V2-05 не добавляет и не переписывает migrations/data. Final fresh PostgreSQL
 acceptance 2026-10-08: отдельный local cluster/database, пустая public schema →
 V1–V11, Hibernate validate PASS; **30 active venues, 17 brands, 89 menu items,
 205 intervals, normalized duplicate venues 0**. Flyway validate/reapply PASS.
 Mini App natural search не записывает criteria/selection/chat memory.
-Local-only evidence: `probes/v2-05-evidence/postgresql-final.md`.
-Production PostgreSQL остаётся V9 с первоначальными 10 заведениями/60 menu items;
-production migration в этой задаче не выполнялась.
+На момент этой локальной проверки production ещё использовал V9,
+10 заведений / 60 menu items. Последующие releases применили V11, затем V12/V13.
 
 ## V2-03 — расширенный curated каталог
+
+История dataset V11; текущие counts и шесть дополнений V13 описаны выше.
 
 Ручная проверка новых данных: **2026-10-07**. Каталог содержит 30 активных заведений
 17 брендов: исходные 10 сохранены, добавлены 20 заведений 14 новых брендов.
@@ -145,13 +157,12 @@ MANUALLY_VERIFIED, цены, часы, optional menu и дубликаты по 
 name + address, в том числе среди неактивных existing записей. Импорт add-only:
 повтор прямого импорта отклоняется; Flyway reapply выполняет 0 миграций.
 Даты заданы куратором, не временем импорта. Нет HTTP, Spring bean, REST или AI tool
-для импорта; Firecrawl candidates автоматически не допускаются. V1–V9 неизменны.
+для импорта; непроверенные внешние candidates автоматически не допускаются. V1–V9 неизменны.
 
 Acceptance 2026-10-07: fresh PostgreSQL 17.10 V1→V11 и Hibernate validate PASS,
 170 targeted tests PASS на H2 и PostgreSQL, Flyway reapply 0, normalized duplicates 0.
 `mvnw.cmd clean test` и `mvnw.cmd clean verify`: по 482 tests PASS, без skipped.
-Local-only evidence: `probes/v2-03-evidence/` (summary, sources-review, acceptance,
-postgresql-result и логи); production DB/VPS/main не изменялись.
+Это локальная acceptance до соответствующего production release.
 Google enrichment исключён из текущего MVP: [PRODUCT](PRODUCT.md#google-places--excluded-from-current-mvp).
 Search rules: [ARCHITECTURE](ARCHITECTURE.md#правила-поиска-и-рекомендаций).
 Разговорное поведение: [AI](AI.md). Scope: [PRODUCT](PRODUCT.md).
@@ -170,7 +181,7 @@ conversation data принадлежат [DEPLOYMENT](DEPLOYMENT.md); схема
 | Restaurant menu metadata | menuSource, menuVerifiedAt, menuCoverage=PARTIAL | Одно частичное меню без отдельной Menu entity |
 | OpeningInterval | restaurantId, weekday, opensAt, closesAt, closesNextDay | Собственное расписание, включая ночь |
 | Cuisine / RestaurantTag | Set<Enum> на Restaurant; строки в collection tables | Поисковые признаки, не свободные runtime tags |
-| MenuItem | id, restaurantId, seedKey, name, category, dishType optional, priceByn, portion/description/source optional, active | Собственные 5–10 полезных позиций; stable key для import |
+| MenuItem | id, restaurantId, seedKey, name, category, dishType optional, priceByn, portion/description/source optional, active | Сохранённая PARTIAL часть, максимум 10 позиций; stable key для import |
 
 Таблица выше описывает существующую модель. Optional website/phone/googlePlaceId
 ещё не реализованы. Conversation/selection state описан в разделе
@@ -182,7 +193,9 @@ conversation data принадлежат [DEPLOYMENT](DEPLOYMENT.md); схема
 
 ### Каталог
 
-MVP: 10–12 реальных заведений; первоначально 3 для проверки источников и vertical slice. Желательны разные кухни, ориентировочные чеки, часы и tags. Источник — сайт заведения или иной пригодный независимый источник, не LLM и не массовый Google import.
+Текущий V13: 36 конкретных заведений 23 брендов. История первоначального MVP:
+сначала 3 для проверки источников, затем 10 филиалов. Источник — сайт заведения
+или пригодный независимый источник, не LLM и не массовый Google import.
 
 Для каждой записи указать конкретный филиал, адрес, source и дату реальной проверки. seedKey — стабильный внутренний ключ для controlled seed/import, name не unique. Tags не проставлять по выдумке модели; куратор фиксирует их по источнику/описанию и обозначает субъективность.
 
@@ -215,7 +228,7 @@ Branch applicability для двух сетевых чеков подтверж�
 
 Catalog/hours source и дата сохранены для всех трёх филиалов. Васильки: Вс–Чт 08:00–23:00, Пт–Сб 08:00–01:00 следующего дня; Pizza Tempo: ежедневно 10:00–23:00; Хинкальня: ежедневно 12:00–00:00 следующего дня. COZY/FRIENDS проставлены только Хинкальне по [описанию филиала](https://www.titanminsk.by/kafe-i-restoranyi/restoran/); это curated tags. У остальных tags пусты.
 
-Итоговый MVP-каталог: **10 активных конкретных филиалов**, три кухни, по шесть
+Исторический V9 MVP-каталог: **10 активных конкретных филиалов**, три кухни, по шесть
 позиций меню (60 всего). Семь новых филиалов проверены 2026-10-06 по официальным
 спискам адресов/часов [Васильки](https://vasilki.by/#container-places) и
 [Pizza Tempo](https://tempo.by/#container-places); страницы общего меню выше
@@ -311,6 +324,10 @@ seedKey ASC для одинакового результата на H2/PostgreSQ
 Повторный controlled import нового JSON через существующий MenuImportService
 сохраняет item IDs/keys/counts и не изменяет остальные филиалы.
 
+Далее V10/V11 дают исторический V2 каталог, V12 назначает явные brandKey,
+V13 добавляет шесть заведений. Текущий fresh V1→V13 результат — 36/23/101/247;
+применённые V11/V13 используют add-only curated import, а не замену старых меню.
+
 ## Разговор и последняя подборка
 
 ConversationState/JDBC memory/SelectionItem — **IMPLEMENTED**.
@@ -353,6 +370,11 @@ chatId обязателен в дополнение к предложенным 
 
 ```mermaid
 erDiagram
+    RESTAURANT {
+        bigint id PK
+        varchar seed_key UK
+        varchar brand_key "NOT NULL, canonical, shared by branches"
+    }
     RESTAURANT ||--o{ MENU_ITEM : contains
     RESTAURANT ||--o{ OPENING_INTERVAL : has
     RESTAURANT ||--o{ RESTAURANT_CUISINE : classified
@@ -367,6 +389,8 @@ Spring AI memory связана логически по derived conversationId; 
 ## Constraints
 
 - Restaurant.seedKey unique/not null; name не unique.
+- Restaurant.brandKey not null, VARCHAR(100), canonical lowercase ASCII slug с CHECK;
+  не unique, принадлежность филиалов задана явно; отдельной Brand table нет.
 - estimatedCheckPerGuest nullable либо >0; amount/type/source/verifiedAt либо все NULL, либо полностью заполнены; type только PUBLISHED / DERIVED.
 - MenuItem.priceByn >0; валютный смысл фиксирован BYN в контракте.
 - MenuItem.seedKey not null; unique (restaurant_id, seed_key) для controlled import, name не unique. Category MAIN/SOUP/PASTA; optional dishType только PASTA для категории PASTA; active not null.
@@ -393,13 +417,13 @@ Constraints не доказывают актуальность источник�
 - Collection tables покрываются составными PK (restaurant_id, enum_value).
 - ConversationState по chatId — PK; JDBC memory index (conversation_id, timestamp) из официальной схемы.
 - SelectionItem по chatId/position — составной PK; `idx_selection_restaurant` по restaurant_id.
-- Нет expiresAt index, history index и ranking tuning для десятка заведений.
+- Нет expiresAt index, history index и отдельного ranking tuning для небольшого каталога.
 - BIGINT/Long для Telegram IDs, NUMERIC/BigDecimal для BYN.
 - Не сохранять JPA entities в tool/API responses.
 
 ## Flyway
 
-Реализованные migrations и дальнейший план:
+Все versioned migrations V1–V13 реализованы и применены в production:
 
 | Migration | Scope | Состояние |
 |---|---|---|
@@ -412,10 +436,10 @@ Constraints не доказывают актуальность источник�
 | V7 create selection items | Четыре pointer/context поля; PK, два FK, position/version checks, restaurant index | IMPLEMENTED |
 | V8 expand final catalog | Семь проверенных конкретных филиалов и 49 недельных интервалов | IMPLEMENTED |
 | V9 seed final partial menus (Java) | Immutable JSON, 42 menu items для новых семи филиалов; existing MenuDataset contract/checksum | IMPLEMENTED |
-| V10 extend curated cuisines | EUROPEAN / ASIAN в SQL constraint | IMPLEMENTED, feature V2 |
-| V11 expand curated catalog (Java) | Immutable reviewed JSON: +20 venues, +29 menu items, +135 intervals; strict add-only import/checksum | IMPLEMENTED, feature V2 |
-| V12 add restaurant brand key | Обязательный явный ключ, exact mapping 30 заведений → 17 брендов | IMPLEMENTED, feature POST-V2-01; production не применён |
-| V13 expand verified catalog (Java) | Immutable reviewed JSON: +6 venues, +12 PARTIAL menu items, +42 intervals; explicit brand mapping/checksum, add-only transaction | IMPLEMENTED, local feature POST-V2-02C; production не применён |
+| V10 extend curated cuisines | EUROPEAN / ASIAN в SQL constraint | APPLIED |
+| V11 expand curated catalog (Java) | Immutable reviewed JSON: +20 venues, +29 menu items, +135 intervals; strict add-only import/checksum | APPLIED |
+| V12 add restaurant brand key | Обязательный явный ключ, exact mapping 30 заведений → 17 брендов | APPLIED |
+| V13 expand verified catalog (Java) | Immutable reviewed JSON: +6 venues, +12 PARTIAL menu items, +42 intervals; explicit brand mapping/checksum, add-only transaction | APPLIED |
 
 Polling checkpoint storage допускается только при подтверждённой необходимости,
 если библиотека Telegram не покрывает offset. Отдельная domain subsystem не нужна.
@@ -432,6 +456,17 @@ type checks сохранены. Memory tables не моделируются JPA 
 Java search не требует дополнительной таблицы.
 
 ## PostgreSQL acceptance
+
+V13 acceptance **2026-10-11**: fresh V1→V13 и upgrade V12→V13,
+Hibernate/Flyway validate, reapply=0, сохранность старых строк/IDs и synthetic
+conversation data, полный rollback при SQL failure — PASS. Targeted PostgreSQL
+catalog expansion/migration/audit/shared transport suite: **12 tests PASS**.
+135 запросов выполнены дважды, 270 Java search calls: hard filters, deterministic
+ranking, лучший филиал бренда и размер `min(3, eligibleBrands)` подтверждены.
+Полные H2 `clean test`/`clean verify`: по **575 tests PASS**. Эти числа относятся
+к разным наборам и не суммируются. [Историческая локальная acceptance](POST-V2-02C-ACCEPTANCE.md).
+Production upgrade V11→V13, сохранность и isolated restore/rehearsal подтверждены
+отдельно: [DEPLOYMENT](DEPLOYMENT.md#production-release--2026-10-11).
 
 H2 test profile использует те же migrations и Hibernate validate без compatibility
 mode. H2 не доказывает PostgreSQL SQL/constraints или JDBC memory compatibility.
@@ -459,13 +494,15 @@ metadata checks; Hibernate validate продолжает проверять су
 .\mvnw.cmd test "-Dtest=*Test,!RestaurantBotApplicationTest" `
   "-Dspring.datasource.url=$env:DB_URL" `
   "-Dspring.datasource.username=$env:DB_USER" `
-  "-Dspring.datasource.driver-class-name=org.postgresql.Driver"
+  "-Dspring.datasource.driver-class-name=org.postgresql.Driver" `
+  "-Dspring.datasource.hikari.minimum-idle=0" `
+  "-Dspring.datasource.hikari.maximum-pool-size=4"
 ```
 
 Пароль передать через SPRING_DATASOURCE_PASSWORD в environment, без CLI argument.
 Тесты проверяют migrations/reapply, mappings, constraints, REST, import/rollback и
 Java search; изменения тестовых строк откатываются или восстанавливаются.
-Search tests используют фиксированный Clock. Итоговый набор проверен 2026-10-06 на
+Search tests используют фиксированный Clock. **История V9 acceptance:** набор проверен 2026-10-06 на
 PostgreSQL 17.10: Flyway V1–V9 на пустой test БД/reapply и Hibernate validate прошли.
 Полный PostgreSQL suite: 398 tests, 0 failures/errors/skipped, включая application
 context/datasource restart, восстановление criteria/generation/bounded memory/selection и `/new`.

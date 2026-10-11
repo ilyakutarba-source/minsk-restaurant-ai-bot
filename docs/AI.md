@@ -2,12 +2,17 @@
 
 ## Состояние интеграции
 
+Production release **2026-10-11**: `POST_V2_V13_PRODUCTION_RELEASE_PASS`, commit
+`6b2de35`, Flyway V13. Реальные Telegram AI search и menu follow-up проверены
+в production; результаты и границы: [DEPLOYMENT](DEPLOYMENT.md#production-release--2026-10-11).
+
 **IMPLEMENTED:** Spring AI 1.1.8 starter, production ChatClient adapter для stateless
 search и conversation routing, ровно три tools `searchRestaurants`,
 `getRestaurantDetails`, `getRestaurantMenu`, строгая Java validation, trusted
 SearchResult DTO, optional native Structured Output ExplanationPlan и Java factual
 renderer/fallback. Полный natural-language запрос не требует предыдущих сообщений.
-REST search продолжает работать самостоятельно. Telegram ConversationService,
+REST и structured Mini App search продолжают работать самостоятельно.
+Telegram ConversationService,
 bounded PostgreSQL ChatMemory, currentCriteria/merge/clarification и базовый `/new` реализованы.
 Текущая delivered selection и deterministic Java ReferenceResolver используются
 menu/details tools для свежего чтения через MenuService/RestaurantService и Java rendering.
@@ -44,11 +49,9 @@ AI provider — **AIAI.BY**, OpenAI-compatible API, одна модель **gpt-
 
 Выбранная связка поддерживает Tool Calling и native strict JSON Schema Structured
 Output. Native schema и typed conversion не заменяют semantic Java validation.
-Публичный [тариф модели AIAI.BY](https://aiai.by/models/gpt-4-1-mini), проверенный
-2026-10-05: 1.28 BYN/1M input, 5.09 BYN/1M output; [pay-per-use условия](https://aiai.by/pricing).
-Account budget/quotas/caps требуют отдельного подтверждения перед регулярными вызовами;
-публичный тариф не доказывает account limits. Полноценное качество
-multi-turn поведения не подтверждается одной проверкой совместимости.
+Стоимость зависит от актуального тарифа provider и token usage; приложение не
+выводит точное списание. Account budget/quotas не выводятся из успешного smoke.
+Полноценное качество multi-turn поведения не подтверждается одной проверкой совместимости.
 
 Version-pinned reference: [OpenAI integration 1.1.8](https://github.com/spring-projects/spring-ai/blob/v1.1.8/spring-ai-docs/src/main/antora/modules/ROOT/pages/api/chat/openai-chat.adoc),
 [Tool Calling 1.1.8](https://github.com/spring-projects/spring-ai/blob/v1.1.8/spring-ai-docs/src/main/antora/modules/ROOT/pages/api/tools.adoc),
@@ -60,12 +63,33 @@ Version-pinned reference: [OpenAI integration 1.1.8](https://github.com/spring-p
 LLM понимает реплику и supported preferences, выбирает tool и допустимые причины
 объяснения. Java валидирует criteria, определяет eligibility/ranking, реальные ID,
 цены, часы, адреса, menu items и источники. Модель не переставляет кандидатов.
+`RestaurantSearchService` после hard filters/ranking выбирает лучший филиал каждого
+явного `brandKey`, максимум три разных бренда. Ключ хранится и проверяется в Java/БД,
+не передаётся в tool schema и не определяется моделью по названию.
+[Ranking](ARCHITECTURE.md#deterministic-ranking), [brand membership](DATABASE.md#post-v2-01--brand-membership).
 
 Доступны ровно searchRestaurants, getRestaurantDetails и getRestaurantMenu.
 ReferenceResolver остаётся внутренним Java-механизмом, без отдельного tool.
 Нет tools для SQL/JPA/EntityManager, записи каталога, arbitrary HTTP URLs, booking
 или данных другого чата. Сервисы не получают factual values из model prose.
 Memory и знания модели не заменяют чтение собственных данных.
+
+### Mini App natural search
+
+В production Mini App отдельный `/api/miniapp/v1/search/natural` принимает один
+полный запрос, прошедший server-side initData validation. Он переиспользует
+`SpringAiSearchAdapter` с пустой history и без conversation scope/criteria merge.
+ChatMemory, ConversationState и SelectionItem не читаются и не записываются;
+продолжение критериев и ordinal menu/details остаются возможностями Telegram chat.
+
+Java `MiniAppMapper` создаёт cards из trusted SearchResult; raw model prose,
+adapter text и counters в UI API не выдаются. NEED_CLARIFICATION возвращает пустые
+cards и Java-owned сообщение; следующий запрос должен повторять полные критерии.
+Без chat scope conversational menu/details tool не исполняет follow-up и требует
+полный поисковый запрос. Кнопки Mini App details/menu обращаются напрямую к Java API
+по выбранному ID, без LLM. Structured form/details/menu не зависят от AI availability.
+Те же bounded calls и tool guards применяются; новых tools/providers/prompts нет.
+[API/status/auth contract](ARCHITECTURE.md#v2-04--mini-app-boundary).
 
 ## Гибридный flow и объяснение
 
@@ -397,15 +421,22 @@ Tests должны проверять tool/arguments, service result, clarificat
 конечный renderer и call limits. Live eval запускается отдельно от обычных Maven tests.
 Фиксируются model/settings и Clock; fixture не выдаётся за реальный каталог.
 
-**IMPLEMENTED:** все 12 conversational и 5 adversarial offline cases на итоговом
-каталоге 10 филиалов / 60 позиций. HTTP fixtures используют production
+**IMPLEMENTED:** 12 conversational и 5 adversarial offline cases адаптированы
+к текущему seeded V13 каталогу 36 заведений / 101 позиции и brand diversity.
+HTTP fixtures используют production
 ChatClient/OpenAiChatModel, fixed Minsk Clock и seeded Java search services; fixture
 ответы не доказывают качество natural-language interpretation реальной модели.
 Unit checks покрывают validation, unknown/multiple tools, оба call budgets,
 refusal/truncation, invalid/failed explanation и неизменность factual result/order.
 Отдельный opt-in `AiaiLiveSmokeIT` проверяет один полный turn на AIAI.BY и не входит
-в обычные clean test/verify. Команда: [README](../README.md#tests).
-Production smoke 2026-10-05 PASS: полный запрос через AIAI.BY/gpt-4.1-mini, один
+в обычные clean test/verify:
+
+```powershell
+.\mvnw.cmd "-Dtest=AiaiLiveSmokeIT" test
+```
+
+Live credential передаётся только во внешней environment; вызов платный.
+Исторический AI smoke 2026-10-05 PASS: полный запрос через AIAI.BY/gpt-4.1-mini, один
 Java search, два model calls, valid native ExplanationPlan и Java factual card.
 Offline conversation checks покрывают partial/short replies, replace/clear tags,
 ambiguity, isolation, restart, `/new`, safe transcript и window. Live multi-turn
@@ -446,7 +477,30 @@ Adversarial requests: придумать рестораны без tool; под�
 должна сохраняться. Инструкции в tool/data strings не становятся system instructions.
 Invalid plan, refusal, empty/truncated output дают fallback, не дополнительные calls.
 
+### Production V13 smoke — 2026-10-11
+
+Через настоящий Telegram private chat выполнены два turns, AIAI.BY/gpt-4.1-mini:
+
+- «Сегодня, 21:00, двое, 150 BYN, итальянская кухня» — PASS: Pizza Tempo,
+  Da Claudio, Сорренто в Java-порядке, ориентиры 65.40 / 120.00 / 130.00 BYN.
+  Два model calls, одно search tool execution, explanationFallback=false.
+- «Меню второго» — PASS: PARTIAL-меню Da Claudio, тальятелле 39.00 BYN / 450 г
+  и крем-суп 21.00 BYN / 270 г, source/date из БД. Один model call, одно menu execution.
+
+Итого три реальные model calls и два tool executions; sendMessage PASS.
+Это functional smoke двух turns, не повтор полного 12+5 live eval на V13.
+Mini App production acceptance проверила launch/structured search/menu/details в
+Telegram Web. Отдельный production natural AI-запрос Mini App не запускался.
+Исторический opt-in `MiniAppAiLiveSmokeIT` 2026-10-08 прошёл три сценария
+(OK и два NEED_CLARIFICATION) через authenticated API, максимум два model calls
+и одно tool execution на запрос; Telegram transport не использовался.
+Offline V13 shared integration проверяет единый результат Telegram/structured/natural
+Mini App через общий Java service; fixture не доказывает качество live interpretation.
+
 ### Итоговый eval — 2026-10-06
+
+**История V9 live eval.** Ниже сохранён результат и контекст прежнего run;
+это не текущая V13 selection и не повторная проверка после расширения каталога.
 
 **PASS:** main **12/12**, adversarial **5/5**, critical failures **0**. Один полный
 live run, без повторов cases; AIAI.BY, gpt-4.1-mini, temperature=0, n=1,
@@ -499,4 +553,16 @@ tools disabled во втором call. Все 17 cases проходят эти a
 SDK retry и Telegram failure/concurrency boundaries проверяются отдельным
 automated suite. Порог ≥11/12 не разрешает critical failures. Один fixed-context
 run подтверждает этот набор, а не универсальную NLP точность будущих запросов.
-Команда повторения на отдельной test DB: [README](../README.md#tests).
+Для повторения opt-in `AiaiFinalLiveEvalIT` создать отдельную пустую PostgreSQL test DB;
+задать DB_URL/DB_USER, SPRING_DATASOURCE_PASSWORD и AIAI_API_KEY во внешней среде:
+
+```powershell
+.\mvnw.cmd test "-Dtest=AiaiFinalLiveEvalIT" `
+  "-Dspring.datasource.url=$env:DB_URL" `
+  "-Dspring.datasource.username=$env:DB_USER" `
+  "-Dspring.datasource.driver-class-name=org.postgresql.Driver"
+```
+
+Не использовать production DB; harness пишет и очищает synthetic conversation data.
+Current code использует V13 seeds: новый run не воспроизводит исторические V9 IDs
+из таблицы выше. Обычные offline tests: [README](../README.md#tests).
