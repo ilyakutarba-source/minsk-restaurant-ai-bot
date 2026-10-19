@@ -30,13 +30,14 @@ class RestaurantFollowUpRendererTest {
                 "Сохранена только часть меню. Наличие блюд и актуальность цен не гарантируются.", List.of(item, second));
         var text = renderer.render(OK, new RestaurantFollowUpResult(Kind.MENU, null, null, data));
 
-        assertThat(text).contains("🍽 Сохранённая часть меню (PARTIAL)", data.notice(),
+        assertThat(text).startsWith("🍽 Сохранённая часть меню\n").contains(data.notice(),
                 "• Основное блюдо — 22.90 BYN · 350 г\n• Суп — 16.90 BYN",
                 "Источник меню: https://example.test/menu\nДата проверки: 2026-10-02")
-                .doesNotContain("ID:", "Источник позиции", item.source(), second.source(), "null");
+                .doesNotContain("PARTIAL", "ID:", "Источник позиции", item.source(), second.source(), "null");
         assertThat(text.indexOf("Источник меню")).isGreaterThan(text.indexOf("• Суп"));
         assertThat(text.lines().filter(line -> line.startsWith("Источник меню"))).hasSize(1);
         assertThat(data.items()).containsExactly(item, second);
+        assertThat(data.coverage()).isEqualTo(MenuCoverage.PARTIAL);
         assertThat(data.items().getFirst().source()).isEqualTo("https://example.test/item");
     }
 
@@ -49,16 +50,19 @@ class RestaurantFollowUpRendererTest {
                 LocalDate.of(2026, 10, 2), "BYN", notice, List.of());
         assertThat(renderer.render(status == MenuDetails.Status.NO_RESULTS ? NO_RESULTS : DATA_UNAVAILABLE,
                 new RestaurantFollowUpResult(Kind.MENU, null, null, data)))
-                .contains(notice, "PARTIAL", "наличие блюд и актуальность цен не гарантируются",
+                .startsWith("🍽 Сохранённая часть меню\n")
+                .contains(notice, "наличие блюд и актуальность цен не гарантируются",
                         "https://example.test/menu", "2026-10-02")
-                .doesNotContain("Такого блюда нет", "ID:");
+                .doesNotContain("PARTIAL", "Такого блюда нет", "ID:");
+        assertThat(data.coverage()).isEqualTo(MenuCoverage.PARTIAL);
     }
 
     @Test void missingMenuMetadataDoesNotInventVerificationOrSource() {
         var data = new MenuDetails(42, MenuDetails.Status.DATA_UNAVAILABLE, null, null, null, "BYN",
                 "Сохранённое меню недоступно.", List.of());
         assertThat(renderer.render(DATA_UNAVAILABLE, new RestaurantFollowUpResult(Kind.MENU, null, null, data)))
-                .contains(data.notice()).doesNotContain("null", "Источник меню", "Дата проверки", "https://");
+                .startsWith("🍽 Сохранённая часть меню\n")
+                .contains(data.notice()).doesNotContain("PARTIAL", "null", "Источник меню", "Дата проверки", "https://");
     }
 
     @ParameterizedTest

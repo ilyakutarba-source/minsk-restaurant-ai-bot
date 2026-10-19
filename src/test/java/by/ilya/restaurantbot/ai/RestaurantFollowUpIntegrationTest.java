@@ -90,8 +90,10 @@ class RestaurantFollowUpIntegrationTest {
         assertThat(reply.status()).isEqualTo(OK);
         assertThat(reply.followUpResult().menu()).isEqualTo(expected);
         assertThat(reply.followUpResult().menu().items()).hasSize(6);
-        assertThat(reply.text()).contains("Драники с мачанкой по-белорусски", "22.90 BYN", "PARTIAL", "2026-10-02")
-                .doesNotContain("invented address price hours");
+        assertThat(reply.text()).startsWith("🍽 Сохранённая часть меню\n")
+                .contains("Драники с мачанкой по-белорусски", "22.90 BYN", expected.notice(), "2026-10-02")
+                .doesNotContain("PARTIAL", "invented address price hours");
+        assertThat(reply.followUpResult().menu().coverage()).isEqualTo(MenuCoverage.PARTIAL);
         assertThat(store.load(A)).isEqualTo(state);
         assertThat(selections.current(A)).isEqualTo(rows);
         assertOneFollowUp(reply);
@@ -109,6 +111,8 @@ class RestaurantFollowUpIntegrationTest {
         clearInvocations(model, search);
         var menu = turn("Что по меню у второго?", MENU, "{\"reference\":{\"ordinal\":2}}");
         assertThat(menu.followUpResult().menu()).isEqualTo(menus.getMenuByRestaurantId(rows.get(1).restaurantId(), null, null).orElseThrow());
+        assertThat(menu.text()).startsWith("🍽 Сохранённая часть меню\n")
+                .contains(menu.followUpResult().menu().notice()).doesNotContain("PARTIAL");
         assertThat(store.load(A)).isEqualTo(state);
         assertThat(selections.current(A)).isEqualTo(rows);
         assertOneFollowUp(menu);
@@ -129,7 +133,8 @@ class RestaurantFollowUpIntegrationTest {
             assertThat(item.dishType()).isEqualTo(DishType.PASTA);
             assertThat(item.priceByn()).isLessThanOrEqualTo(new java.math.BigDecimal("20"));
         });
-        assertThat(reply.text()).contains("PARTIAL", "Наличие блюд и актуальность цен не гарантируются.");
+        assertThat(reply.text()).contains("Сохранённая часть меню", "Наличие блюд и актуальность цен не гарантируются.")
+                .doesNotContain("PARTIAL");
         assertOneFollowUp(reply);
     }
 
@@ -137,8 +142,8 @@ class RestaurantFollowUpIntegrationTest {
         var reply = turn("Есть паста у второго?", MENU, "{\"reference\":{\"ordinal\":2},\"dishType\":\"PASTA\"}");
         assertThat(reply.status()).isEqualTo(NO_RESULTS);
         assertThat(reply.followUpResult().menu().coverage()).isEqualTo(MenuCoverage.PARTIAL);
-        assertThat(reply.text()).contains("Не найдено в сохранённой части меню", "PARTIAL", "Источник меню", "2026-10-02")
-                .doesNotContain("Такого блюда нет", "Пасты нет");
+        assertThat(reply.text()).contains("Не найдено в сохранённой части меню", "Источник меню", "2026-10-02")
+                .doesNotContain("PARTIAL", "Такого блюда нет", "Пасты нет");
         assertOneFollowUp(reply);
     }
 
@@ -150,7 +155,7 @@ class RestaurantFollowUpIntegrationTest {
         assertThat(reply.followUpResult().menu().items()).isEmpty();
         assertThat(reply.followUpResult().menu().coverage()).isNull();
         assertThat(reply.text()).contains("Сохранённое меню недоступно")
-                .doesNotContain("invented address price hours", "Источник меню", "null");
+                .doesNotContain("PARTIAL", "invented address price hours", "Источник меню", "null");
         assertOneFollowUp(reply);
         var bot=mock(TelegramBot.class);
         var sent=mock(SendResponse.class); when(sent.isOk()).thenReturn(true);
@@ -168,7 +173,8 @@ class RestaurantFollowUpIntegrationTest {
             jdbc.update("UPDATE menu_items SET active=false WHERE restaurant_id=3");
             var reply = turn("Меню третьего", MENU, "{\"reference\":{\"ordinal\":3}}");
             assertThat(reply.status()).isEqualTo(DATA_UNAVAILABLE);
-            assertThat(reply.text()).contains("Сохранённое меню недоступно", "PARTIAL", "Источник меню");
+            assertThat(reply.text()).contains("Сохранённое меню недоступно", "Источник меню")
+                    .doesNotContain("PARTIAL");
             assertOneFollowUp(reply);
         } finally {
             for (Long id : prices) jdbc.update("UPDATE menu_items SET active=true WHERE id=?", id);

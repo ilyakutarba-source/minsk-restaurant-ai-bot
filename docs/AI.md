@@ -157,7 +157,9 @@ Java формирует короткие фразы из фиксированн�
 fallback; готовый search result сохраняется без нового поиска и перестановки ID.
 
 Factual renderer читает только trusted service DTO. Чек подписывается как
-ориентировочный; menu показывает PARTIAL/source/date. Google renderer integration
+ориентировочный; меню показывает предупреждение о частичности, source/date.
+Telegram-заголовок — «🍽 Сохранённая часть меню», без внутреннего кода `PARTIAL`.
+Статус `coverage=PARTIAL` сохраняется в DTO и REST API. Google renderer integration
 исключена из текущего MVP. При будущем пересмотре scope Google сведения допустимы
 только отдельно в Java renderer с attribution/link/live checkedAt, без передачи LLM.
 
@@ -329,13 +331,13 @@ Input: reference, optional supported dishType (в текущей модели т
 maxItemPriceByn — цена одной позиции, не общий budget search.
 Execution: resolve → существующий MenuService → Java filters.
 Output: одно заведение, до 10 own items, prices BYN, portion при наличии,
-source/date/PARTIAL. DATA_UNAVAILABLE при отсутствии saved menu; NO_RESULTS означает
+source/date и внутренний coverage=PARTIAL. DATA_UNAVAILABLE при отсутствии saved menu; NO_RESULTS означает
 «Не найдено в сохранённой части меню». Нет inference allergens/ingredients/availability.
 Strict parsing отклоняет unknown fields, duplicate keys, trailing JSON, numeric
 name/ordinal coercion и неподдерживаемые enum. maxItemPriceByn следует existing
 положительному NUMERIC(10,2) contract; oversized scientific exponent отклоняется
 до чтения reference/menu. Callback возвращает только status; MenuDetails DTO
-остаётся в Java, source/date/PARTIAL показываются и при пустом filtered результате.
+остаётся в Java; source/date и предупреждение о частичности показываются и при пустом filtered результате.
 
 ## Chat Memory и conversationId
 

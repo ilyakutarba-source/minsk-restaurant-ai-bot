@@ -159,7 +159,8 @@ abstract class FinalAiEvalSupport {
             var follow=r.followUpResult();
             if(follow.menu()!=null) {
                 var m=follow.menu();assertThat(m.coverage()).isEqualTo(MenuCoverage.PARTIAL);
-                assertThat(r.text()).contains("PARTIAL");
+                assertThat(r.text()).startsWith("🍽 Сохранённая часть меню\n")
+                        .contains(m.notice()).doesNotContain("PARTIAL");
                 var own=menus.getMenuByRestaurantId(m.restaurantId(),null,null).orElseThrow();
                 assertThat(own.items()).containsAll(m.items());
                 assertThat(r.text()).doesNotContain("Такого блюда нет","Пасты нет");

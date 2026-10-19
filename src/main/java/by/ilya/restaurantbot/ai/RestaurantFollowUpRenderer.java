@@ -23,7 +23,6 @@ final class RestaurantFollowUpRenderer {
     private String menu(RestaurantFollowUpResult result) {
         var data = result.menu();
         var text = new StringBuilder("🍽 Сохранённая часть меню");
-        if (data.coverage() != null) text.append(" (").append(data.coverage()).append(')');
         text.append('\n').append(data.notice()).append("\n\n");
         for (var item : data.items()) {
             text.append("• ").append(item.name()).append(" — ").append(money(item.priceByn())).append(" BYN");
