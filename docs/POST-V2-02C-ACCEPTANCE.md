@@ -20,7 +20,7 @@ Production, main, merge, push и deploy не изменялись.
   собственный hash невозможно встроить в содержимое того же commit.
 
 Модель и ограничения принадлежат [DATABASE — V13](DATABASE.md#post-v2-02c--каталог-v13),
-scope — [PRODUCT](PRODUCT.md#post-v2-02c--локальное-расширение-каталога),
+scope — [PRODUCT](PRODUCT.md#mvp--must),
 неизменённый алгоритм — [ARCHITECTURE](ARCHITECTURE.md#deterministic-ranking).
 
 ## 2. Изменённые файлы

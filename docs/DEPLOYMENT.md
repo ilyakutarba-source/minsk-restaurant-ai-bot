@@ -251,7 +251,7 @@ app restart и recreate с follow-up — PASS. Тогда public Mini App route 
 ## Google Places — EXCLUDED FROM CURRENT MVP
 
 Google adapter/mapping/renderer integration не реализованы; Google key, billing
-project и calls не требуются. [Scope](PRODUCT.md#google-places--excluded-from-current-mvp).
+project и calls не требуются. [Границы интеграций](ARCHITECTURE.md#внешние-интеграции).
 
 ## CI — PLANNED
 

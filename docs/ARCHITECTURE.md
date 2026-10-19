@@ -4,8 +4,7 @@
 Продуктовый scope: [PRODUCT](PRODUCT.md). AI contracts: [AI](AI.md).
 Схема и provenance: [DATABASE](DATABASE.md). Runtime: [DEPLOYMENT](DEPLOYMENT.md).
 
-Production release 2026-10-11 — `6b2de35`, Flyway V13. Telegram Bot и Mini App
-используют общий Java search; действующий HTTPS/private boundary описан в
+Telegram Bot и Mini App используют общий Java search; HTTPS/private boundary:
 [DEPLOYMENT](DEPLOYMENT.md#deployment-topology--implemented).
 
 ## Реализованная архитектура — IMPLEMENTED
@@ -39,75 +38,36 @@ flowchart TD
     FLYWAY[Flyway V1–V13] --> PG
 ```
 
-Пакет `catalog` содержит Restaurant, menu, persistence и services; `search` — criteria,
-filters/ranking и Clock configuration; `api` — тонкие REST controllers; `ai` —
-bounded ChatClient adapter, три read-only tools, plan validation и Java renderers;
-`conversation` — ConversationService, typed criteria merge, JDBC state/selection, ReferenceResolver и memory configuration;
-`telegram` — private text filtering, library polling lifecycle и plain-text sendMessage.
-`miniapp` — static UI, тонкий API adapter, server-side initData validation и UI DTO mapper;
-structured path вызывает services напрямую, natural path — существующий stateless AI adapter.
-Controllers не выполняют поиск и не возвращают JPA entities. Own DTO создаются внутри
-read-only transactions, `open-in-view=false`. Денежные значения — BigDecimal.
+## Компоненты и границы
 
-Реализованный Telegram slice: private chat → TelegramUpdateHandler →
-ConversationService → bounded memory/currentCriteria → SpringAiSearchAdapter →
-validated partial criteria → Java merge → searchRestaurants → RestaurantSearchService → PostgreSQL →
-trusted SearchResult → optional explanation + existing Java renderer → sendMessage.
-Handler не добавляет model calls, search или retries и не читает repository.
-Menu/details routing: тот же первый ChatClient call выбирает getRestaurantMenu либо
-getRestaurantDetails → strict reference/filters/focus validation → ReferenceResolver
-с текущим server chatId → resolved ID → MenuService/RestaurantService → own DTO →
-Java plain-text renderer. Эти turns не вызывают RestaurantSearchService, criteria
-merge/save или второй model call; не заменяют selection и не меняют selectionVersion.
-Факты перечитываются, даже если memory содержит прежний ответ.
-Для search ConversationService сохраняет валидные критерии в короткой transaction, отправляет
-Java reply через transport callback вне transaction и при успешной отправке один раз
-сохраняет user text + safe assistant projection и через SelectionService атомарно
-заменяет текущую подборку реально показанными ID. `/new` очищает память/criteria/selection и
-увеличивает generation без AI. Runtime: [DEPLOYMENT](DEPLOYMENT.md#telegram-long-polling--implemented).
-
-## Компоненты и продолжение архитектуры
-
-```text
-Telegram private chat → ConversationService → Spring AI ChatClient
-→ validated single tool request → existing application service → trusted DTO
-→ optional Structured Output explanation → Java factual renderer → sendMessage
-→ after successful send: one safe memory write; delivered search replaces selection
-```
-
-| Компонент | Ответственность | Состояние |
-|---|---|---|
-| RestaurantSearchService | Валидация, hard filters, estimated total, ranking | IMPLEMENTED |
-| RestaurantService | Own catalog/details | IMPLEMENTED |
-| MenuService / MenuImportService | Partial menu reading и controlled import | IMPLEMENTED |
-| REST adapter | DTO, HTTP mapping, Swagger | IMPLEMENTED |
-| LLM / ChatClient | Search/menu/details interpretation, supported arguments, выбор одного из трёх tools, причины search explanation | IMPLEMENTED; [limits/contract](AI.md) |
-| ConversationService | Merge criteria, clarification, bounded memory/state, delivery callback, selection lifecycle, `/start`, `/help`, `/new`, controlled DB failures | IMPLEMENTED |
-| SelectionService / SelectionItemRepository | Текущие показанные ID/positions, атомарная замена и version | IMPLEMENTED |
-| ReferenceResolver | Ordinal/last/exact name → restaurantId в текущем чате | IMPLEMENTED; используется обоими follow-up tools |
-| Java renderer | Search factual cards/explanation fallback, own details и PARTIAL menu | IMPLEMENTED |
-| Telegram adapter | Private text check, one library poller, lossless plain-text split, explicit send failure | IMPLEMENTED |
-| Mini App adapter | Signed read-only API, structured/stateless natural search, own UI DTO | IMPLEMENTED в production |
-| Google adapter | Place Details enrichment известного ресторана | EXCLUDED FROM CURRENT MVP; NOT IMPLEMENTED |
+| Пакет / компоненты | Ответственность |
+|---|---|
+| `catalog`: RestaurantService, MenuService, MenuImportService | Каталог, собственные details/меню, persistence и controlled import |
+| `search`: RestaurantSearchService | Criteria validation, hard filters, estimated total, ranking и Clock |
+| `api`: REST controllers | DTO, HTTP mapping, Swagger |
+| `ai`: SpringAiSearchAdapter, tools, Java renderers | Интерпретация, три read-only tools, validated explanation/fallback и фактический ответ |
+| `conversation`: ConversationService, ConversationStore | Merge criteria, clarification, bounded memory/state, команды и delivery callback |
+| `conversation`: SelectionService, SelectionItemRepository | Атомарная замена показанных ID/positions и version |
+| `conversation`: ReferenceResolver | Ordinal/last/exact name → restaurantId в текущем чате |
+| `telegram`: TelegramUpdateHandler, polling, messages | Private text filtering, один poller, plain-text split и результат доставки |
+| `miniapp`: controller, mapper, static UI | Signed API, structured/stateless natural search и UI projections |
 
 Adapters → application services → repositories/clients. Services поиска/меню/details
-не зависят от Telegram, ConversationService или Spring AI SDK. Telegram вызывает
-ConversationService, который использует существующий SpringAiSearchAdapter, без HTTP к своему приложению.
-LLM не получает repositories, EntityManager, SQL или доступ к БД.
-Follow-up adapters получают только ReferenceResolver и существующие application
-services. MenuDetails/RestaurantDetails — собственные DTO, без entities/provider
-payload. Полные DTO остаются у Java renderer; manual tool callback отдаёт только
-status, без отправки raw tool protocol модели. Menu source/date/PARTIAL сохраняются;
-контакты/rating не придумываются при отсутствии данных. Contracts: [AI](AI.md#общие-tool-contracts).
-HTTP/LLM calls выполняются вне DB transactions. Memory и reference contracts: [AI](AI.md).
+не зависят от Telegram, ConversationService или Spring AI SDK. Telegram handler
+вызывает ConversationService без HTTP к собственному приложению, доступа к repository,
+дополнительных model calls или retries. Structured Mini App вызывает services напрямую;
+natural search использует stateless AI adapter.
 
-ReferenceResolver читает текущие SelectionItem через SelectionService; имена
-перечитывает через RestaurantService, без прямого RestaurantRepository/LLM/search.
-Telegram и AI adapters не получают selection repository. REST recommendations
-не обновляет selection. Renderer показывает все candidates в trusted SearchResult
-без перестановки или усечения; этот же список ID передаётся в replace после send.
-При clarification/invalid/no-search selection не меняется. Lifecycle, failure
-behavior и известная граница crash между send и commit: [AI](AI.md#conversationstate-и-selection-context).
+Controllers не выполняют поиск и не возвращают JPA entities. Own DTO создаются внутри
+read-only transactions, `open-in-view=false`. Денежные значения — BigDecimal.
+HTTP/LLM calls выполняются вне DB transactions. Модель не получает SQL/JPA-доступа;
+tool contracts и передача данных модели: [AI](AI.md#общие-tool-contracts).
+
+ReferenceResolver читает selection через SelectionService, имена — через RestaurantService,
+без прямого RestaurantRepository/LLM/search. Telegram и AI adapters не получают selection
+repository. Текущая подборка заменяется только после успешной отправки search;
+REST и Mini App её не обновляют. Полный lifecycle criteria, memory, `/new`, references
+и ошибок сохранения: [AI](AI.md#conversationstate-и-selection-context).
 
 ### Telegram turn serialization и delivery boundary
 
@@ -303,7 +263,7 @@ IMPLEMENTED для собственных данных; всего tools ров�
 Call limits/configuration: [AI](AI.md).
 Google enrichment — EXCLUDED FROM CURRENT MVP; adapter и place mapping не реализованы.
 Google не входит в текущий runtime path. Search/ranking независимы от Google;
-own details остаются source of truth. [Продуктовое решение](PRODUCT.md#google-places--excluded-from-current-mvp).
+own details остаются source of truth.
 При будущем пересмотре scope Google допустим только как enrichment details известного
 собственного филиала по проверенному place ID, без участия в search/ranking,
 передачи live payload модели или его сохранения в own DB/memory.

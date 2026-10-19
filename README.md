@@ -4,18 +4,13 @@ Telegram AI-гид по ограниченному, вручную провер�
 Помогает подобрать заведение под время посещения, число гостей, общий бюджет и кухню,
 затем посмотреть адрес, расписание и сохранённую часть меню.
 
-Production release завершён **2026-10-11**: `POST_V2_V13_PRODUCTION_RELEASE_PASS`.
-Развёрнутый commit — `6b2de35`, Flyway — **V13**. Каталог содержит **36 активных
-заведений, 23 бренда, 101 позицию меню и 247 недельных интервалов работы**.
-Telegram Bot и Mini App доступны в production; HTTPS обслуживает Dokploy/Traefik.
-Результаты и границы проверки: [DEPLOYMENT](docs/DEPLOYMENT.md#production-release--2026-10-11).
+Telegram Bot и Mini App развёрнуты; [результаты production release 2026-10-11](docs/DEPLOYMENT.md#production-release--2026-10-11).
 
 ## Features
 
 - Поиск для Минска: 1–6 гостей, общий бюджет в BYN, сегодня и следующие шесть дней,
   точное время, необязательная кухня и предпочтения по обстановке.
-- До трёх вариантов разных брендов: Java выбирает лучший подходящий филиал каждого
-  явного `brandKey`. Бюджет, кухня и часы ради заполнения выдачи не ослабляются.
+- До трёх вариантов разных брендов с учётом бюджета, кухни и часов работы.
 - Telegram private chat: запрос обычным языком, уточнение критериев, продолжение
   поиска, «Меню второго», «Есть паста у первого?», «До скольки последний?».
 - `/start`, `/help`, `/new`; bounded PostgreSQL memory и последняя показанная
@@ -33,14 +28,8 @@ Telegram Bot и Mini App доступны в production; HTTPS обслужив�
 > Сегодня в 21:00 нас двое, общий бюджет 150 BYN, итальянская кухня.
 
 AI извлекает критерии, Java проверяет их и ищет в собственной PostgreSQL.
-В production smoke 2026-10-11 этот запрос вернул **Pizza Tempo — 65.40 BYN,
-Da Claudio — 120.00 BYN, Сорренто — 130.00 BYN** на двоих.
-«Меню второго» показало сохранённое частичное меню Da Claudio.
-Это результат на указанную дату и dataset, а не обещание будущей цены или наличия столика.
-
-«А если нас четверо?» в Telegram меняет гостей, сохраняя остальные критерии.
-`/new` очищает разговор, критерии и ordinal references без обращения к модели.
-В Mini App критерии задаются заново; разговорного продолжения там нет.
+«Меню второго» показывает сохранённое меню второго варианта, а «А если нас четверо?»
+продолжает поиск с изменённым числом гостей. `/new` начинает новый разговор.
 Сценарии и ограничения: [PRODUCT](docs/PRODUCT.md).
 
 ## Tech stack
@@ -67,44 +56,21 @@ Mini App natural search → stateless Spring AI ─────→ Java services
 trusted DTO → Java factual renderer / Mini App mapper → user
 ```
 
-LLM понимает запрос и выбирает один из трёх tools: `searchRestaurants`,
-`getRestaurantDetails`, `getRestaurantMenu`. Java определяет реальные заведения,
-цены, часы, порядок и принадлежность к бренду. У модели нет SQL/JPA-доступа,
-инструмента записи или произвольного HTTP-доступа. Structured Output ограничивает
-объяснение разрешёнными причинами; Java валидирует план и формирует фактический ответ,
-при ошибке объяснения использует fallback. Максимум два model calls и одно tool execution
-на запрос; menu/details — один model call.
-
-Поиск: hard filters → совпадения tags → `matchCount DESC`, сумма ASC, ID ASC
-→ дедупликация по `brandKey` → максимум три варианта.
-`estimatedTotal = estimatedCheckPerGuest × guests`, денежные вычисления — BigDecimal.
-Число гостей не проверяет вместимость, часы проверяют прибытие с учётом overnight.
-Контракты: [ARCHITECTURE](docs/ARCHITECTURE.md), [AI](docs/AI.md).
+AI понимает запрос; Java services определяют факты и порядок результатов из собственной БД.
+Границы компонентов, поиск и REST contracts: [ARCHITECTURE](docs/ARCHITECTURE.md).
+Инструменты, ограничения модели и память: [AI](docs/AI.md).
 
 ## Database
 
-Flyway V1–V13 создаёт каталог, частичное меню, conversation state, JDBC memory и
-selection; Hibernate использует `validate`. V12 добавляет обязательный `brand_key`
-с явным mapping филиалов, V13 добавляет шесть проверенных заведений и их данные.
-Применённые миграции и datasets не переписываются.
-
-`DERIVED` check — ручной ориентир по опубликованным ценам выбранных блюд, а не
-расчёт корзины во время поиска. `verifiedAt` — дата проверки источника.
-Схема, provenance, история V9/V11 и актуальные данные: [DATABASE](docs/DATABASE.md).
+PostgreSQL хранит каталог, частичное меню и состояние разговора; схемой управляет Flyway.
+Модель, источники данных и миграции: [DATABASE](docs/DATABASE.md).
 
 ## REST API / Swagger
 
-| Method | Path | Назначение |
-|---|---|---|
-| GET | `/api/v1/restaurants` | Active catalog, page/size |
-| GET | `/api/v1/restaurants/{id}` | Собственные details |
-| GET | `/api/v1/restaurants/{id}/menu` | PARTIAL menu, optional dishType/maxItemPriceByn |
-| POST | `/api/v1/recommendations` | Полные criteria, до трёх вариантов разных брендов |
-
 Swagger: <http://127.0.0.1:8080/swagger-ui/index.html>.
 OpenAPI: <http://127.0.0.1:8080/v3/api-docs>.
-Эти endpoints остаются private в production. Публичные Mini App endpoints проверяют
-подписанный `X-Telegram-Init-Data` на сервере: [Mini App boundary](docs/ARCHITECTURE.md#v2-04--mini-app-boundary).
+REST/Swagger остаются private в production.
+Endpoints и HTTP contracts: [ARCHITECTURE](docs/ARCHITECTURE.md#rest-api).
 
 Пример `POST /api/v1/recommendations`:
 
@@ -167,12 +133,8 @@ docker compose --env-file $localEnvFile ps
 criteria continuation, references, memory/selection, restart и ошибки доставки,
 Mini App API/auth и оба способа поиска.
 
-Зафиксированная V13 acceptance 2026-10-11: `clean test` и `clean verify` — по
-**575 tests PASS**; targeted PostgreSQL V13 migration/audit/shared transport suite —
-**12 tests PASS**, без failures/errors/skipped. PostgreSQL audit проверил 135 запросов
-дважды и подтвердил порядок, hard filters и разнообразие брендов.
-Это результаты release acceptance, не новая проверка при редактировании документации.
-H2 не заменяет PostgreSQL: [PostgreSQL acceptance](docs/DATABASE.md#postgresql-acceptance).
+H2 не заменяет PostgreSQL. Команда отдельной проверки и зафиксированные результаты:
+[PostgreSQL acceptance](docs/DATABASE.md#postgresql-acceptance).
 
 Opt-in live tests запускаются отдельно, с внешним `AIAI_API_KEY` и выделенной test DB
 для stateful eval. Не использовать production DB: harness создаёт синтетический state
@@ -180,26 +142,11 @@ Opt-in live tests запускаются отдельно, с внешним `AI
 
 ## Deployment
 
-Dockerfile: multi-stage Maven build → Java 21 JRE, non-root runtime.
-Compose: app + PostgreSQL 17.10, healthchecks и стабильный named volume.
-Production использует Dokploy Compose project; отдельный deployment Patch подключает
-app к Traefik и публикует через HTTPS только Mini App/static и Mini App API.
-Базовый [compose.yaml](compose.yaml) содержит private backend и loopback host port;
-сам по себе public HTTPS route не создаёт. PostgreSQL не имеет host port.
-
-Один bot token — один активный app/poller; webhook не используется.
-Production search и follow-up проверены через Telegram, Mini App launch/form/menu/details —
-через Telegram Web. Отдельный production AI-запрос Mini App и mobile launch не проверялись.
-Runbook, persistence, backup и границы безопасности: [DEPLOYMENT](docs/DEPLOYMENT.md).
+Docker Compose запускает приложение и PostgreSQL; production размещён в Dokploy на VPS.
+Настройка HTTPS, ограничения polling, runbook и backup: [DEPLOYMENT](docs/DEPLOYMENT.md).
 
 ## Current MVP limitations
 
-Каталог ограничен 36 заведениями. Меню частичное; поиск не проверяет свободные столики,
-наличие блюд, последний горячий заказ или праздничные исключения расписания.
-Ориентировочный чек не гарантирует итоговую сумму. Tags не обещают обстановку.
-Google Places, рейтинг, booking, оплата, геопоиск, favorites, публичный admin/chat API
-и RAG/vector search не реализованы. Телефон и website не сохранены в domain model.
-Telegram memory ограничена; exactly-once delivery не гарантируется.
-
-Scope и DoD: [PRODUCT](docs/PRODUCT.md#definition-of-done).
-История первоначального MVP и V2 явно отделена от текущего состояния в документах выше.
+Каталог ограничен, меню частичное, чек ориентировочный. Поиск не подтверждает
+свободный столик или наличие блюда. Пользовательские ограничения:
+[PRODUCT](docs/PRODUCT.md#пользовательское-поведение-и-ограничения).

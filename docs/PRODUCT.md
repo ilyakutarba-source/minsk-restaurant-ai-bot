@@ -5,30 +5,10 @@ Minsk Restaurant AI Bot помогает выбрать ресторан из с
 русскоязычный Telegram private chat; Telegram Mini App предлагает форму поиска,
 независимый AI-поиск, карточки, details и сохранённое меню.
 
-## Текущее состояние production
-
-С 2026-10-11 production release **PASS**: `POST_V2_V13_PRODUCTION_RELEASE_PASS`,
-commit `6b2de35`, Flyway V13. Каталог: **36 активных адресных заведений, 23 бренда,
-101 позиция меню, 247 интервалов работы**. Telegram Bot и Mini App работают,
-публичный HTTPS обеспечивается Dokploy/Traefik.
-Результаты и границы проверки: [DEPLOYMENT](DEPLOYMENT.md#production-release--2026-10-11).
-
-## POST-V2-02C — локальное расширение каталога
-
-История этапа: шесть проверенных заведений были добавлены и приняты локально,
-затем включены в production release V13 2026-10-11.
-Состав, источники и ограничения: [DATABASE — V13](DATABASE.md#post-v2-02c--каталог-v13).
-Telegram и оба способа поиска Mini App используют общий Java service.
-Часы зала подтверждают прибытие, не гарантируют горячий заказ или свободный столик.
-
-## POST-V2-01 — разнообразие брендов
-
-Реализовано через обязательный явный `brandKey` и применено в production с V12.
-Подборка содержит максимум три разных ресторанных бренда; для каждого выбирается
-лучший подходящий филиал по ranking. Если брендов меньше трёх, карточек меньше:
-кухня, бюджет и часы не ослабляются. Правило едино для Telegram, structured и natural
-Mini App search. Алгоритм: [ARCHITECTURE](ARCHITECTURE.md#deterministic-ranking);
-brand membership: [DATABASE](DATABASE.md#post-v2-01--brand-membership).
+Telegram Bot и Mini App развёрнуты.
+Результаты проверки: [DEPLOYMENT](DEPLOYMENT.md#production-release--2026-10-11).
+Поиск возвращает до трёх вариантов разных брендов из проверенного каталога;
+если подходящих брендов меньше, карточек тоже меньше.
 
 ## Telegram Bot
 
@@ -39,16 +19,14 @@ brand membership: [DATABASE](DATABASE.md#post-v2-01--brand-membership).
 собственные данные по текущей успешно показанной подборке. Номер должен существовать;
 неоднозначное имя требует уточнения.
 
-`/start` объясняет возможности, `/help` даёт примеры, `/new` очищает memory,
-criteria и selection. Команды выполняет Java без AI calls.
-Разговоры изолированы по server-side chatId; memory и selection хранятся в PostgreSQL.
-Вход ограничен 2000 символами; длинные plain-text ответы делятся на части.
-Failed/partial send не обновляет transcript и selection; гарантированной доставки нет.
-Contracts: [AI](AI.md), transport: [DEPLOYMENT](DEPLOYMENT.md#telegram-long-polling--implemented).
+`/start` объясняет возможности, `/help` даёт примеры, `/new` очищает разговор,
+критерии и последнюю подборку. Разговоры разных пользователей изолированы и
+сохраняются между обычными перезапусками. Вход ограничен 2000 символами.
+Память и обработка ошибок: [AI](AI.md#chat-memory-и-conversationid).
 
-## V2-04 — Telegram Mini App
+## Telegram Mini App
 
-Реализованный mobile-first интерфейс `/miniapp/` на HTML/CSS/vanilla JavaScript:
+Mobile-first интерфейс `/miniapp/`:
 Search → до трёх Results → Details / Menu, с возвратом назад и темой Telegram.
 Форма принимает 1–6 гостей, общий BYN-бюджет, дату/время Минска, optional cuisine.
 Карточки показывают адрес, кухни, ориентировочную сумму и подтверждённые причины.
@@ -60,7 +38,7 @@ Details содержит недельные часы, источники и да
 повторить полный уточнённый запрос; chat UI и продолжение критериев отсутствуют.
 Форма, details и menu работают при отключённом или недоступном AI.
 Реализованы loading, clarification, empty и controlled error states.
-API проверяет подписанный Telegram initData; token остаётся на сервере.
+Доступ к API требует подтверждённого запуска из Telegram.
 [API/auth boundary](ARCHITECTURE.md#v2-04--mini-app-boundary),
 [локальное demo](DEPLOYMENT.md#v2-04--mini-app-local-demo-и-live-gate).
 
@@ -81,17 +59,14 @@ API проверяет подписанный Telegram initData; token оста�
 
 | Возможность | Реализованная граница |
 |---|---|
-| Каталог | 36 конкретных активных заведений / 23 бренда, собственные источники |
+| Каталог | Ограниченный проверенный каталог Минска; [состав и источники](DATABASE.md) |
 | Посещение | Минск, BYN, 1–6 гостей, сегодня и следующие 6 дней |
 | Поиск | Гости, общий бюджет, дата/время, optional cuisine/tags; до трёх разных брендов |
 | Чек | Ориентир на гостя с type/source/date, независимый от полноты меню |
 | Меню | PARTIAL, максимум 10 позиций на заведение; saved menu может отсутствовать |
 | Telegram | Private chats, long polling, search/continuation/menu/details, команды |
-| Mini App | Форма, stateless AI search, cards/details/menu, server-side initData validation |
-| AI | Один provider/model, ровно три read-only tools, Structured Output и Java rendering |
-| Контекст | Bounded memory и текущая показанная selection в Telegram |
-| Backend | Четыре private REST endpoints, Swagger, H2 и PostgreSQL tests |
-| Deployment | Docker Compose → Dokploy/VPS, HTTPS через Traefik, persistent PostgreSQL |
+| Mini App | Форма, независимый AI-поиск, карточки, подробности и меню |
+| Контекст | Продолжение критериев и ссылки на последнюю показанную подборку в Telegram |
 
 ## Пользовательское поведение и ограничения
 

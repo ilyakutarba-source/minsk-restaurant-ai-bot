@@ -2,9 +2,7 @@
 
 ## Состояние интеграции
 
-Production release **2026-10-11**: `POST_V2_V13_PRODUCTION_RELEASE_PASS`, commit
-`6b2de35`, Flyway V13. Реальные Telegram AI search и menu follow-up проверены
-в production; результаты и границы: [DEPLOYMENT](DEPLOYMENT.md#production-release--2026-10-11).
+Результаты production-проверки: [DEPLOYMENT](DEPLOYMENT.md#production-release--2026-10-11).
 
 **IMPLEMENTED:** Spring AI 1.1.8 starter, production ChatClient adapter для stateless
 search и conversation routing, ровно три tools `searchRestaurants`,
@@ -17,7 +15,7 @@ bounded PostgreSQL ChatMemory, currentCriteria/merge/clarification и базов
 Текущая delivered selection и deterministic Java ReferenceResolver используются
 menu/details tools для свежего чтения через MenuService/RestaurantService и Java rendering.
 
-**EXCLUDED FROM CURRENT MVP:** Google enrichment; [продуктовое решение](PRODUCT.md#google-places--excluded-from-current-mvp).
+**EXCLUDED FROM CURRENT MVP:** Google enrichment; [границы интеграций](ARCHITECTURE.md#внешние-интеграции).
 Google adapter не существует и не является AI tool. Product tools остаются ровно три.
 
 **IMPLEMENTED:** `/start`, `/help`, `/new` и Telegram finishing/controlled errors. Stateless application entry

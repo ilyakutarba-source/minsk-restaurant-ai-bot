@@ -1,68 +1,33 @@
 # Данные и PostgreSQL
 
-## Текущее состояние production
+## Текущий каталог
 
-С 2026-10-11 deployed commit `6b2de35`, Flyway **V13**:
-**36 активных адресных заведений / 23 brandKey / 101 позиция меню / 247 интервалов**.
-У 32 заведений есть PARTIAL-меню, у 4 saved menu отсутствует.
-Пять кухонь: BELARUSIAN, ITALIAN, GEORGIAN, EUROPEAN, ASIAN;
-одно заведение может иметь несколько кухонь. Каталог ограниченный и curated.
-V12/V13 применены в production; исходный каталог и conversation state/memory/selection
-сохранены при upgrade. [Production acceptance](DEPLOYMENT.md#production-release--2026-10-11).
+Flyway **V13**: **36 активных адресных заведений / 23 brandKey /
+101 позиция меню / 247 интервалов**. У 32 заведений есть PARTIAL-меню,
+у 4 saved menu отсутствует. Пять кухонь: BELARUSIAN, ITALIAN, GEORGIAN,
+EUROPEAN, ASIAN; одно заведение может иметь несколько кухонь.
+Дата, deployed commit и результаты production upgrade:
+[DEPLOYMENT](DEPLOYMENT.md#production-release--2026-10-11).
 
-## POST-V2-02C — каталог V13
+## Минимальная domain model
 
-Расширение от POST-V2-01, включённое в production release 2026-10-11:
-**36 активных адресных заведений / 23 бренда / 101 menu item / 247 недельных интервалов**
-на V13. Исходные 30 записей, их IDs, поля и связанные данные сохраняются.
+| Объект | Основные поля | Обоснование |
+|---|---|---|
+| Restaurant | id, seedKey, brandKey, name, address, active, catalogSource, catalogVerifiedAt | Конкретное реальное заведение/филиал; правила [brand membership](#post-v2-01--brand-membership) |
+| Restaurant check metadata | estimatedCheckPerGuest, checkEstimationType, checkSource, checkVerifiedAt | Независимый ориентир бюджета на одного гостя, BYN; PUBLISHED / DERIVED |
+| Restaurant schedule metadata | hoursSource, hoursVerifiedAt | Происхождение собственного недельного расписания |
+| Restaurant menu metadata | menuSource, menuVerifiedAt, menuCoverage=PARTIAL | Одно частичное меню без отдельной Menu entity |
+| OpeningInterval | restaurantId, weekday, opensAt, closesAt, closesNextDay | Собственное расписание, включая ночь |
+| Cuisine / RestaurantTag | Set<Enum> на Restaurant; строки в collection tables | Поисковые признаки, не свободные runtime tags |
+| MenuItem | id, restaurantId, seedKey, name, category, dishType optional, priceByn, portion/description/source optional, active | Сохранённая PARTIAL часть, максимум 10 позиций; stable key для import |
 
-[V13](../src/main/java/db/migration/V13__expand_verified_catalog.java) использует
-существующий `CuratedCatalogImport` и immutable
-[curated-catalog-v13.json](../src/main/resources/db/seed/curated-catalog-v13.json).
-Mapping seedKey → brandKey задан явно в Java migration; checksum включает JSON с
-нормализованными переводами строк и отсортированный mapping. Весь batch проверяется
-до первой записи; JDBC записи выполняются в транзакции Flyway. Прямой повтор импорта
-отклоняется как duplicate, повторный Flyway migrate выполняет ноль миграций.
-V1–V12, прежние datasets, схема сущностей и общий search algorithm не изменены.
+Таблица выше описывает существующую модель. Optional website/phone/googlePlaceId
+ещё не реализованы. Conversation/selection state описан в разделе
+[Разговор и последняя подборка](#разговор-и-последняя-подборка).
 
-| seedKey | brandKey | cuisines | DERIVED BYN/гость |
-|---|---|---|---:|
-| la-scala-nemiga-36 | la-scala | ITALIAN | 76.00 |
-| mziuri-pritytskogo-97b | mziuri | GEORGIAN, EUROPEAN | 41.00 |
-| pekaridze-platonova-45 | pekaridze | GEORGIAN | 39.00 |
-| sorrento-internatsionalnaya-38 | sorrento | ITALIAN | 65.00 |
-| da-claudio-karla-marksa-25 | da-claudio | ITALIAN | 60.00 |
-| yangtze-svobody-8 | yangtze | ASIAN | 43.00 |
-
-Все шесть имеют PARTIAL по две позиции и семь интервалов зала; tags пусты.
-Сохранён исходный reviewed `verifiedAt=2026-10-08` из утверждённого набора.
-Обязательная повторная проверка источников перед созданием V13 выполнена
-**2026-10-11**, а не назначена timestamp импорта. Адреса, часы, блюда, цены и
-provenance находятся в immutable dataset. Историческая локальная migration/search
-acceptance: [POST-V2-02C](POST-V2-02C-ACCEPTANCE.md); subsequent production release
-подтверждён в [DEPLOYMENT](DEPLOYMENT.md#production-release--2026-10-11).
-
-Чеки — food-only ориентиры основного прайса зала. Для Янцзы 30+3+10 BYN:
-гарнир сохранён в происхождении чека, не выдан за MAIN в меню. La Scala остаётся
-76, а Мзиури 41, без снижения ради budget threshold. BYN у Сорренто интерпретирован
-из связи PDF «Кухня и бар» с официальной минской страницей; ISO-валюта на PDF
-отдельно не расшифрована. Применимость и сумма возможных депозитов неизвестны.
-У пяти кандидатов время последнего горячего заказа UNKNOWN; часы зала не гарантируют
-горячий заказ в 21:00. У La Scala опубликована кухня до 23:00, отдельного kitchen
-calendar/фильтра в модели нет. Неопубликованные порции остаются null.
-
-Контроль: `CatalogExpansionMigrationTest` — fresh V1→V13, upgrade V12→V13,
-сохранность восьми таблиц с synthetic state/selection/memory, Hibernate validate,
-Flyway validate/reapply, duplicate/missing-brand/invalid-batch rejection и реальный
-SQL failure в последнем меню с полным rollback. `CatalogExpansionAuditTest`
-повторяет 135 сценариев через настоящий Java service на выделенной loopback
-PostgreSQL acceptance DB. Проверка сохранности использует synthetic conversation data.
+Отдельные TelegramUser, UserProfile, Favorite, RecommendationHistory, delivery status/checkpoint entities отсутствуют. Также нет Google rating/review таблиц, MenuVersion и универсального datasource registry.
 
 ## POST-V2-01 — brand membership
-
-История: базовый V2 выпущен 2026-10-08, commit `1b73be8`, V1–V11,
-30 заведений / 17 брендов / 89 menu items / 205 intervals.
-POST-V2-01 реализовал V12 отдельно; она применена в production 2026-10-11.
 
 `Restaurant` остаётся конкретным заведением. V12 добавляет обязательный внутренний
 `brand_key VARCHAR(100) NOT NULL` с CHECK canonical format. Default, уникального
@@ -94,106 +59,13 @@ import использует `CuratedCatalogImport.apply(connection, dataset, bra
 DTO и AI tool schema он не передаётся. Правило выдачи принадлежит
 [ARCHITECTURE](ARCHITECTURE.md#deterministic-ranking).
 
-Acceptance: `BrandDiversityMigrationTest` проверяет fresh V1→V12, upgrade V11→V12,
-точный mapping всех записей, Flyway validate/reapply и сохранность всех прежних
-значений восьми таблиц, включая синтетические private state/selection/memory.
-Тест запускается на H2 и отдельно на изолированной PostgreSQL; PostgreSQL URL
-ограничен loopback acceptance database этой задачи. Production не используется.
-
-## Исторический V2 feature acceptance до release
-
-Снимок локальной acceptance **до V2 release 2026-10-08**: 30 конкретных заведений,
-89 menu items, Flyway V1–V11, ConversationState, JDBC ChatMemory и SelectionItem.
-Он описывает прежний dataset и не заменяет актуальные V13 counts выше.
-
-V2-05 не добавляет и не переписывает migrations/data. Final fresh PostgreSQL
-acceptance 2026-10-08: отдельный local cluster/database, пустая public schema →
-V1–V11, Hibernate validate PASS; **30 active venues, 17 brands, 89 menu items,
-205 intervals, normalized duplicate venues 0**. Flyway validate/reapply PASS.
-Mini App natural search не записывает criteria/selection/chat memory.
-На момент этой локальной проверки production ещё использовал V9,
-10 заведений / 60 menu items. Последующие releases применили V11, затем V12/V13.
-
-## V2-03 — расширенный curated каталог
-
-История dataset V11; текущие counts и шесть дополнений V13 описаны выше.
-
-Ручная проверка новых данных: **2026-10-07**. Каталог содержит 30 активных заведений
-17 брендов: исходные 10 сохранены, добавлены 20 заведений 14 новых брендов.
-Это ограниченный curated subset Минска. `Restaurant` по-прежнему означает конкретное
-заведение; отдельные Brand/Chain/Venue entities не нужны.
-
-Новые бренды: Кухмистр, Чумацький Шлях, Берёзка, Друзья, Gan Bei (3 адреса),
-Coffee Embassy (3), Літвіны (3), Beans & Leaves, BAR:DOT XX1, Ташкент, Ember,
-Млын Руж, Чайка, Мимино. Кухни: BELARUSIAN — 13 заведений, ITALIAN — 5,
-GEORGIAN — 2, EUROPEAN — 8, ASIAN — 5; возможны несколько кухонь на заведение.
-Две новые широкие категории покрывают европейские кафе и азиатскую/узбекскую кухню.
-
-Immutable [dataset V11](../src/main/resources/db/seed/curated-catalog-v11.json) хранит
-конкретные адреса, кухни, недельные часы, отдельные источники/даты и объяснения чеков.
-Всего 4 PUBLISHED и 26 DERIVED checks. Coffee Embassy публикует сценарий
-«завтрак + кофе до 30/35 BYN», доступный весь день; это не обещание цены любого ужина.
-У Мимино выбран верх опубликованного диапазона 30–80 BYN из
-[карточки Яндекс Карт](https://yandex.com/maps/org/mimino/147722488839/):
-официального среднего чека нет, применимость интернет-магазина к залу не доказана.
-Этот единственный secondary check-source явно обозначен в provenance;
-адрес, кухня и часы подтверждены [официальным сайтом](https://restaurantmimino.by/o-restorane/).
-Остальные 29 чеков опираются на официальные источники. DERIVED сценарии используют
-реальные цены зала, food-only метод и BigDecimal; у Літвінаў одна полноценная голенка
-с гарниром, прямо исключённая из доставки, у остальных новых DERIVED — два блюда.
-Оценка Млын Руж не включает шоу/дополнительные услуги. Сетевое меню Gan Bei применяется
-только к перечисленным на официальном сайте филиалам; individual staff confirmation
-не заявляется. Кухня/закрытие кухни не подменяют часы самого заведения.
-
-89 позиций меню: 60 исходных + 29 новых. Из 20 новых заведений 16 имеют 1–2 проверенные
-PARTIAL позиции, 4 — без сохранённого меню (Coffee Embassy ×3, Мимино).
-Всего 26 с PARTIAL / 4 DATA_UNAVAILABLE. Меню не участвует в eligibility поиска.
-205 недельных интервалов включают закрытые дни и переход через полночь.
-
-V10 расширяет только SQL cuisine constraint. V11 читает проверенный локальный JSON
-через `CuratedCatalogDataset` / `CuratedCatalogImport` в транзакции Flyway;
-checksum включает dataset. Весь batch проверяется до записи: обязательные поля,
-MANUALLY_VERIFIED, цены, часы, optional menu и дубликаты по нормализованным
-name + address, в том числе среди неактивных existing записей. Импорт add-only:
-повтор прямого импорта отклоняется; Flyway reapply выполняет 0 миграций.
-Даты заданы куратором, не временем импорта. Нет HTTP, Spring bean, REST или AI tool
-для импорта; непроверенные внешние candidates автоматически не допускаются. V1–V9 неизменны.
-
-Acceptance 2026-10-07: fresh PostgreSQL 17.10 V1→V11 и Hibernate validate PASS,
-170 targeted tests PASS на H2 и PostgreSQL, Flyway reapply 0, normalized duplicates 0.
-`mvnw.cmd clean test` и `mvnw.cmd clean verify`: по 482 tests PASS, без skipped.
-Это локальная acceptance до соответствующего production release.
-Google enrichment исключён из текущего MVP: [PRODUCT](PRODUCT.md#google-places--excluded-from-current-mvp).
-Search rules: [ARCHITECTURE](ARCHITECTURE.md#правила-поиска-и-рекомендаций).
-Разговорное поведение: [AI](AI.md). Scope: [PRODUCT](PRODUCT.md).
-
-Container storage использует стабильный named volume PostgreSQL, отдельный от
-checkout/app filesystem. Его identity, deployment acceptance и backup с приватными
-conversation data принадлежат [DEPLOYMENT](DEPLOYMENT.md); схема и migrations не меняются.
-
-## Минимальная domain model
-
-| Объект | Основные поля | Обоснование |
-|---|---|---|
-| Restaurant | id, seedKey, brandKey, name, address, active, catalogSource, catalogVerifiedAt | Конкретное реальное заведение/филиал; brand membership см. POST-V2-01 выше |
-| Restaurant check metadata | estimatedCheckPerGuest, checkEstimationType, checkSource, checkVerifiedAt | Независимый ориентир бюджета на одного гостя, BYN; PUBLISHED / DERIVED |
-| Restaurant schedule metadata | hoursSource, hoursVerifiedAt | Происхождение собственного недельного расписания |
-| Restaurant menu metadata | menuSource, menuVerifiedAt, menuCoverage=PARTIAL | Одно частичное меню без отдельной Menu entity |
-| OpeningInterval | restaurantId, weekday, opensAt, closesAt, closesNextDay | Собственное расписание, включая ночь |
-| Cuisine / RestaurantTag | Set<Enum> на Restaurant; строки в collection tables | Поисковые признаки, не свободные runtime tags |
-| MenuItem | id, restaurantId, seedKey, name, category, dishType optional, priceByn, portion/description/source optional, active | Сохранённая PARTIAL часть, максимум 10 позиций; stable key для import |
-
-Таблица выше описывает существующую модель. Optional website/phone/googlePlaceId
-ещё не реализованы. Conversation/selection state описан в разделе
-[Разговор и последняя подборка](#разговор-и-последняя-подборка).
-
-Отдельные TelegramUser, UserProfile, Favorite, RecommendationHistory, delivery status/checkpoint entities отсутствуют. Также нет Google rating/review таблиц, MenuVersion и универсального datasource registry.
+Проверки миграции и сохранности данных: [POST-V2-01 acceptance](POST-V2-01-ACCEPTANCE.md).
 
 ## Данные и их происхождение
 
 ### Каталог
 
-Текущий V13: 36 конкретных заведений 23 брендов. История первоначального MVP:
+Актуальный состав — в [текущем каталоге](#текущий-каталог). История первоначального MVP:
 сначала 3 для проверки источников, затем 10 филиалов. Источник — сайт заведения
 или пригодный независимый источник, не LLM и не массовый Google import.
 
@@ -515,3 +387,127 @@ idempotent import с сохранением IDs, полные search/budget/hour
 contracts, реальные неоднозначные названия и chat-scoped references.
 H2 clean test/verify: по 399 tests; H2-specific bootstrap test исключён из PostgreSQL suite.
 Обычная сборка использует H2: [README](../README.md#tests).
+
+## История расширений каталога
+
+Разделы ниже описывают datasets и проверки соответствующих этапов.
+Они не заменяют текущее состояние каталога или production release.
+
+### V2-03 — расширенный curated каталог
+
+История dataset V11; актуальный состав — в [текущем каталоге](#текущий-каталог).
+
+Ручная проверка новых данных: **2026-10-07**. Каталог содержит 30 активных заведений
+17 брендов: исходные 10 сохранены, добавлены 20 заведений 14 новых брендов.
+Это ограниченный curated subset Минска. `Restaurant` по-прежнему означает конкретное
+заведение; отдельные Brand/Chain/Venue entities не нужны.
+
+Новые бренды: Кухмистр, Чумацький Шлях, Берёзка, Друзья, Gan Bei (3 адреса),
+Coffee Embassy (3), Літвіны (3), Beans & Leaves, BAR:DOT XX1, Ташкент, Ember,
+Млын Руж, Чайка, Мимино. Кухни: BELARUSIAN — 13 заведений, ITALIAN — 5,
+GEORGIAN — 2, EUROPEAN — 8, ASIAN — 5; возможны несколько кухонь на заведение.
+Две новые широкие категории покрывают европейские кафе и азиатскую/узбекскую кухню.
+
+Immutable [dataset V11](../src/main/resources/db/seed/curated-catalog-v11.json) хранит
+конкретные адреса, кухни, недельные часы, отдельные источники/даты и объяснения чеков.
+Всего 4 PUBLISHED и 26 DERIVED checks. Coffee Embassy публикует сценарий
+«завтрак + кофе до 30/35 BYN», доступный весь день; это не обещание цены любого ужина.
+У Мимино выбран верх опубликованного диапазона 30–80 BYN из
+[карточки Яндекс Карт](https://yandex.com/maps/org/mimino/147722488839/):
+официального среднего чека нет, применимость интернет-магазина к залу не доказана.
+Этот единственный secondary check-source явно обозначен в provenance;
+адрес, кухня и часы подтверждены [официальным сайтом](https://restaurantmimino.by/o-restorane/).
+Остальные 29 чеков опираются на официальные источники. DERIVED сценарии используют
+реальные цены зала, food-only метод и BigDecimal; у Літвінаў одна полноценная голенка
+с гарниром, прямо исключённая из доставки, у остальных новых DERIVED — два блюда.
+Оценка Млын Руж не включает шоу/дополнительные услуги. Сетевое меню Gan Bei применяется
+только к перечисленным на официальном сайте филиалам; individual staff confirmation
+не заявляется. Кухня/закрытие кухни не подменяют часы самого заведения.
+
+89 позиций меню: 60 исходных + 29 новых. Из 20 новых заведений 16 имеют 1–2 проверенные
+PARTIAL позиции, 4 — без сохранённого меню (Coffee Embassy ×3, Мимино).
+Всего 26 с PARTIAL / 4 DATA_UNAVAILABLE. Меню не участвует в eligibility поиска.
+205 недельных интервалов включают закрытые дни и переход через полночь.
+
+V10 расширяет только SQL cuisine constraint. V11 читает проверенный локальный JSON
+через `CuratedCatalogDataset` / `CuratedCatalogImport` в транзакции Flyway;
+checksum включает dataset. Весь batch проверяется до записи: обязательные поля,
+MANUALLY_VERIFIED, цены, часы, optional menu и дубликаты по нормализованным
+name + address, в том числе среди неактивных existing записей. Импорт add-only:
+повтор прямого импорта отклоняется; Flyway reapply выполняет 0 миграций.
+Даты заданы куратором, не временем импорта. Нет HTTP, Spring bean, REST или AI tool
+для импорта; непроверенные внешние candidates автоматически не допускаются. V1–V9 неизменны.
+
+Acceptance 2026-10-07: fresh PostgreSQL 17.10 V1→V11 и Hibernate validate PASS,
+170 targeted tests PASS на H2 и PostgreSQL, Flyway reapply 0, normalized duplicates 0.
+`mvnw.cmd clean test` и `mvnw.cmd clean verify`: по 482 tests PASS, без skipped.
+Это локальная acceptance до соответствующего production release.
+Google enrichment исключён из текущего MVP: [границы интеграций](ARCHITECTURE.md#внешние-интеграции).
+Search rules: [ARCHITECTURE](ARCHITECTURE.md#правила-поиска-и-рекомендаций).
+Разговорное поведение: [AI](AI.md). Scope: [PRODUCT](PRODUCT.md).
+
+### Исторический V2 feature acceptance до release
+
+Снимок локальной acceptance **до V2 release 2026-10-08**: 30 конкретных заведений,
+89 menu items, Flyway V1–V11, ConversationState, JDBC ChatMemory и SelectionItem.
+Он описывает прежний dataset и не заменяет актуальный [каталог V13](#текущий-каталог).
+
+V2-05 не добавляет и не переписывает migrations/data. Final fresh PostgreSQL
+acceptance 2026-10-08: отдельный local cluster/database, пустая public schema →
+V1–V11, Hibernate validate PASS; **30 active venues, 17 brands, 89 menu items,
+205 intervals, normalized duplicate venues 0**. Flyway validate/reapply PASS.
+Mini App natural search не записывает criteria/selection/chat memory.
+На момент этой локальной проверки production ещё использовал V9,
+10 заведений / 60 menu items. Последующие releases применили V11, затем V12/V13.
+
+### V12 — добавление brandKey
+
+История: базовый V2 выпущен 2026-10-08, commit `1b73be8`, V1–V11,
+30 заведений / 17 брендов / 89 menu items / 205 intervals.
+POST-V2-01 реализовал V12 отдельно; она применена в production 2026-10-11.
+
+[Отчёт acceptance](POST-V2-01-ACCEPTANCE.md).
+
+### POST-V2-02C — каталог V13
+
+Расширение от POST-V2-01 включено в production release 2026-10-11.
+Итоговый состав — в [текущем каталоге](#текущий-каталог).
+Исходные 30 записей, их IDs, поля и связанные данные сохраняются.
+
+[V13](../src/main/java/db/migration/V13__expand_verified_catalog.java) использует
+существующий `CuratedCatalogImport` и immutable
+[curated-catalog-v13.json](../src/main/resources/db/seed/curated-catalog-v13.json).
+Mapping seedKey → brandKey задан явно в Java migration; checksum включает JSON с
+нормализованными переводами строк и отсортированный mapping. Весь batch проверяется
+до первой записи; JDBC записи выполняются в транзакции Flyway. Прямой повтор импорта
+отклоняется как duplicate, повторный Flyway migrate выполняет ноль миграций.
+V1–V12, прежние datasets, схема сущностей и общий search algorithm не изменены.
+
+| seedKey | brandKey | cuisines | DERIVED BYN/гость |
+|---|---|---|---:|
+| la-scala-nemiga-36 | la-scala | ITALIAN | 76.00 |
+| mziuri-pritytskogo-97b | mziuri | GEORGIAN, EUROPEAN | 41.00 |
+| pekaridze-platonova-45 | pekaridze | GEORGIAN | 39.00 |
+| sorrento-internatsionalnaya-38 | sorrento | ITALIAN | 65.00 |
+| da-claudio-karla-marksa-25 | da-claudio | ITALIAN | 60.00 |
+| yangtze-svobody-8 | yangtze | ASIAN | 43.00 |
+
+Все шесть имеют PARTIAL по две позиции и семь интервалов зала; tags пусты.
+Сохранён исходный reviewed `verifiedAt=2026-10-08` из утверждённого набора.
+Обязательная повторная проверка источников перед созданием V13 выполнена
+**2026-10-11**, а не назначена timestamp импорта. Адреса, часы, блюда, цены и
+provenance находятся в immutable dataset. Историческая локальная migration/search
+acceptance: [POST-V2-02C](POST-V2-02C-ACCEPTANCE.md); subsequent production release
+подтверждён в [DEPLOYMENT](DEPLOYMENT.md#production-release--2026-10-11).
+
+Чеки — food-only ориентиры основного прайса зала. Для Янцзы 30+3+10 BYN:
+гарнир сохранён в происхождении чека, не выдан за MAIN в меню. La Scala остаётся
+76, а Мзиури 41, без снижения ради budget threshold. BYN у Сорренто интерпретирован
+из связи PDF «Кухня и бар» с официальной минской страницей; ISO-валюта на PDF
+отдельно не расшифрована. Применимость и сумма возможных депозитов неизвестны.
+У пяти кандидатов время последнего горячего заказа UNKNOWN; часы зала не гарантируют
+горячий заказ в 21:00. У La Scala опубликована кухня до 23:00, отдельного kitchen
+calendar/фильтра в модели нет. Неопубликованные порции остаются null.
+
+Migration/search checks: [PostgreSQL acceptance](#postgresql-acceptance);
+подробный отчёт: [POST-V2-02C acceptance](POST-V2-02C-ACCEPTANCE.md).
