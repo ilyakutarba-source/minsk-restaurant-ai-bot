@@ -44,6 +44,16 @@ class MiniAppApiTest {
             """;
 
     @Test
+    void pastTimeHasSpecificSafeMessageForTheForm() throws Exception {
+        mvc.perform(post("/api/miniapp/v1/search").header("X-Telegram-Init-Data", auth)
+                .contentType("application/json").content(VALID.replace("19:00", "14:00")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("PAST_VISIT_TIME"))
+                .andExpect(jsonPath("$.message").value(by.ilya.restaurantbot.search.PastVisitTimeException.MESSAGE))
+                .andExpect(jsonPath("$.exception").doesNotExist());
+    }
+
+    @Test
     void searchUsesExactlyTheExistingServiceOrderAndTotalsAndNarrowFields() throws Exception {
         var response = mvc.perform(post("/api/miniapp/v1/search").header("X-Telegram-Init-Data", auth)
                 .contentType("application/json").content(VALID)).andExpect(status().isOk())

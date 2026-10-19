@@ -283,6 +283,14 @@ guards, не самостоятельный NLP parser. Missing/ambiguous fields
 Java clarification явно предлагает уточнить 09:00 или 21:00. Missing guests сохраняются
 как null при первом partial turn, без распаковки в primitive или guessed значения.
 
+Прошедшее время посещения проверяет общий Java search service по
+[правилам поиска](ARCHITECTURE.md#criteria). Для него AI transport возвращает
+`NEED_CLARIFICATION`: «Указанное время на сегодня уже прошло. Укажите другое время
+и дату — например, завтра в 21:00.» Дополнительного explanation call нет.
+Telegram сохраняет подтверждённые критерии; уточнение даты или времени объединяется
+с прежними гостями, бюджетом, кухней и пожеланиями. Mini App natural API передаёт
+этот Java-текст в `message`, оставаясь stateless.
+
 ### Reference input для menu/details
 
 **IMPLEMENTED Java resolution и подключение menu/details tools.**

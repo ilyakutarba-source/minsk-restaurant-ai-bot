@@ -26,6 +26,12 @@ public class MiniAppErrors {
         return ResponseEntity.badRequest().body(error("INVALID_INPUT"));
     }
 
+    @ExceptionHandler(by.ilya.restaurantbot.search.PastVisitTimeException.class)
+    ResponseEntity<Error> pastVisitTime() {
+        return ResponseEntity.badRequest().body(new Error("PAST_VISIT_TIME",
+                by.ilya.restaurantbot.search.PastVisitTimeException.MESSAGE));
+    }
+
     @ExceptionHandler(ResponseStatusException.class)
     ResponseEntity<Error> missing(ResponseStatusException ignored) {
         return ResponseEntity.status(404).body(error("NOT_FOUND"));

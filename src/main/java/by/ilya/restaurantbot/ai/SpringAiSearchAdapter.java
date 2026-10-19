@@ -141,6 +141,11 @@ public final class SpringAiSearchAdapter {
                     modelCalls, selected.executions(), false, List.of(), selected.result());
         }
         tool.call(calls.getFirst().arguments());
+        if (tool.pastVisitTime()) {
+            return new AiSearchReply(Status.NEED_CLARIFICATION, null,
+                    by.ilya.restaurantbot.search.PastVisitTimeException.MESSAGE,
+                    modelCalls, tool.executions(), false, tool.missing());
+        }
         if (tool.status() != Status.OK && tool.status() != Status.NO_RESULTS) {
             return controlled(tool.status(), modelCalls, tool.executions(), tool.missing());
         }

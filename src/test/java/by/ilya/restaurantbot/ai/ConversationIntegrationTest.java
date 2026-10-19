@@ -40,6 +40,7 @@ class ConversationIntegrationTest {
     @Autowired by.ilya.restaurantbot.conversation.SelectionService selections;
     @Autowired ChatMemory memory;
     @Autowired RestaurantSearchService search;
+    @Autowired by.ilya.restaurantbot.catalog.RestaurantRepository repository;
     @Autowired Clock clock;
     ChatModel model;
     ConversationService conversation;
@@ -59,6 +60,50 @@ class ConversationIntegrationTest {
 
     void full(long chat) {
         assertThat(turn(chat, "Сегодня в 21:00 двое, общий бюджет 150 BYN, итальянская кухня.", FULL).status()).isEqualTo(OK);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"{\"date\":\"TOMORROW\"}", "{\"time\":\"23:50\"}"})
+    @org.springframework.transaction.annotation.Transactional
+    void pastVisitClarifiesThenMergesCorrectionWithoutLosingOtherCriteria(String correction) {
+        full(A);
+        var prior = store.load(A).currentCriteria();
+        var priorSelection = selections.current(A);
+        var lateClock = Clock.fixed(java.time.Instant.parse("2026-10-02T20:45:00Z"), java.time.ZoneOffset.UTC);
+        var lateSearch = new RestaurantSearchService(repository, lateClock);
+        conversation = new ConversationService(store, memory,
+                new SpringAiSearchAdapter(model, lateSearch, lateClock, true), lateClock, selections);
+        clearInvocations(model);
+        var past = turn(A, "Сегодня в 21:00 двое, 150 BYN, итальянская кухня", FULL);
+        assertThat(past.status()).isEqualTo(NEED_CLARIFICATION);
+        assertThat(past.text()).isEqualTo(by.ilya.restaurantbot.search.PastVisitTimeException.MESSAGE);
+        assertThat(past.missingFields()).containsExactly("date", "time");
+        assertThat(past.searchResult()).isNull();
+        assertThat(past.modelCalls()).isEqualTo(1);
+        verify(model).call(any(Prompt.class)); // No explanation for a rejected visit.
+        assertThat(store.load(A).currentCriteria()).isEqualTo(prior);
+        assertThat(selections.current(A)).isEqualTo(priorSelection);
+        var corrected = turn(A, correction.contains("TOMORROW") ? "Завтра" : "В 23:50", correction);
+        assertThat(corrected.status()).isIn(OK, NO_RESULTS);
+        var criteria = corrected.searchResult().normalizedCriteria();
+        assertThat(criteria.guests()).isEqualTo(prior.guests());
+        assertThat(criteria.totalBudgetByn()).isEqualByComparingTo(prior.totalBudgetByn());
+        assertThat(criteria.cuisine()).isEqualTo(prior.cuisine());
+        assertThat(criteria.preferredTags()).isEqualTo(prior.preferredTags());
+        assertThat(criteria.date().toString()).isEqualTo(correction.contains("TOMORROW") ? "2026-10-03" : "2026-10-02");
+        assertThat(criteria.time().toString()).isEqualTo(correction.contains("TOMORROW") ? "21:00" : "23:50");
+    }
+
+    @Test
+    void partialCriteriaAfterNoonStillAskForMissingFieldsWithoutSearching() {
+        var lateClock = Clock.fixed(java.time.Instant.parse("2026-10-02T20:45:00Z"), java.time.ZoneOffset.UTC);
+        var lateSearch = spy(new RestaurantSearchService(repository, lateClock));
+        conversation = new ConversationService(store, memory,
+                new SpringAiSearchAdapter(model, lateSearch, lateClock, false), lateClock, selections);
+        var reply = turn(A, "Нас двое", "{\"guests\":2}");
+        assertThat(reply.status()).isEqualTo(NEED_CLARIFICATION);
+        assertThat(reply.missingFields()).containsExactly("totalBudgetByn", "date", "time");
+        verifyNoInteractions(lateSearch);
     }
 
     @Test

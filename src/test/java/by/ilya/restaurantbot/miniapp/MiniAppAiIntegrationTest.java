@@ -146,6 +146,16 @@ class MiniAppAiIntegrationTest {
                 .andExpect(jsonPath("$.status").value("NO_RESULTS")).andExpect(jsonPath("$.cards").isEmpty());
         verify(model).call(any(Prompt.class));
     }
+    @Test void pastTimeReturnsJavaClarificationWithoutExplanationOrStateWrites() throws Exception {
+        var before = stateCounts();
+        when(model.call(any(Prompt.class))).thenReturn(tool("searchRestaurants", FULL.replace("21:00", "14:00")));
+        natural("Сегодня 14:00 двое 150 BYN итальянская кухня").andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("NEED_CLARIFICATION"))
+                .andExpect(jsonPath("$.cards").isEmpty())
+                .andExpect(jsonPath("$.message").value(by.ilya.restaurantbot.search.PastVisitTimeException.MESSAGE));
+        verify(model).call(any(Prompt.class));
+        assertThat(stateCounts()).isEqualTo(before);
+    }
     @Test void ambiguousTimeAndCurrencyCannotBeGuessedEvenByAFullModelToolRequest() throws Exception {
         when(model.call(any(Prompt.class))).thenReturn(tool("searchRestaurants", FULL));
         natural("Завтра вечером нас трое, бюджет 180 рублей").andExpect(status().isOk())

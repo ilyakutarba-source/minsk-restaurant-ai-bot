@@ -33,6 +33,11 @@ public class RestaurantSearchService {
 
     public SearchResult search(SearchRequest request) {
         var criteria = SearchCriteria.normalize(request, clock);
+        // Requests have minute precision; the current minute remains a valid arrival time.
+        var now = LocalDateTime.now(clock.withZone(SearchCriteria.MINSK)).withSecond(0).withNano(0);
+        if (criteria.date().atTime(criteria.time()).isBefore(now)) {
+            throw new PastVisitTimeException();
+        }
         var ranked = repository.findAllByOrderByIdAsc().stream()
                 .filter(Restaurant::isActive)
                 .filter(r -> criteria.cuisine() == null || r.getCuisines().contains(criteria.cuisine()))

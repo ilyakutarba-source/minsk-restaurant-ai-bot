@@ -24,7 +24,8 @@ import static org.assertj.core.api.Assertions.*;
 class FinalCatalogAcceptanceTest {
     @TestConfiguration public static class FixedClock {
         @Bean @Primary Clock finalCatalogClock() {
-            return Clock.fixed(Instant.parse("2026-10-06T09:00:00Z"), ZoneId.of("Europe/Minsk"));
+            // Keep the 09:59/10:00 opening-boundary scenarios in the future.
+            return Clock.fixed(Instant.parse("2026-10-06T06:00:00Z"), ZoneId.of("Europe/Minsk"));
         }
     }
     @Autowired RestaurantService catalog;

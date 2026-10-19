@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.function.UnaryOperator;
 
 import by.ilya.restaurantbot.search.RestaurantSearchService;
+import by.ilya.restaurantbot.search.PastVisitTimeException;
 import by.ilya.restaurantbot.search.SearchCriteria;
 import by.ilya.restaurantbot.search.SearchRequest;
 import by.ilya.restaurantbot.search.SearchResult;
@@ -43,6 +44,7 @@ final class SearchRestaurantsTool implements ToolCallback {
     private Status status;
     private SearchResult result;
     private List<String> missing = List.of();
+    private boolean pastVisitTime;
 
     SearchRestaurantsTool(RestaurantSearchService service, Clock clock) {
         this(service, clock, UnaryOperator.identity());
@@ -116,6 +118,10 @@ final class SearchRestaurantsTool implements ToolCallback {
         try {
             result = service.search(request);
             status = result.candidates().isEmpty() ? Status.NO_RESULTS : Status.OK;
+        } catch (PastVisitTimeException past) {
+            pastVisitTime = true;
+            status = Status.NEED_CLARIFICATION;
+            missing = List.of("date", "time");
         } catch (RuntimeException unavailable) {
             status = Status.TEMPORARILY_UNAVAILABLE;
         }
@@ -128,6 +134,7 @@ final class SearchRestaurantsTool implements ToolCallback {
     }
 
     Status status() { return status; }
+    boolean pastVisitTime() { return pastVisitTime; }
     SearchResult result() { return result; }
     int executions() { return executions; }
     List<String> missing() { return missing; }

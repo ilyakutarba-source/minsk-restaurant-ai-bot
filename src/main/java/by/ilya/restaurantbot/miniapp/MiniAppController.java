@@ -49,7 +49,7 @@ public class MiniAppController {
             case NEED_CLARIFICATION, NOT_FOUND, DATA_UNAVAILABLE -> ResponseEntity.ok(new NaturalSearchResponse(
                     AiSearchReply.Status.NEED_CLARIFICATION, List.of(), List.of(), reply.missingFields().isEmpty()
                     ? "Укажите в одном запросе число гостей (1–6), общий бюджет в BYN, дату и точное время HH:mm в Минске."
-                    : SpringAiSearchAdapter.clarification(reply.missingFields())));
+                    : reply.text()));
             case INVALID_INPUT -> ResponseEntity.badRequest().body(MiniAppErrors.error("INVALID_INPUT"));
             case TEMPORARILY_UNAVAILABLE -> ResponseEntity.status(503).body(MiniAppErrors.error("TEMPORARY_ERROR"));
         };
