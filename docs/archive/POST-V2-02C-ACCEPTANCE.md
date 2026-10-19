@@ -19,34 +19,34 @@ Production, main, merge, push и deploy не изменялись.
   командой `git log -1 --format=%H -- docs/POST-V2-02C-ACCEPTANCE.md`:
   собственный hash невозможно встроить в содержимое того же commit.
 
-Модель и ограничения принадлежат [DATABASE — V13](DATABASE.md#post-v2-02c--каталог-v13),
-scope — [PRODUCT](PRODUCT.md#mvp--must),
-неизменённый алгоритм — [ARCHITECTURE](ARCHITECTURE.md#deterministic-ranking).
+Модель и ограничения принадлежат [DATABASE — V13](../DATABASE.md#post-v2-02c--каталог-v13),
+scope — [PRODUCT](../PRODUCT.md#mvp--must),
+неизменённый алгоритм — [ARCHITECTURE](../ARCHITECTURE.md#deterministic-ranking).
 
 ## 2. Изменённые файлы
 
-- [docs/DATABASE.md](../docs/DATABASE.md)
-- [docs/POST-V2-02C-ACCEPTANCE.md](../docs/POST-V2-02C-ACCEPTANCE.md)
-- [docs/PRODUCT.md](../docs/PRODUCT.md)
-- [src/main/java/db/migration/V13__expand_verified_catalog.java](../src/main/java/db/migration/V13__expand_verified_catalog.java)
-- [src/main/resources/db/seed/curated-catalog-v13.json](../src/main/resources/db/seed/curated-catalog-v13.json)
-- [src/test/java/by/ilya/restaurantbot/RestaurantBotApplicationTest.java](../src/test/java/by/ilya/restaurantbot/RestaurantBotApplicationTest.java)
-- [src/test/java/by/ilya/restaurantbot/ai/ConversationIntegrationTest.java](../src/test/java/by/ilya/restaurantbot/ai/ConversationIntegrationTest.java)
-- [src/test/java/by/ilya/restaurantbot/ai/FinalAiEvalSupport.java](../src/test/java/by/ilya/restaurantbot/ai/FinalAiEvalSupport.java)
-- [src/test/java/by/ilya/restaurantbot/ai/SpringAiSearchIntegrationTest.java](../src/test/java/by/ilya/restaurantbot/ai/SpringAiSearchIntegrationTest.java)
-- [src/test/java/by/ilya/restaurantbot/ai/TelegramSearchIntegrationTest.java](../src/test/java/by/ilya/restaurantbot/ai/TelegramSearchIntegrationTest.java)
-- [src/test/java/by/ilya/restaurantbot/catalog/BrandDiversityMigrationTest.java](../src/test/java/by/ilya/restaurantbot/catalog/BrandDiversityMigrationTest.java)
-- [src/test/java/by/ilya/restaurantbot/catalog/CatalogExpansionDatasetTest.java](../src/test/java/by/ilya/restaurantbot/catalog/CatalogExpansionDatasetTest.java)
-- [src/test/java/by/ilya/restaurantbot/catalog/CatalogExpansionMigrationTest.java](../src/test/java/by/ilya/restaurantbot/catalog/CatalogExpansionMigrationTest.java)
-- [src/test/java/by/ilya/restaurantbot/catalog/CuratedCatalogAcceptanceTest.java](../src/test/java/by/ilya/restaurantbot/catalog/CuratedCatalogAcceptanceTest.java)
-- [src/test/java/by/ilya/restaurantbot/catalog/CuratedCatalogBrandImportTest.java](../src/test/java/by/ilya/restaurantbot/catalog/CuratedCatalogBrandImportTest.java)
-- [src/test/java/by/ilya/restaurantbot/catalog/FinalCatalogAcceptanceTest.java](../src/test/java/by/ilya/restaurantbot/catalog/FinalCatalogAcceptanceTest.java)
-- [src/test/java/by/ilya/restaurantbot/catalog/PartialMenuTest.java](../src/test/java/by/ilya/restaurantbot/catalog/PartialMenuTest.java)
-- [src/test/java/by/ilya/restaurantbot/catalog/RestaurantCatalogTest.java](../src/test/java/by/ilya/restaurantbot/catalog/RestaurantCatalogTest.java)
-- [src/test/java/by/ilya/restaurantbot/miniapp/MiniAppAiIntegrationTest.java](../src/test/java/by/ilya/restaurantbot/miniapp/MiniAppAiIntegrationTest.java)
-- [src/test/java/by/ilya/restaurantbot/miniapp/MiniAppBrandDiversityIntegrationTest.java](../src/test/java/by/ilya/restaurantbot/miniapp/MiniAppBrandDiversityIntegrationTest.java)
-- [src/test/java/by/ilya/restaurantbot/search/CatalogExpansionAuditTest.java](../src/test/java/by/ilya/restaurantbot/search/CatalogExpansionAuditTest.java)
-- [src/test/java/by/ilya/restaurantbot/search/RestaurantSearchTest.java](../src/test/java/by/ilya/restaurantbot/search/RestaurantSearchTest.java)
+- [docs/DATABASE.md](../DATABASE.md)
+- [docs/POST-V2-02C-ACCEPTANCE.md](POST-V2-02C-ACCEPTANCE.md)
+- [docs/PRODUCT.md](../PRODUCT.md)
+- [src/main/java/db/migration/V13__expand_verified_catalog.java](../../src/main/java/db/migration/V13__expand_verified_catalog.java)
+- [src/main/resources/db/seed/curated-catalog-v13.json](../../src/main/resources/db/seed/curated-catalog-v13.json)
+- [src/test/java/by/ilya/restaurantbot/RestaurantBotApplicationTest.java](../../src/test/java/by/ilya/restaurantbot/RestaurantBotApplicationTest.java)
+- [src/test/java/by/ilya/restaurantbot/ai/ConversationIntegrationTest.java](../../src/test/java/by/ilya/restaurantbot/ai/ConversationIntegrationTest.java)
+- [src/test/java/by/ilya/restaurantbot/ai/FinalAiEvalSupport.java](../../src/test/java/by/ilya/restaurantbot/ai/FinalAiEvalSupport.java)
+- [src/test/java/by/ilya/restaurantbot/ai/SpringAiSearchIntegrationTest.java](../../src/test/java/by/ilya/restaurantbot/ai/SpringAiSearchIntegrationTest.java)
+- [src/test/java/by/ilya/restaurantbot/ai/TelegramSearchIntegrationTest.java](../../src/test/java/by/ilya/restaurantbot/ai/TelegramSearchIntegrationTest.java)
+- [src/test/java/by/ilya/restaurantbot/catalog/BrandDiversityMigrationTest.java](../../src/test/java/by/ilya/restaurantbot/catalog/BrandDiversityMigrationTest.java)
+- [src/test/java/by/ilya/restaurantbot/catalog/CatalogExpansionDatasetTest.java](../../src/test/java/by/ilya/restaurantbot/catalog/CatalogExpansionDatasetTest.java)
+- [src/test/java/by/ilya/restaurantbot/catalog/CatalogExpansionMigrationTest.java](../../src/test/java/by/ilya/restaurantbot/catalog/CatalogExpansionMigrationTest.java)
+- [src/test/java/by/ilya/restaurantbot/catalog/CuratedCatalogAcceptanceTest.java](../../src/test/java/by/ilya/restaurantbot/catalog/CuratedCatalogAcceptanceTest.java)
+- [src/test/java/by/ilya/restaurantbot/catalog/CuratedCatalogBrandImportTest.java](../../src/test/java/by/ilya/restaurantbot/catalog/CuratedCatalogBrandImportTest.java)
+- [src/test/java/by/ilya/restaurantbot/catalog/FinalCatalogAcceptanceTest.java](../../src/test/java/by/ilya/restaurantbot/catalog/FinalCatalogAcceptanceTest.java)
+- [src/test/java/by/ilya/restaurantbot/catalog/PartialMenuTest.java](../../src/test/java/by/ilya/restaurantbot/catalog/PartialMenuTest.java)
+- [src/test/java/by/ilya/restaurantbot/catalog/RestaurantCatalogTest.java](../../src/test/java/by/ilya/restaurantbot/catalog/RestaurantCatalogTest.java)
+- [src/test/java/by/ilya/restaurantbot/miniapp/MiniAppAiIntegrationTest.java](../../src/test/java/by/ilya/restaurantbot/miniapp/MiniAppAiIntegrationTest.java)
+- [src/test/java/by/ilya/restaurantbot/miniapp/MiniAppBrandDiversityIntegrationTest.java](../../src/test/java/by/ilya/restaurantbot/miniapp/MiniAppBrandDiversityIntegrationTest.java)
+- [src/test/java/by/ilya/restaurantbot/search/CatalogExpansionAuditTest.java](../../src/test/java/by/ilya/restaurantbot/search/CatalogExpansionAuditTest.java)
+- [src/test/java/by/ilya/restaurantbot/search/RestaurantSearchTest.java](../../src/test/java/by/ilya/restaurantbot/search/RestaurantSearchTest.java)
 
 Единственные новые production resources — V13 Java migration и её immutable JSON.
 Существующие CuratedCatalogDataset/Import, entities, search comparator/predicates,

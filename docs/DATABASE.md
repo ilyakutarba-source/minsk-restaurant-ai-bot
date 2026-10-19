@@ -59,7 +59,7 @@ import использует `CuratedCatalogImport.apply(connection, dataset, bra
 DTO и AI tool schema он не передаётся. Правило выдачи принадлежит
 [ARCHITECTURE](ARCHITECTURE.md#deterministic-ranking).
 
-Проверки миграции и сохранности данных: [POST-V2-01 acceptance](POST-V2-01-ACCEPTANCE.md).
+Проверки миграции и сохранности данных: [POST-V2-01 acceptance](archive/POST-V2-01-ACCEPTANCE.md).
 
 ## Данные и их происхождение
 
@@ -336,7 +336,7 @@ catalog expansion/migration/audit/shared transport suite: **12 tests PASS**.
 135 запросов выполнены дважды, 270 Java search calls: hard filters, deterministic
 ranking, лучший филиал бренда и размер `min(3, eligibleBrands)` подтверждены.
 Полные H2 `clean test`/`clean verify`: по **575 tests PASS**. Эти числа относятся
-к разным наборам и не суммируются. [Историческая локальная acceptance](POST-V2-02C-ACCEPTANCE.md).
+к разным наборам и не суммируются. [Историческая локальная acceptance](archive/POST-V2-02C-ACCEPTANCE.md).
 Production upgrade V11→V13, сохранность и isolated restore/rehearsal подтверждены
 отдельно: [DEPLOYMENT](DEPLOYMENT.md#production-release--2026-10-11).
 
@@ -466,7 +466,7 @@ Mini App natural search не записывает criteria/selection/chat memory
 30 заведений / 17 брендов / 89 menu items / 205 intervals.
 POST-V2-01 реализовал V12 отдельно; она применена в production 2026-10-11.
 
-[Отчёт acceptance](POST-V2-01-ACCEPTANCE.md).
+[Отчёт acceptance](archive/POST-V2-01-ACCEPTANCE.md).
 
 ### POST-V2-02C — каталог V13
 
@@ -497,7 +497,7 @@ V1–V12, прежние datasets, схема сущностей и общий s
 Обязательная повторная проверка источников перед созданием V13 выполнена
 **2026-10-11**, а не назначена timestamp импорта. Адреса, часы, блюда, цены и
 provenance находятся в immutable dataset. Историческая локальная migration/search
-acceptance: [POST-V2-02C](POST-V2-02C-ACCEPTANCE.md); subsequent production release
+acceptance: [POST-V2-02C](archive/POST-V2-02C-ACCEPTANCE.md); subsequent production release
 подтверждён в [DEPLOYMENT](DEPLOYMENT.md#production-release--2026-10-11).
 
 Чеки — food-only ориентиры основного прайса зала. Для Янцзы 30+3+10 BYN:
@@ -510,4 +510,4 @@ acceptance: [POST-V2-02C](POST-V2-02C-ACCEPTANCE.md); subsequent production rele
 calendar/фильтра в модели нет. Неопубликованные порции остаются null.
 
 Migration/search checks: [PostgreSQL acceptance](#postgresql-acceptance);
-подробный отчёт: [POST-V2-02C acceptance](POST-V2-02C-ACCEPTANCE.md).
+подробный отчёт: [POST-V2-02C acceptance](archive/POST-V2-02C-ACCEPTANCE.md).

@@ -13,9 +13,9 @@ production DB/VPS не подключались, merge/push/deploy не выпо
 - V1–V11, immutable seeds и ORDER comparator не изменены, проверено diff against baseline.
 - AI tools/prompts/integration, Telegram и Mini App production-код/API не изменены.
 
-Правила поиска: [ARCHITECTURE](ARCHITECTURE.md#deterministic-ranking).
+Правила поиска: [ARCHITECTURE](../ARCHITECTURE.md#deterministic-ranking).
 Модель, governance брендов и import compatibility:
-[DATABASE](DATABASE.md#post-v2-01--brand-membership).
+[DATABASE](../DATABASE.md#post-v2-01--brand-membership).
 POST-V2-02 не выполнялся.
 
 ## Проверки

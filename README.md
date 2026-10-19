@@ -140,6 +140,8 @@ Opt-in live tests запускаются отдельно, с внешним `AI
 для stateful eval. Не использовать production DB: harness создаёт синтетический state
 и очищает его. Условия и исторический eval: [AI eval](docs/AI.md#ai-eval).
 
+[Отчёты о проверках](docs/archive/README.md) — исторические результаты отдельных этапов.
+
 ## Deployment
 
 Docker Compose запускает приложение и PostgreSQL; production размещён в Dokploy на VPS.
